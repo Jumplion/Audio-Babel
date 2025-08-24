@@ -114,18 +114,11 @@ private:
     void copyMpzValues(const AudioIndex& other);
     
     // Helper methods for string to mpz conversion
-    void stringToMpz(const std::string& str, mpz_t result) const;
+    // Convert a base-36 string into an mpz_t. Returns true on success, false on invalid input.
+    bool stringToMpz(const std::string& str, mpz_t result) const;
     std::string mpzToString(const mpz_t value) const;
 };
 
 } // namespace AudioBabel
-
-/* Known issues / suggested fixes:
- *  - Serialization uses `size_t` and native endianness for lengths; this is non-portable.
- *    Use fixed-width integer types (uint32_t/uint64_t) and define endianness.
- *  - `stringToMpz` uses `mpz_set_str(..., 36)` without input validation; invalid strings
- *    will set an error state. Validate inputs and handle exceptions/return errors.
- *  - Many methods assume non-empty fingerprints; guard against empty/short audio inputs.
- */
 
 #endif // AUDIO_INDEX_H

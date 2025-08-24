@@ -272,11 +272,6 @@ std::string AudioIndex::getFullPath() const {
     return getGenreString() + "/" + getArtistString() + "/" + getAlbumString() + "/" + getTrackString();
 }
 
-void AudioIndex::stringToMpz(const std::string& str, mpz_t result) const {
-    // Deprecated: old variant without validation. Kept for compatibility but not used.
-    mpz_set_str(result, str.c_str(), 36);
-}
-
 bool AudioIndex::stringToMpz(const std::string& str, mpz_t result) const {
     // Validate allowed characters for base-36: 0-9, A-Z, a-z, optional leading '-'
     if (str.empty()) return false;

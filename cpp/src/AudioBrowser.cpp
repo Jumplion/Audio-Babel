@@ -469,8 +469,10 @@ std::vector<uint8_t> AudioBrowser::decodeIdentifier(const std::string& identifie
     size_t byteCount = (mpz_sizeinbase(num, 2) + 7) / 8;
     if (byteCount == 0) byteCount = 1;
     
-    std::vector<uint8_t> result(byteCount);
-    mpz_export(result.data(), nullptr, 1, 1, 0, 0, num);
+    std::vector<uint8_t> result(byteCount > 0 ? byteCount : 1);
+    size_t actual = 0;
+    mpz_export(result.data(), &actual, 1, 1, 0, 0, num);
+    if (actual > 0) result.resize(actual);
     
     mpz_clear(num);
     return result;

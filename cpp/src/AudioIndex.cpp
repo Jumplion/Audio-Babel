@@ -126,16 +126,20 @@ AudioIndex AudioIndex::fromHierarchy(const std::string& genreStr, const std::str
     size_t albumSize = mpz_sizeinbase(index.albumCode, 256);
     size_t trackSize = mpz_sizeinbase(index.trackCode, 256);
     
-    combinedData.resize(genreSize + artistSize + albumSize + trackSize);
-    
-    size_t offset = 0;
-    mpz_export(combinedData.data() + offset, nullptr, 1, 1, 0, 0, index.genreCode);
-    offset += genreSize;
-    mpz_export(combinedData.data() + offset, nullptr, 1, 1, 0, 0, index.artistCode);
-    offset += artistSize;
-    mpz_export(combinedData.data() + offset, nullptr, 1, 1, 0, 0, index.albumCode);
-    offset += albumSize;
-    mpz_export(combinedData.data() + offset, nullptr, 1, 1, 0, 0, index.trackCode);
+    // Export each mpz to a temp buffer and append exact sizes
+    auto appendMpz = [&combinedData](const mpz_t value) {
+        size_t approx = mpz_sizeinbase(value, 256);
+        std::vector<uint8_t> tmp(approx > 0 ? approx : 1);
+        size_t count = 0;
+        mpz_export(tmp.data(), &count, 1, 1, 0, 0, value);
+        if (count > 0) tmp.resize(count);
+        combinedData.insert(combinedData.end(), tmp.begin(), tmp.end());
+    };
+
+    appendMpz(index.genreCode);
+    appendMpz(index.artistCode);
+    appendMpz(index.albumCode);
+    appendMpz(index.trackCode);
     
     // Convert combined mpz bytes into the AudioFingerprint serialized format so
     // AudioFingerprint::deserialize() can reconstruct a fingerprint deterministically.
@@ -193,13 +197,13 @@ void AudioIndex::serialize(std::ostream& out) const {
     
     // Write mpz values using fixed-width length (uint64_t LE)
     auto writeMpz = [&out](const mpz_t value) {
-        size_t size = mpz_sizeinbase(value, 256);
-        write_u64_le(out, static_cast<uint64_t>(size));
-        if (size > 0) {
-            std::vector<uint8_t> buffer(size);
-            mpz_export(buffer.data(), nullptr, 1, 1, 0, 0, value);
-            out.write(reinterpret_cast<const char*>(buffer.data()), size);
-        }
+        size_t approx = mpz_sizeinbase(value, 256);
+        std::vector<uint8_t> buffer(approx > 0 ? approx : 1);
+        size_t count = 0;
+        mpz_export(buffer.data(), &count, 1, 1, 0, 0, value);
+        if (count > 0) buffer.resize(count);
+        write_u64_le(out, static_cast<uint64_t>(buffer.size()));
+        if (!buffer.empty()) out.write(reinterpret_cast<const char*>(buffer.data()), static_cast<std::streamsize>(buffer.size()));
     };
     
     writeMpz(genreCode);

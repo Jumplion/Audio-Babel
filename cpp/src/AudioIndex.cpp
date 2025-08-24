@@ -7,6 +7,22 @@
 
 namespace AudioBabel {
 
+// Helper: write uint64_t in little-endian to stream
+static void write_u64_le(std::ostream& out, uint64_t v) {
+    uint8_t buf[8];
+    for (int i = 0; i < 8; ++i) buf[i] = static_cast<uint8_t>((v >> (i * 8)) & 0xFF);
+    out.write(reinterpret_cast<const char*>(buf), 8);
+}
+
+// Helper: read uint64_t little-endian from stream; returns false on failure
+static bool read_u64_le(std::istream& in, uint64_t& v) {
+    uint8_t buf[8];
+    if (!in.read(reinterpret_cast<char*>(buf), 8)) return false;
+    v = 0;
+    for (int i = 0; i < 8; ++i) v |= (static_cast<uint64_t>(buf[i]) << (i * 8));
+    return true;
+}
+
 /*
  * AudioIndex.cpp
  * ----------------
@@ -175,10 +191,10 @@ void AudioIndex::serialize(std::ostream& out) const {
     out.write(reinterpret_cast<const char*>(&duration), sizeof(duration));
     out.write(reinterpret_cast<const char*>(&bitDepth), sizeof(bitDepth));
     
-    // Write mpz values
+    // Write mpz values using fixed-width length (uint64_t LE)
     auto writeMpz = [&out](const mpz_t value) {
         size_t size = mpz_sizeinbase(value, 256);
-        out.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        write_u64_le(out, static_cast<uint64_t>(size));
         if (size > 0) {
             std::vector<uint8_t> buffer(size);
             mpz_export(buffer.data(), nullptr, 1, 1, 0, 0, value);
@@ -192,8 +208,8 @@ void AudioIndex::serialize(std::ostream& out) const {
     writeMpz(trackCode);
     
     // Write fingerprint
-    size_t fingerprintSize = audioFingerprint.size();
-    out.write(reinterpret_cast<const char*>(&fingerprintSize), sizeof(fingerprintSize));
+    uint64_t fingerprintSize = static_cast<uint64_t>(audioFingerprint.size());
+    write_u64_le(out, fingerprintSize);
     if (fingerprintSize > 0) {
         out.write(reinterpret_cast<const char*>(audioFingerprint.data()), fingerprintSize);
     }
@@ -207,28 +223,30 @@ AudioIndex AudioIndex::deserialize(std::istream& in) {
     in.read(reinterpret_cast<char*>(&index.duration), sizeof(index.duration));
     in.read(reinterpret_cast<char*>(&index.bitDepth), sizeof(index.bitDepth));
     
-    // Read mpz values
+    // Read mpz values using uint64_t LE lengths
     auto readMpz = [&in](mpz_t value) {
-        size_t size;
-        in.read(reinterpret_cast<char*>(&size), sizeof(size));
+        uint64_t size64 = 0;
+        if (!read_u64_le(in, size64)) return false;
+        size_t size = static_cast<size_t>(size64);
         if (size > 0) {
             std::vector<uint8_t> buffer(size);
-            in.read(reinterpret_cast<char*>(buffer.data()), size);
+            if (!in.read(reinterpret_cast<char*>(buffer.data()), size)) return false;
             mpz_import(value, size, 1, 1, 0, 0, buffer.data());
         }
+        return true;
     };
     
-    readMpz(index.genreCode);
-    readMpz(index.artistCode);
-    readMpz(index.albumCode);
-    readMpz(index.trackCode);
+    if (!readMpz(index.genreCode)) return index;
+    if (!readMpz(index.artistCode)) return index;
+    if (!readMpz(index.albumCode)) return index;
+    if (!readMpz(index.trackCode)) return index;
     
     // Read fingerprint
-    size_t fingerprintSize;
-    in.read(reinterpret_cast<char*>(&fingerprintSize), sizeof(fingerprintSize));
+    uint64_t fingerprintSize = 0;
+    if (!read_u64_le(in, fingerprintSize)) return index;
     if (fingerprintSize > 0) {
-        index.audioFingerprint.resize(fingerprintSize);
-        in.read(reinterpret_cast<char*>(index.audioFingerprint.data()), fingerprintSize);
+        index.audioFingerprint.resize(static_cast<size_t>(fingerprintSize));
+        in.read(reinterpret_cast<char*>(index.audioFingerprint.data()), static_cast<std::streamsize>(fingerprintSize));
     }
     
     return index;

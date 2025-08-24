@@ -37,10 +37,10 @@ private:
     mpz_t trackCode;
     
     // Audio properties
-    int sampleRate;    // Sample rate in Hz (e.g., 44100, 48000, etc...)
-    int duration;      // Duration in seconds
-    int bitDepth;      // Bit depth (16, 24, 32)
-
+    int sampleRate = 44100;
+    int bitDepth = 16;
+    int duration;
+    
     // Audio fingerprint for reconstruction and search
     std::vector<uint8_t> audioFingerprint;
     

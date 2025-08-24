@@ -22,7 +22,7 @@ namespace AudioBabel {
  *  - mpz string conversions use base-36 without validation; invalid input will
  *    set GMP's internal error state. Validate inputs at call sites.
  */
-AudioIndex::AudioIndex() : sampleRate(48000), duration(8), bitDepth(32) {
+AudioIndex::AudioIndex() : sampleRate(44100), duration(0.0), bitDepth(16) {
     initializeMpzValues();
 }
 
@@ -36,7 +36,7 @@ AudioIndex::AudioIndex(const AudioIndex& other)
 AudioIndex& AudioIndex::operator=(const AudioIndex& other) {
     if (this != &other) {
         sampleRate = other.sampleRate;
-        duration = other.duration;
+    duration = other.duration;
         bitDepth = other.bitDepth;
         audioFingerprint = other.audioFingerprint;
         copyMpzValues(other);
@@ -70,29 +70,28 @@ void AudioIndex::copyMpzValues(const AudioIndex& other) {
     mpz_set(trackCode, other.trackCode);
 }
 
-AudioIndex AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, 
-                                        int sampleRate, 
-                                        int bitDepth) {
+AudioIndex AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, int sampleRate, int bitDepth) {
     AudioIndex index;
     index.sampleRate = sampleRate;
     index.bitDepth = bitDepth;
-    index.duration = static_cast<int>(samples.size() / sampleRate);
+    // Duration in seconds; guard against division by zero and allow fractional seconds
+    if (sampleRate > 0) {
+        index.duration = static_cast<double>(samples.size()) / static_cast<double>(sampleRate);
+    } else {
+        index.duration = 0.0;
+    }
     
     // Generate fingerprint from samples
     AudioFingerprint fingerprint = AudioFingerprint::fromSamples(samples, sampleRate);
     index.audioFingerprint = fingerprint.serialize();
     
     // Extract hierarchical codes from fingerprint
-    fingerprint.extractCodes(index.genreCode, index.artistCode, 
-                           index.albumCode, index.trackCode);
+    fingerprint.extractCodes(index.genreCode, index.artistCode, index.albumCode, index.trackCode);
     
     return index;
 }
 
-AudioIndex AudioIndex::fromHierarchy(const std::string& genreStr,
-                                     const std::string& artistStr,
-                                     const std::string& albumStr,
-                                     const std::string& trackStr) {
+AudioIndex AudioIndex::fromHierarchy(const std::string& genreStr, const std::string& artistStr, const std::string& albumStr, const std::string& trackStr) {
     AudioIndex index;
     
     // Convert strings to mpz values
@@ -122,8 +121,40 @@ AudioIndex AudioIndex::fromHierarchy(const std::string& genreStr,
     offset += albumSize;
     mpz_export(combinedData.data() + offset, nullptr, 1, 1, 0, 0, index.trackCode);
     
-    // Use combined data as fingerprint
-    index.audioFingerprint = combinedData;
+    // Convert combined mpz bytes into the AudioFingerprint serialized format so
+    // AudioFingerprint::deserialize() can reconstruct a fingerprint deterministically.
+    // AudioFingerprint::serialize() layout: int originalSampleRate, int originalDuration, uint32_t numBlocks, followed by numBlocks * FREQUENCY_BANDS bytes.
+    const size_t FREQUENCY_BANDS = 32; // must match AudioFingerprint implementation
+    size_t numBlocks = (combinedData.size() + FREQUENCY_BANDS - 1) / FREQUENCY_BANDS;
+    if (numBlocks == 0) numBlocks = 1; // ensure at least one block
+
+    // Pad combinedData to fit whole blocks
+    size_t paddedSize = numBlocks * FREQUENCY_BANDS;
+    combinedData.resize(paddedSize, 0);
+
+    std::vector<uint8_t> serialized;
+    // originalSampleRate (int)
+    int originalSampleRate = index.sampleRate;
+    serialized.insert(serialized.end(), reinterpret_cast<uint8_t*>(&originalSampleRate), reinterpret_cast<uint8_t*>(&originalSampleRate) + sizeof(originalSampleRate));
+    // originalDuration (int) - unknown, set to 0
+    int originalDuration = 0;
+    serialized.insert(serialized.end(), reinterpret_cast<uint8_t*>(&originalDuration), reinterpret_cast<uint8_t*>(&originalDuration) + sizeof(originalDuration));
+    // numBlocks (uint32_t)
+    uint32_t nb = static_cast<uint32_t>(numBlocks);
+    serialized.insert(serialized.end(), reinterpret_cast<uint8_t*>(&nb), reinterpret_cast<uint8_t*>(&nb) + sizeof(nb));
+
+    // Append block data
+    serialized.insert(serialized.end(), combinedData.begin(), combinedData.end());
+
+    // Wrap with magic + version to match AudioFingerprint::serialize() output
+    const uint8_t magic[4] = { 'A', 'F', 'P', 'B' };
+    const uint8_t version = 0x01;
+    std::vector<uint8_t> wrapped;
+    wrapped.insert(wrapped.end(), std::begin(magic), std::end(magic));
+    wrapped.push_back(version);
+    wrapped.insert(wrapped.end(), serialized.begin(), serialized.end());
+
+    index.audioFingerprint = std::move(wrapped);
     
     return index;
 }
@@ -220,8 +251,7 @@ std::string AudioIndex::getTrackString() const {
 }
 
 std::string AudioIndex::getFullPath() const {
-    return getGenreString() + "/" + getArtistString() + "/" + 
-           getAlbumString() + "/" + getTrackString();
+    return getGenreString() + "/" + getArtistString() + "/" + getAlbumString() + "/" + getTrackString();
 }
 
 void AudioIndex::stringToMpz(const std::string& str, mpz_t result) const {
@@ -237,6 +267,7 @@ std::string AudioIndex::mpzToString(const mpz_t value) const {
     return result;
 }
 
+/*
 std::vector<AudioIndex> AudioIndex::getSimilarGenres(int count) const {
     std::vector<AudioIndex> result;
     std::mt19937_64 rng(mpz_get_ui(genreCode));
@@ -336,12 +367,13 @@ std::vector<AudioIndex> AudioIndex::getTracksFromAlbum(int count) const {
     
     return result;
 }
+*/
 
 bool AudioIndex::operator==(const AudioIndex& other) const {
     return mpz_cmp(genreCode, other.genreCode) == 0 &&
-           mpz_cmp(artistCode, other.artistCode) == 0 &&
-           mpz_cmp(albumCode, other.albumCode) == 0 &&
-           mpz_cmp(trackCode, other.trackCode) == 0;
+        mpz_cmp(artistCode, other.artistCode) == 0 &&
+        mpz_cmp(albumCode, other.albumCode) == 0 &&
+        mpz_cmp(trackCode, other.trackCode) == 0;
 }
 
 bool AudioIndex::operator!=(const AudioIndex& other) const {

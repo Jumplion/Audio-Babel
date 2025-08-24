@@ -111,10 +111,10 @@ AudioIndex AudioIndex::fromHierarchy(const std::string& genreStr, const std::str
     AudioIndex index;
     
     // Convert strings to mpz values
-    index.stringToMpz(genreStr, index.genreCode);
-    index.stringToMpz(artistStr, index.artistCode);
-    index.stringToMpz(albumStr, index.albumCode);
-    index.stringToMpz(trackStr, index.trackCode);
+    if (!index.stringToMpz(genreStr, index.genreCode)) mpz_set_ui(index.genreCode, 0);
+    if (!index.stringToMpz(artistStr, index.artistCode)) mpz_set_ui(index.artistCode, 0);
+    if (!index.stringToMpz(albumStr, index.albumCode)) mpz_set_ui(index.albumCode, 0);
+    if (!index.stringToMpz(trackStr, index.trackCode)) mpz_set_ui(index.trackCode, 0);
     
     // Generate audio fingerprint from the hierarchical codes
     // This is a deterministic process that creates audio from the codes
@@ -273,8 +273,27 @@ std::string AudioIndex::getFullPath() const {
 }
 
 void AudioIndex::stringToMpz(const std::string& str, mpz_t result) const {
-    // Convert string to base-36 representation, then to mpz
+    // Deprecated: old variant without validation. Kept for compatibility but not used.
     mpz_set_str(result, str.c_str(), 36);
+}
+
+bool AudioIndex::stringToMpz(const std::string& str, mpz_t result) const {
+    // Validate allowed characters for base-36: 0-9, A-Z, a-z, optional leading '-'
+    if (str.empty()) return false;
+    size_t start = 0;
+    if (str[0] == '-') {
+        if (str.size() == 1) return false;
+        start = 1;
+    }
+    for (size_t i = start; i < str.size(); ++i) {
+        char c = str[i];
+        bool ok = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+        if (!ok) return false;
+    }
+
+    // Use mpz_set_str; return false if GMP reports error (mpz_set_str returns 0 on success)
+    int rc = mpz_set_str(result, str.c_str(), 36);
+    return rc == 0;
 }
 
 std::string AudioIndex::mpzToString(const mpz_t value) const {

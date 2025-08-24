@@ -49,13 +49,25 @@ AudioFingerprint::~AudioFingerprint() {
 AudioFingerprint AudioFingerprint::fromSamples(const std::vector<int32_t>& samples, int sampleRate) {
     AudioFingerprint fingerprint;
     fingerprint.originalSampleRate = sampleRate;
-    fingerprint.originalDuration = static_cast<int>(samples.size() / sampleRate);
-    
+    fingerprint.originalDuration = (sampleRate > 0) ? static_cast<int>(samples.size() / sampleRate) : 0;
+
     // Calculate block parameters
     int blockSamples = (BLOCK_SIZE_MS * sampleRate) / 1000;
-    int hopSize = blockSamples * (100 - OVERLAP_PERCENT) / 100;
-    int numBlocks = (samples.size() - blockSamples) / hopSize + 1;
-    
+    if (blockSamples <= 0) {
+        // Can't compute meaningful blocks for this sample rate
+        return fingerprint;
+    }
+    int hopSize = std::max(1, blockSamples * (100 - OVERLAP_PERCENT) / 100);
+
+    int numBlocks = 0;
+    if (samples.size() < static_cast<size_t>(blockSamples)) {
+        // For very short inputs, create a single padded block
+        numBlocks = 1;
+    } else {
+        numBlocks = (static_cast<int>(samples.size()) - blockSamples) / hopSize + 1;
+        if (numBlocks <= 0) numBlocks = 1;
+    }
+
     fingerprint.timeFrequencyBlocks.reserve(numBlocks);
     
     // Create mel filter bank
@@ -64,11 +76,14 @@ AudioFingerprint AudioFingerprint::fromSamples(const std::vector<int32_t>& sampl
     for (int block = 0; block < numBlocks; ++block) {
         int startSample = block * hopSize;
         int endSample = std::min(startSample + blockSamples, static_cast<int>(samples.size()));
-        
-        // Extract block samples and convert to double
+
+        // Extract block samples and convert to double; pad with zeros if short
         std::vector<double> blockData(blockSamples, 0.0);
-        for (int i = 0; i < endSample - startSample; ++i) {
-            blockData[i] = static_cast<double>(samples[startSample + i]) / INT32_MAX;
+        if (startSample < static_cast<int>(samples.size())) {
+            int copyCount = std::max(0, endSample - startSample);
+            for (int i = 0; i < copyCount; ++i) {
+                blockData[i] = static_cast<double>(samples[startSample + i]) / INT32_MAX;
+            }
         }
         
         // Apply window function (Hamming window)

@@ -259,45 +259,60 @@ double AudioFingerprint::calculateSimilarity(const AudioFingerprint& other) cons
 }
 
 std::vector<uint8_t> AudioFingerprint::serialize() const {
-    std::vector<uint8_t> result;
-    
-    // Write header
+    // Legacy payload (existing format): originalSampleRate(int), originalDuration(int), numBlocks(uint32_t), block data...
+    std::vector<uint8_t> payload;
     uint32_t numBlocks = static_cast<uint32_t>(timeFrequencyBlocks.size());
-    result.insert(result.end(), reinterpret_cast<const uint8_t*>(&originalSampleRate), 
+    payload.insert(payload.end(), reinterpret_cast<const uint8_t*>(&originalSampleRate), 
                 reinterpret_cast<const uint8_t*>(&originalSampleRate) + sizeof(originalSampleRate));
-    result.insert(result.end(), reinterpret_cast<const uint8_t*>(&originalDuration), 
+    payload.insert(payload.end(), reinterpret_cast<const uint8_t*>(&originalDuration), 
                 reinterpret_cast<const uint8_t*>(&originalDuration) + sizeof(originalDuration));
-    result.insert(result.end(), reinterpret_cast<const uint8_t*>(&numBlocks), 
+    payload.insert(payload.end(), reinterpret_cast<const uint8_t*>(&numBlocks), 
                 reinterpret_cast<const uint8_t*>(&numBlocks) + sizeof(numBlocks));
-    
-    // Write block data
+
     for (const auto& block : timeFrequencyBlocks) {
-        result.insert(result.end(), block.begin(), block.end());
+        payload.insert(payload.end(), block.begin(), block.end());
     }
-    
+
+    // New wrapper: 4-byte magic + 1-byte version, followed by legacy payload
+    const uint8_t magic[4] = { 'A', 'F', 'P', 'B' };
+    const uint8_t version = 0x01;
+    std::vector<uint8_t> result;
+    result.insert(result.end(), std::begin(magic), std::end(magic));
+    result.push_back(version);
+    result.insert(result.end(), payload.begin(), payload.end());
     return result;
 }
 
 AudioFingerprint AudioFingerprint::deserialize(const std::vector<uint8_t>& data) {
     AudioFingerprint fingerprint;
-    
-    if (data.size() < sizeof(int) * 3) {
+    // Support both new (magic + version + payload) and legacy (payload only) formats.
+    size_t payloadOffset = 0;
+    if (data.size() >= 5) {
+        const uint8_t magic[4] = { 'A', 'F', 'P', 'B' };
+        if (std::memcmp(data.data(), magic, 4) == 0) {
+            uint8_t version = data[4];
+            // For now, we only have version 1 which wraps the legacy payload
+            (void)version;
+            payloadOffset = 5;
+        }
+    }
+
+    if (data.size() < payloadOffset + sizeof(int) * 2 + sizeof(uint32_t)) {
         return fingerprint;
     }
-    
-    size_t offset = 0;
-    
-    // Read header
+
+    size_t offset = payloadOffset;
+    // Read legacy payload
     std::memcpy(&fingerprint.originalSampleRate, data.data() + offset, sizeof(fingerprint.originalSampleRate));
     offset += sizeof(fingerprint.originalSampleRate);
-    
+
     std::memcpy(&fingerprint.originalDuration, data.data() + offset, sizeof(fingerprint.originalDuration));
     offset += sizeof(fingerprint.originalDuration);
-    
+
     uint32_t numBlocks;
     std::memcpy(&numBlocks, data.data() + offset, sizeof(numBlocks));
     offset += sizeof(numBlocks);
-    
+
     // Read block data
     fingerprint.timeFrequencyBlocks.resize(numBlocks);
     for (uint32_t block = 0; block < numBlocks && offset + FREQUENCY_BANDS <= data.size(); ++block) {
@@ -305,7 +320,7 @@ AudioFingerprint AudioFingerprint::deserialize(const std::vector<uint8_t>& data)
         std::memcpy(fingerprint.timeFrequencyBlocks[block].data(), data.data() + offset, FREQUENCY_BANDS);
         offset += FREQUENCY_BANDS;
     }
-    
+
     return fingerprint;
 }
 

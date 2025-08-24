@@ -39,7 +39,7 @@ private:
     // Audio properties
     int sampleRate = 44100;
     int bitDepth = 16;
-    int duration;
+    double duration;
     
     // Audio fingerprint for reconstruction and search
     std::vector<uint8_t> audioFingerprint;
@@ -54,26 +54,22 @@ public:
     /**
      * Creates index from raw audio samples
      * @param samples PCM audio samples
-     * @param sampleRate Sample rate in Hz (e.g., 44100, 48000, etc...)
-     * @param bitDepth Bit depth (16, 24, 32)
+     * @param sampleRate Sample rate in Hz (Default: 44100)
+     * @param bitDepth Bit depth (Default: 16)
      * @return AudioIndex object
      */
-    static AudioIndex fromAudioSamples(const std::vector<int32_t>& samples, 
-        int sampleRate, 
-        int bitDepth = 32);
-    
+    static AudioIndex fromAudioSamples(const std::vector<int32_t>& samples, int sampleRate = 44100, int bitDepth = 16);
+
     /**
      * Creates index from hierarchical string identifiers
+     * String identifiers can be made up of numbers, uppercase, and lowercase letters.
      * @param genreStr Genre identifier string
      * @param artistStr Artist identifier string
      * @param albumStr Album identifier string
      * @param trackStr Track identifier string
      * @return AudioIndex object
      */
-    static AudioIndex fromHierarchy(const std::string& genreStr,
-        const std::string& artistStr,
-        const std::string& albumStr,
-        const std::string& trackStr);
+    static AudioIndex fromHierarchy(const std::string& genreStr, const std::string& artistStr, const std::string& albumStr, const std::string& trackStr);
     
     // Audio reconstruction
     /**
@@ -95,14 +91,14 @@ public:
     
     // Properties
     int getSampleRate() const { return sampleRate; }
-    int getDuration() const { return duration; }
+    double getDuration() const { return duration; }
     int getBitDepth() const { return bitDepth; }
     
     // Navigation helpers for browsing
-    std::vector<AudioIndex> getSimilarGenres(int count = 10) const;
-    std::vector<AudioIndex> getArtistsInGenre(int count = 20) const;
-    std::vector<AudioIndex> getAlbumsFromArtist(int count = 15) const;
-    std::vector<AudioIndex> getTracksFromAlbum(int count = 12) const;
+    // std::vector<AudioIndex> getSimilarGenres(int count = 10) const;
+    // std::vector<AudioIndex> getArtistsInGenre(int count = 20) const;
+    // std::vector<AudioIndex> getAlbumsFromArtist(int count = 15) const;
+    // std::vector<AudioIndex> getTracksFromAlbum(int count = 12) const;
     
     // Comparison operators
     bool operator==(const AudioIndex& other) const;
@@ -112,6 +108,7 @@ public:
     const std::vector<uint8_t>& getFingerprint() const { return audioFingerprint; }
     
 private:
+    // Helper methods for managing mpz_t values
     void initializeMpzValues();
     void clearMpzValues();
     void copyMpzValues(const AudioIndex& other);
@@ -124,10 +121,6 @@ private:
 } // namespace AudioBabel
 
 /* Known issues / suggested fixes:
- *  - Fingerprint format mismatch: `fromHierarchy` stores raw mpz_export bytes into
- *    `audioFingerprint` while `fromAudioSamples` stores AudioFingerprint::serialize()
- *    format. This makes `toAudioSamples()` / AudioFingerprint::deserialize() brittle.
- *    Suggested fix: canonicalize on one on-disk format and version it.
  *  - Serialization uses `size_t` and native endianness for lengths; this is non-portable.
  *    Use fixed-width integer types (uint32_t/uint64_t) and define endianness.
  *  - `stringToMpz` uses `mpz_set_str(..., 36)` without input validation; invalid strings

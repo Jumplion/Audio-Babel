@@ -4,7 +4,12 @@
 #include <numeric>
 #include <fftw3.h>
 #include <iostream>
-#include <corecrt_math_defines.h>
+#include <cstring>
+
+#include <cmath>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 namespace AudioBabel {
 
@@ -244,7 +249,7 @@ double AudioFingerprint::calculateSimilarity(const AudioFingerprint& other) cons
         double blockSimilarity = 0.0;
         for (int band = 0; band < FREQUENCY_BANDS; ++band) {
             int diff = static_cast<int>(timeFrequencyBlocks[block][band]) - 
-                      static_cast<int>(other.timeFrequencyBlocks[block][band]);
+                    static_cast<int>(other.timeFrequencyBlocks[block][band]);
             blockSimilarity += std::exp(-0.1 * diff * diff); // Gaussian similarity
         }
         totalSimilarity += blockSimilarity / FREQUENCY_BANDS;
@@ -259,11 +264,11 @@ std::vector<uint8_t> AudioFingerprint::serialize() const {
     // Write header
     uint32_t numBlocks = static_cast<uint32_t>(timeFrequencyBlocks.size());
     result.insert(result.end(), reinterpret_cast<const uint8_t*>(&originalSampleRate), 
-                  reinterpret_cast<const uint8_t*>(&originalSampleRate) + sizeof(originalSampleRate));
+                reinterpret_cast<const uint8_t*>(&originalSampleRate) + sizeof(originalSampleRate));
     result.insert(result.end(), reinterpret_cast<const uint8_t*>(&originalDuration), 
-                  reinterpret_cast<const uint8_t*>(&originalDuration) + sizeof(originalDuration));
+                reinterpret_cast<const uint8_t*>(&originalDuration) + sizeof(originalDuration));
     result.insert(result.end(), reinterpret_cast<const uint8_t*>(&numBlocks), 
-                  reinterpret_cast<const uint8_t*>(&numBlocks) + sizeof(numBlocks));
+                reinterpret_cast<const uint8_t*>(&numBlocks) + sizeof(numBlocks));
     
     // Write block data
     for (const auto& block : timeFrequencyBlocks) {
@@ -377,8 +382,7 @@ double AudioFingerprint::dequantizeEnergy(uint8_t quantized) const {
     return static_cast<double>(quantized) / 25.5;
 }
 
-double AudioFingerprint::correlateWindows(const std::vector<std::vector<uint8_t>>& window1,
-                                         const std::vector<std::vector<uint8_t>>& window2) const {
+double AudioFingerprint::correlateWindows(const std::vector<std::vector<uint8_t>>& window1, const std::vector<std::vector<uint8_t>>& window2) const {
     if (window1.size() != window2.size()) {
         return 0.0;
     }
@@ -423,6 +427,17 @@ double AudioFingerprint::melScale(double frequency) const {
 
 double AudioFingerprint::inverseMelScale(double mel) const {
     return 700.0 * (std::pow(10.0, mel / 2595.0) - 1.0);
+}
+
+// Fallback implementations — replace with real computation if available.
+std::vector<double> AudioFingerprint::getSpectralCentroid() const {
+    // return empty or computed centroid values
+    return {};
+}
+
+std::vector<double> AudioFingerprint::getSpectralRolloff() const {
+    // return empty or computed rolloff values
+    return {};
 }
 
 } // namespace AudioBabel

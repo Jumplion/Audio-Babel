@@ -277,30 +277,56 @@ std::string AudioIndex::getFullPath() const {
 }
 
 bool AudioIndex::stringToMpz(const std::string& str, mpz_t result) const {
-    // Validate allowed characters for base-36: 0-9, A-Z, a-z, optional leading '-'
-    if (str.empty()) return false;
-    size_t start = 0;
-    if (str[0] == '-') {
-        if (str.size() == 1) return false;
-        start = 1;
-    }
-    for (size_t i = start; i < str.size(); ++i) {
-        char c = str[i];
-        bool ok = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
-        if (!ok) return false;
+    // Only allow printable ASCII characters from 33..126 inclusive.
+    // This disallows control chars (0-31), the space character (32), and
+    // DEL (127) and above.
+    if (str.empty()) {
+        mpz_set_ui(result, 0);
+        return true;
     }
 
-    // Use mpz_set_str; return false if GMP reports error (mpz_set_str returns 0 on success)
-    int rc = mpz_set_str(result, str.c_str(), 36);
-    return rc == 0;
+    for (unsigned char c : str) {
+        if (c < 33 || c > 126) return false;
+    }
+
+    // Use mpz_import to convert validated bytes into mpz
+    const unsigned char* data = reinterpret_cast<const unsigned char*>(str.data());
+    size_t count = str.size();
+    mpz_import(result, count, 1, 1, 0, 0, data);
+    return true;
 }
 
 std::string AudioIndex::mpzToString(const mpz_t value) const {
-    // Convert mpz to base-36 string representation
-    char* str = mpz_get_str(nullptr, 36, value);
-    std::string result(str);
-    free(str);
-    return result;
+    // Export mpz as a raw byte sequence and return it as a std::string.
+    // If the value is zero, return the single-character string "0" for clarity.
+    if (mpz_cmp_ui(value, 0) == 0) return std::string("0");
+
+    size_t count = 0;
+    // First get the size by exporting to a temporary buffer of size 1 then reading count
+    // but mpz_export can write to a buffer; we'll allocate an approximate buffer sized by mpz_sizeinbase
+    size_t approx = mpz_sizeinbase(value, 256);
+    std::vector<unsigned char> tmp(approx > 0 ? approx : 1);
+    mpz_export(tmp.data(), &count, 1, 1, 0, 0, value);
+    if (count == 0) return std::string("0");
+    std::string s(reinterpret_cast<char*>(tmp.data()), count);
+    // If all bytes are within allowed printable range (33..126), return raw string
+    bool allAllowed = true;
+    for (unsigned char c : s) {
+        if (c < 33 || c > 126) { allAllowed = false; break; }
+    }
+    if (allAllowed) return s;
+
+    // Otherwise return an escaped representation where disallowed bytes become \xHH
+    std::ostringstream out;
+    out << std::hex << std::setfill('0');
+    for (unsigned char c : s) {
+        if (c >= 33 && c <= 126) {
+            out << static_cast<char>(c);
+        } else {
+            out << "\\x" << std::setw(2) << static_cast<int>(c);
+        }
+    }
+    return out.str();
 }
 
 /*

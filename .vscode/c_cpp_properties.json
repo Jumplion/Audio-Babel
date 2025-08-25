@@ -4,7 +4,8 @@
             "name": "windows-x64",
             "includePath": [
                 "${workspaceFolder}/**",
-                "C:\\vcpkg\\**"
+                "C:\\vcpkg\\**",
+                "C:\\vcpkg\\packages\\**"
             ],
             "defines": [
                 "_DEBUG",
@@ -15,7 +16,7 @@
             "cStandard": "${default}",
             "cppStandard": "${default}",
             "intelliSenseMode": "windows-msvc-x64",
-            "compilerPath": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe"
+            "compilerPath": "C:/msys64/mingw64/bin/g++.exe"
         }
     ],
     "version": 4

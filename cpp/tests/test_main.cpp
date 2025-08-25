@@ -116,31 +116,37 @@ static bool CHECK(bool cond, TestRunner& runner, const std::string& test, const 
 // Tests (AudioIndex only)
 bool testAudioIndex_impl(TestRunner& runner) {
     const std::string name = "AudioIndex: basic";
+    // Helper to run a CHECK and print per-assertion status to the console
+    auto run_check = [&](bool cond, const std::string& msg) -> bool {
+        bool ok = CHECK(cond, runner, name, msg);
+        if (ok) std::cout << "  [OK]   " << name << " - " << msg << std::endl;
+        else std::cout << "  [FAIL] " << name << " - " << msg << std::endl;
+        return ok;
+    };
     AudioIndex index1 = AudioIndex::fromHierarchy("genre1", "artist1", "album1", "track1");
     AudioIndex index2 = AudioIndex::fromHierarchy("genre1", "artist1", "album1", "track2");
-
-    if (!CHECK(index1 == index1, runner, name, "self-equality")) return false;
-    if (!CHECK(index1 != index2, runner, name, "inequality")) return false;
-    if (!CHECK(index1.getGenreString() == "genre1", runner, name, "genre string")) return false;
+    if (!run_check(index1 == index1, "self-equality")) return false;
+    if (!run_check(index1 != index2, "inequality")) return false;
+    if (!run_check(index1.getGenreString() == "genre1", "genre string")) return false;
 
     std::stringstream ss;
     index1.serialize(ss);
     ss.seekg(0);
     AudioIndex deserialized = AudioIndex::deserialize(ss);
-    if (!CHECK(index1 == deserialized, runner, name, "serialize/deserialize")) return false;
+    if (!run_check(index1 == deserialized, "serialize/deserialize")) return false;
 
     // Extra checks: fromAudioSamples -> duration and serialize round-trip
     {
         const int sr = 44100;
         std::vector<int32_t> samples(sr, 0); // 1 second of silence
         AudioIndex ai = AudioIndex::fromAudioSamples(samples, sr);
-        if (!CHECK(TestRunner::approxEqual(ai.getDuration(), 1.0, 1e-6), runner, name, "duration from 1s samples")) return false;
+    if (!run_check(TestRunner::approxEqual(ai.getDuration(), 1.0, 1e-6), "duration from 1s samples")) return false;
 
         std::stringstream ss2;
         ai.serialize(ss2);
         ss2.seekg(0);
         AudioIndex ai2 = AudioIndex::deserialize(ss2);
-        if (!CHECK(ai == ai2, runner, name, "serialize/deserialize fromAudioSamples")) return false;
+    if (!run_check(ai == ai2, "serialize/deserialize fromAudioSamples")) return false;
     }
 
     // Edge case: very short audio should not crash and should report correct duration
@@ -148,13 +154,13 @@ bool testAudioIndex_impl(TestRunner& runner) {
         const int sr = 44100;
         std::vector<int32_t> tiny(2, 12345);
         AudioIndex ai_short = AudioIndex::fromAudioSamples(tiny, sr);
-        if (!CHECK(TestRunner::approxEqual(ai_short.getDuration(), 2.0 / sr, 1e-9), runner, name, "very short duration")) return false;
+    if (!run_check(TestRunner::approxEqual(ai_short.getDuration(), 2.0 / sr, 1e-9), "very short duration")) return false;
 
         std::stringstream ss3;
         ai_short.serialize(ss3);
         ss3.seekg(0);
         AudioIndex ai_short2 = AudioIndex::deserialize(ss3);
-        if (!CHECK(ai_short == ai_short2, runner, name, "serialize/deserialize tiny")) return false;
+    if (!run_check(ai_short == ai_short2, "serialize/deserialize tiny")) return false;
     }
     return true;
 }
@@ -285,27 +291,33 @@ bool testAudioIndex_wav_impl(TestRunner& runner) {
         // ignore directory errors; will result in empty files vector
     }
 
+    bool all_ok = true;
     for (const auto& rel : files) {
+        bool file_ok = true;
         std::vector<int32_t> samples;
         int sr = 0;
         if (!loadWavToInt32(rel, samples, sr)) {
             runner.failMsg(name, std::string("failed to load: ") + rel);
-            return false;
+            all_ok = false;
+            file_ok = false;
+            // continue to next file instead of aborting the whole test
+            std::cout << "  [FAIL] " << rel << " (load failure)\n";
+            continue;
         }
-        if (!CHECK(!samples.empty(), runner, name, rel + " non-empty samples")) return false;
+        if (!CHECK(!samples.empty(), runner, name, rel + " non-empty samples")) { all_ok = false; file_ok = false; std::cout << "  [FAIL] " << rel << " (empty samples)\n"; continue; }
         double duration = static_cast<double>(samples.size()) / sr;
-        if (!CHECK(duration > 0.0, runner, name, rel + " duration>0")) return false;
+        if (!CHECK(duration > 0.0, runner, name, rel + " duration>0")) { all_ok = false; file_ok = false; std::cout << "  [FAIL] " << rel << " (duration<=0)\n"; continue; }
 
         AudioIndex ai = AudioIndex::fromAudioSamples(samples, sr);
-        if (!CHECK(TestRunner::approxEqual(ai.getDuration(), duration, 1e-3), runner, name, rel + " duration match")) return false;
+        if (!CHECK(TestRunner::approxEqual(ai.getDuration(), duration, 1e-3), runner, name, rel + " duration match")) { all_ok = false; file_ok = false; std::cout << "  [FAIL] " << rel << " (duration mismatch)\n"; continue; }
 
         std::stringstream ss;
         ai.serialize(ss);
         ss.seekg(0);
         AudioIndex ai2 = AudioIndex::deserialize(ss);
-        if (!CHECK(ai == ai2, runner, name, rel + " roundtrip")) return false;
+        if (!CHECK(ai == ai2, runner, name, rel + " roundtrip")) { all_ok = false; file_ok = false; std::cout << "  [FAIL] " << rel << " (roundtrip mismatch)\n"; continue; }
 
-        // --- Logging: write index hex blobs and basic metadata to a log file ---
+    // --- Logging: write index hex blobs and basic metadata to a log file ---
         try {
             const std::string logPath = "tests/test_results.log"; // relative to cpp/ working dir
             std::ofstream log(logPath, std::ios::app);
@@ -352,6 +364,9 @@ bool testAudioIndex_wav_impl(TestRunner& runner) {
         } catch (...) {
             // non-fatal: logging failure should not break tests
             std::cout << "  ! Warning: failed to write log for " << rel << std::endl;
+        }
+        if (file_ok) {
+            std::cout << "  [OK]   " << rel << "\n";
         }
     }
     return true;

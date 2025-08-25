@@ -23,6 +23,22 @@
 
 using namespace AudioBabel;
 
+// ---------------------------------------------------------------------------
+// Test harness for Speaker-of-Babel (cpp/tests/test_main.cpp)
+//
+// This file implements a minimal, framework-free test runner used by the
+// repository CI and local development. It intentionally avoids external
+// dependencies so it can be built with the project's normal toolchain.
+//
+// Sections:
+//  - TestRunner: small harness that tracks pass/fail counts
+//  - CHECK helper: assertion helper used inside tests
+//  - testAudioIndex_impl: unit tests for AudioIndex basic behavior
+//  - WAV loader: tiny helper to load WAV files for integration tests
+//  - testAudioIndex_wav_impl: enumerates WAV files and logs results
+//  - main: registers tests and runs them
+// ---------------------------------------------------------------------------
+
 // Lightweight test harness (no external framework)
 struct TestRunner {
     int passed = 0;
@@ -32,6 +48,12 @@ struct TestRunner {
     void add(const std::string& name, const std::function<bool()>& fn) {
         tests[name] = fn;
     }
+
+    /**
+     * Add a test to the runner.
+     * @param name Human-readable test name shown in console output.
+     * @param fn   Callable returning true on success, false on failure.
+     */
 
     static bool approxEqual(double a, double b, double tol = 1e-6) {
         return std::fabs(a - b) <= tol;
@@ -44,10 +66,20 @@ struct TestRunner {
         ++failed;
     }
 
+    /**
+     * Called by tests to record an individual failure message. Increments
+     * the failure counter and prints a short failure line.
+     */
+
     void passMsg(const std::string& test) {
         std::cout << "  ✓ " << test << std::endl;
         ++passed;
     }
+
+    /**
+     * Called by the harness when a test completes successfully. Prints
+     * a short success line and increments the pass counter.
+     */
 
     bool runOne(const std::string& name) {
         auto it = tests.find(name);
@@ -55,43 +87,38 @@ struct TestRunner {
             std::cout << "Test not found: " << name << std::endl;
             return false;
         }
-        // Spinner-based progress indicator
-        std::atomic<bool> spinning{true};
-        auto spinner_fn = [&]() {
-            const char spinChars[] = {'|','/','-','\\'};
-            int idx = 0;
-            while (spinning.load()) {
-                std::cout << '\r' << '[' << spinChars[idx % 4] << "] Running: " << name << std::flush;
-                idx++;
-                std::this_thread::sleep_for(std::chrono::milliseconds(120));
-            }
-            // clear the line after stopping
-            std::cout << '\r' << std::string(80, ' ') << '\r' << std::flush;
-        };
-
-        std::thread spinner(spinner_fn);
+        // No spinner: run the test and measure duration. Print one line with
+        // the elapsed time and the final result. To avoid double-counting
+        // assertion failures (which call runner.failMsg), capture the
+        // failure count before/after running the test.
+        size_t failed_before = static_cast<size_t>(failed);
         bool ok = false;
+        std::string exceptionMsg;
         auto t0 = std::chrono::steady_clock::now();
         try {
             ok = it->second();
         } catch (const std::exception& e) {
-            spinning.store(false);
-            spinner.join();
-            failMsg(name, std::string("exception: ") + e.what());
-            return false;
+            ok = false;
+            exceptionMsg = std::string("exception: ") + e.what();
         } catch (...) {
-            spinning.store(false);
-            spinner.join();
-            failMsg(name, "unknown exception");
-            return false;
+            ok = false;
+            exceptionMsg = "unknown exception";
         }
         auto t1 = std::chrono::steady_clock::now();
-        spinning.store(false);
-        spinner.join();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
-        // Print elapsed time then pass/fail
-        std::cout << "[" << ms << " ms] ";
-        if (ok) passMsg(name); else failMsg(name, "assertions failed");
+
+        // If the test passed, increment pass counter once. If it failed but
+        // already produced failure messages (runner.failed > failed_before),
+        // don't increment failed again; otherwise increment failed once.
+        if (ok) {
+            ++passed;
+        } else {
+            if (failed > static_cast<int>(failed_before)) {
+                // failure already reported by assertions; just print summary
+            } else {
+                ++failed;
+            }
+        }
         return ok;
     }
 
@@ -113,59 +140,97 @@ static bool CHECK(bool cond, TestRunner& runner, const std::string& test, const 
     return true;
 }
 
-// Tests (AudioIndex only)
-bool testAudioIndex_impl(TestRunner& runner) {
-    const std::string name = "AudioIndex: basic";
-    // Helper to run a CHECK and print per-assertion status to the console
-    auto run_check = [&](bool cond, const std::string& msg) -> bool {
-        bool ok = CHECK(cond, runner, name, msg);
-        if (ok) std::cout << "  [OK]   " << name << " - " << msg << std::endl;
-        else std::cout << "  [FAIL] " << name << " - " << msg << std::endl;
-        return ok;
-    };
+/**
+ * CHECK: Minimal assertion helper used by tests in this file. It delegates
+ * reporting to the TestRunner so failures increment the shared counters.
+ */
+
+// ---------------------------------------------------------------------------
+// AudioIndex unit tests (split into focused functions)
+// ---------------------------------------------------------------------------
+
+// Shared helper: run CHECK and print per-assertion status for a named test
+static bool RUN_CHECK(TestRunner& runner, const std::string& testName, bool cond, const std::string& msg) {
+    bool ok = CHECK(cond, runner, testName, msg);
+    if (ok) std::cout << "  [OK]   " << testName << std::endl;
+    else std::cout << "  [FAIL] " << testName << std::endl;
+    return ok;
+}
+
+bool testAudioIndex_selfEquality(TestRunner& runner) {
+    const std::string name = "AudioIndex: self-equality";
+    AudioIndex index1 = AudioIndex::fromHierarchy("genre1", "artist1", "album1", "track1");
+    return RUN_CHECK(runner, name, index1 == index1, "self-equality");
+}
+
+bool testAudioIndex_inequality(TestRunner& runner) {
+    const std::string name = "AudioIndex: inequality";
     AudioIndex index1 = AudioIndex::fromHierarchy("genre1", "artist1", "album1", "track1");
     AudioIndex index2 = AudioIndex::fromHierarchy("genre1", "artist1", "album1", "track2");
-    if (!run_check(index1 == index1, "self-equality")) return false;
-    if (!run_check(index1 != index2, "inequality")) return false;
-    if (!run_check(index1.getGenreString() == "genre1", "genre string")) return false;
+    return RUN_CHECK(runner, name, index1 != index2, "inequality");
+}
 
+bool testAudioIndex_genreString(TestRunner& runner) {
+    const std::string name = "AudioIndex: genre string";
+    AudioIndex index1 = AudioIndex::fromHierarchy("genre1", "artist1", "album1", "track1");
+    return RUN_CHECK(runner, name, index1.getGenreString() == "genre1", "genre string");
+}
+
+bool testAudioIndex_serializeDeserialize(TestRunner& runner) {
+    const std::string name = "AudioIndex: serialize/deserialize (hierarchy)";
+    AudioIndex index1 = AudioIndex::fromHierarchy("genre1", "artist1", "album1", "track1");
     std::stringstream ss;
     index1.serialize(ss);
     ss.seekg(0);
     AudioIndex deserialized = AudioIndex::deserialize(ss);
-    if (!run_check(index1 == deserialized, "serialize/deserialize")) return false;
-
-    // Extra checks: fromAudioSamples -> duration and serialize round-trip
-    {
-        const int sr = 44100;
-        std::vector<int32_t> samples(sr, 0); // 1 second of silence
-        AudioIndex ai = AudioIndex::fromAudioSamples(samples, sr);
-    if (!run_check(TestRunner::approxEqual(ai.getDuration(), 1.0, 1e-6), "duration from 1s samples")) return false;
-
-        std::stringstream ss2;
-        ai.serialize(ss2);
-        ss2.seekg(0);
-        AudioIndex ai2 = AudioIndex::deserialize(ss2);
-    if (!run_check(ai == ai2, "serialize/deserialize fromAudioSamples")) return false;
-    }
-
-    // Edge case: very short audio should not crash and should report correct duration
-    {
-        const int sr = 44100;
-        std::vector<int32_t> tiny(2, 12345);
-        AudioIndex ai_short = AudioIndex::fromAudioSamples(tiny, sr);
-    if (!run_check(TestRunner::approxEqual(ai_short.getDuration(), 2.0 / sr, 1e-9), "very short duration")) return false;
-
-        std::stringstream ss3;
-        ai_short.serialize(ss3);
-        ss3.seekg(0);
-        AudioIndex ai_short2 = AudioIndex::deserialize(ss3);
-    if (!run_check(ai_short == ai_short2, "serialize/deserialize tiny")) return false;
-    }
-    return true;
+    return RUN_CHECK(runner, name, index1 == deserialized, "serialize/deserialize");
 }
 
-// --- WAV loader helper (small, resilient, for tests only) ---
+bool testAudioIndex_duration_fromSamples(TestRunner& runner) {
+    const std::string name = "AudioIndex: duration from 1s samples";
+    const int sr = 44100;
+    std::vector<int32_t> samples(sr, 0); // 1 second of silence
+    AudioIndex ai = AudioIndex::fromAudioSamples(samples, sr);
+    return RUN_CHECK(runner, name, TestRunner::approxEqual(ai.getDuration(), 1.0, 1e-6), "duration from 1s samples");
+}
+
+bool testAudioIndex_serialize_fromSamples(TestRunner& runner) {
+    const std::string name = "AudioIndex: serialize/deserialize fromAudioSamples";
+    const int sr = 44100;
+    std::vector<int32_t> samples(sr, 0);
+    AudioIndex ai = AudioIndex::fromAudioSamples(samples, sr);
+    std::stringstream ss2;
+    ai.serialize(ss2);
+    ss2.seekg(0);
+    AudioIndex ai2 = AudioIndex::deserialize(ss2);
+    return RUN_CHECK(runner, name, ai == ai2, "serialize/deserialize fromAudioSamples");
+}
+
+bool testAudioIndex_veryShort_duration(TestRunner& runner) {
+    const std::string name = "AudioIndex: very short duration";
+    const int sr = 44100;
+    std::vector<int32_t> tiny(2, 12345);
+    AudioIndex ai_short = AudioIndex::fromAudioSamples(tiny, sr);
+    return RUN_CHECK(runner, name, TestRunner::approxEqual(ai_short.getDuration(), 2.0 / sr, 1e-9), "very short duration");
+}
+
+bool testAudioIndex_veryShort_serialize(TestRunner& runner) {
+    const std::string name = "AudioIndex: serialize/deserialize tiny";
+    const int sr = 44100;
+    std::vector<int32_t> tiny(2, 12345);
+    AudioIndex ai_short = AudioIndex::fromAudioSamples(tiny, sr);
+    std::stringstream ss3;
+    ai_short.serialize(ss3);
+    ss3.seekg(0);
+    AudioIndex ai_short2 = AudioIndex::deserialize(ss3);
+    return RUN_CHECK(runner, name, ai_short == ai_short2, "serialize/deserialize tiny");
+}
+
+// ---------------------------------------------------------------------------
+// WAV loader helper (small, resilient, for tests only)
+// - loadWavToInt32: reads a WAV file and returns mono 32-bit PCM samples
+//   scaled to the full int32 range. Supports PCM16/PCM32/float32.
+// ---------------------------------------------------------------------------
 static bool loadWavToInt32(const std::string& path, std::vector<int32_t>& outSamples, int& outSampleRate) {
     std::ifstream f(path, std::ios::binary);
     if (!f) return false;
@@ -269,7 +334,12 @@ static bool loadWavToInt32(const std::string& path, std::vector<int32_t>& outSam
 }
 
 bool testAudioIndex_wav_impl(TestRunner& runner) {
+    // Integration-style test: iterate WAV files under tests/Test Audio, build
+    // an AudioIndex from each, verify duration/round-trip serialization and
+    // append a structured log to tests/test_results.log. The test continues
+    // through all files and reports per-file status to the console.
     const std::string name = "AudioIndex: wav files";
+    
     // Clear previous log
     try {
         std::ofstream clearLog("tests/test_results.log", std::ios::trunc);
@@ -280,6 +350,7 @@ bool testAudioIndex_wav_impl(TestRunner& runner) {
     namespace fs = std::filesystem;
     std::vector<std::string> files;
     try {
+        // Gather and Enumerate WAV files
         for (auto &entry : fs::directory_iterator("tests/Test Audio")) {
             if (!entry.is_regular_file()) continue;
             auto ext = entry.path().extension().string();
@@ -291,11 +362,14 @@ bool testAudioIndex_wav_impl(TestRunner& runner) {
         // ignore directory errors; will result in empty files vector
     }
 
+    // Test each WAV file
     bool all_ok = true;
     for (const auto& rel : files) {
         bool file_ok = true;
         std::vector<int32_t> samples;
         int sr = 0;
+
+        // If loading fails, report and continue
         if (!loadWavToInt32(rel, samples, sr)) {
             runner.failMsg(name, std::string("failed to load: ") + rel);
             all_ok = false;
@@ -304,20 +378,26 @@ bool testAudioIndex_wav_impl(TestRunner& runner) {
             std::cout << "  [FAIL] " << rel << " (load failure)\n";
             continue;
         }
+
+        // Check sample validity
         if (!CHECK(!samples.empty(), runner, name, rel + " non-empty samples")) { all_ok = false; file_ok = false; std::cout << "  [FAIL] " << rel << " (empty samples)\n"; continue; }
+        
+        // Check duration validity
         double duration = static_cast<double>(samples.size()) / sr;
         if (!CHECK(duration > 0.0, runner, name, rel + " duration>0")) { all_ok = false; file_ok = false; std::cout << "  [FAIL] " << rel << " (duration<=0)\n"; continue; }
 
+        // Build AudioIndex from samples
         AudioIndex ai = AudioIndex::fromAudioSamples(samples, sr);
         if (!CHECK(TestRunner::approxEqual(ai.getDuration(), duration, 1e-3), runner, name, rel + " duration match")) { all_ok = false; file_ok = false; std::cout << "  [FAIL] " << rel << " (duration mismatch)\n"; continue; }
 
+        // Serialize -> Deserialize round-trip
         std::stringstream ss;
         ai.serialize(ss);
         ss.seekg(0);
         AudioIndex ai2 = AudioIndex::deserialize(ss);
         if (!CHECK(ai == ai2, runner, name, rel + " roundtrip")) { all_ok = false; file_ok = false; std::cout << "  [FAIL] " << rel << " (roundtrip mismatch)\n"; continue; }
 
-    // --- Logging: write index hex blobs and basic metadata to a log file ---
+        // --- Logging: write index hex blobs and basic metadata to a log file ---
         try {
             const std::string logPath = "tests/test_results.log"; // relative to cpp/ working dir
             std::ofstream log(logPath, std::ios::app);
@@ -329,14 +409,19 @@ bool testAudioIndex_wav_impl(TestRunner& runner) {
                 // Skip fixed-size header written by AudioIndex::serialize: int(4) + double(8) + int(4) = 16 bytes
                 s2.seekg(16);
 
+                // Helper: read uint64_t little-endian from stream; returns false on failure
                 auto read_u64_le = [&](uint64_t &v)->bool {
                     uint64_t x=0;
                     char buf[8];
                     if (!s2.read(buf,8)) return false;
-                    for (int i=0;i<8;++i) x |= (static_cast<uint64_t>(static_cast<unsigned char>(buf[i])) << (8*i));
-                    v = x; return true;
+                    for (int i=0;i<8;++i) {
+                        x |= (static_cast<uint64_t>(static_cast<unsigned char>(buf[i])) << (8*i));
+                    }
+                    v = x; 
+                    return true;
                 };
 
+                // Read blob lengths
                 uint64_t len;
                 std::vector<std::string> blobs;
                 for (int i = 0; i < 4; ++i) {
@@ -346,14 +431,16 @@ bool testAudioIndex_wav_impl(TestRunner& runner) {
                     // hex dump
                     std::ostringstream h;
                     h << std::hex << std::setfill('0');
-                    for (auto b : buf) h << std::setw(2) << static_cast<int>(b);
+                    for (auto b : buf) {
+                        h << std::setw(2) << static_cast<int>(b);
+                    }
                     blobs.push_back(h.str());
                 }
 
                 // Fingerprint length from the object (reliable)
                 uint64_t fpLen = static_cast<uint64_t>(ai.getFingerprint().size());
 
-                log << "File=" << rel << " SR=" << sr << " Dur=" << duration << " FPbytes=" << fpLen << " IndexPath=" << ai.getFullPath() << "\n";
+                log << "File=" << rel << " SR=" << sr << " Dur=" << duration << " FPbytes=" << fpLen << "\nIndexPath=" << ai.getFullPath() << "\n";
                 for (size_t i = 0; i < blobs.size(); ++i) {
                     log << "  part" << i << "=" << blobs[i] << "\n";
                 }
@@ -374,7 +461,15 @@ bool testAudioIndex_wav_impl(TestRunner& runner) {
 
 int main(int argc, char** argv) {
     TestRunner runner;
-    runner.add("AudioIndex: basic", std::bind(testAudioIndex_impl, std::ref(runner)));
+    // Register split AudioIndex unit tests
+    runner.add("AudioIndex: self-equality", std::bind(testAudioIndex_selfEquality, std::ref(runner)));
+    runner.add("AudioIndex: inequality", std::bind(testAudioIndex_inequality, std::ref(runner)));
+    runner.add("AudioIndex: genre string", std::bind(testAudioIndex_genreString, std::ref(runner)));
+    runner.add("AudioIndex: serialize/deserialize (hierarchy)", std::bind(testAudioIndex_serializeDeserialize, std::ref(runner)));
+    runner.add("AudioIndex: duration from 1s samples", std::bind(testAudioIndex_duration_fromSamples, std::ref(runner)));
+    runner.add("AudioIndex: serialize/deserialize fromAudioSamples", std::bind(testAudioIndex_serialize_fromSamples, std::ref(runner)));
+    runner.add("AudioIndex: very short duration", std::bind(testAudioIndex_veryShort_duration, std::ref(runner)));
+    runner.add("AudioIndex: serialize/deserialize tiny", std::bind(testAudioIndex_veryShort_serialize, std::ref(runner)));
     runner.add("AudioIndex: wav files", std::bind(testAudioIndex_wav_impl, std::ref(runner)));
 
     std::string filter;

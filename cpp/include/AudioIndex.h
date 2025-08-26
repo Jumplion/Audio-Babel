@@ -39,6 +39,7 @@ public:
      * @param samples PCM samples (mono interleaved)
      * @param sampleRate sample rate in Hz
      * @param bitDepth bit depth (typically 16 or 32)
+     * @returns AudioIndex instance
      */
     static AudioIndex fromAudioSamples(const std::vector<int32_t>& samples, int sampleRate = 44100, int bitDepth = 16);
 
@@ -51,6 +52,7 @@ public:
      * @param artistStr Artist string
      * @param albumStr Album string
      * @param trackStr Track string
+     * @returns AudioIndex instance
      */
     static AudioIndex fromHierarchy(const std::string& genreStr, const std::string& artistStr, const std::string& albumStr, const std::string& trackStr);
 

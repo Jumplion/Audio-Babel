@@ -22,17 +22,11 @@ class AudioFingerprint; // Forward declaration (defined in AudioFingerprint.h)
 
 class AudioIndex {
 public:
-    // ------------------------------------------------------------------
-    // Construction / lifecycle
-    // ------------------------------------------------------------------
     AudioIndex();
     AudioIndex(const AudioIndex& other);
     AudioIndex& operator=(const AudioIndex& other);
     ~AudioIndex();
 
-    // ------------------------------------------------------------------
-    // Factory functions
-    // ------------------------------------------------------------------
     /**
      * Create an AudioIndex from raw PCM samples. This deterministically
      * computes a fingerprint and extracts hierarchical mpz codes.
@@ -56,9 +50,6 @@ public:
      */
     static AudioIndex fromHierarchy(const std::string& genreStr, const std::string& artistStr, const std::string& albumStr, const std::string& trackStr);
 
-    // ------------------------------------------------------------------
-    // Serialization / persistence
-    // ------------------------------------------------------------------
     /**
      * Writes a compact binary representation of the index to the stream.
      * Format (brief): sampleRate(int), duration(double), bitDepth(int),
@@ -76,9 +67,6 @@ public:
      */
     static AudioIndex deserialize(std::istream& in);
 
-    // ------------------------------------------------------------------
-    // Conversion / accessors
-    // ------------------------------------------------------------------
     /**
      * Reconstructs PCM samples from the stored serialized fingerprint.
      * @returns an empty vector if no fingerprint is present.
@@ -89,11 +77,29 @@ public:
     std::string getArtistString() const;
     std::string getAlbumString() const;
     std::string getTrackString() const;
-    std::string getFullPath() const; // "genre/artist/album/track"
 
-    // Basic properties
+    /**
+     * Get the full path representation of the audio index.
+     * @returns Full path string in the format "genre/artist/album/track"
+     */
+    std::string getFullPath() const;
+
+    /**
+     * Get the sample rate of the audio index.
+     * @returns Sample rate in Hz
+     */
     int getSampleRate() const { return sampleRate; }
+
+    /**
+     * Get the duration of the audio index.
+     * @returns Duration in seconds
+     */
     double getDuration() const { return duration; }
+
+    /**
+     * Get the bit depth of the audio index.
+     * @returns Bit depth in bits
+     */
     int getBitDepth() const { return bitDepth; }
 
     /**
@@ -102,16 +108,10 @@ public:
      */
     const std::vector<uint8_t>& getFingerprint() const { return audioFingerprint; }
 
-    // ------------------------------------------------------------------
-    // Comparison
-    // ------------------------------------------------------------------
     bool operator==(const AudioIndex& other) const;
     bool operator!=(const AudioIndex& other) const;
 
 private:
-    // ------------------------------------------------------------------
-    // Internal state
-    // ------------------------------------------------------------------
     mpz_t genreCode;
     mpz_t artistCode;
     mpz_t albumCode;
@@ -124,9 +124,6 @@ private:
     // Serialized fingerprint blob (opaque to callers)
     std::vector<uint8_t> audioFingerprint;
 
-    // ------------------------------------------------------------------
-    // Internal helpers (implementation details)
-    // ------------------------------------------------------------------
     void initializeMpzValues();
     void clearMpzValues();
     void copyMpzValues(const AudioIndex& other);

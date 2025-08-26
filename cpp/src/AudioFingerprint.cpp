@@ -25,14 +25,10 @@ namespace AudioBabel {
  *  - `fromSamples` should validate and pad very-short inputs to avoid negative
  *    `numBlocks` calculations.
  */
-AudioFingerprint::AudioFingerprint() : originalSampleRate(48000), originalDuration(8) {
-}
 
-AudioFingerprint::AudioFingerprint(const AudioFingerprint& other) 
-    : timeFrequencyBlocks(other.timeFrequencyBlocks),
-        originalSampleRate(other.originalSampleRate),
-        originalDuration(other.originalDuration) {
-}
+AudioFingerprint::AudioFingerprint() : originalSampleRate(48000), originalDuration(8) { }
+
+AudioFingerprint::AudioFingerprint(const AudioFingerprint& other) : timeFrequencyBlocks(other.timeFrequencyBlocks), originalSampleRate(other.originalSampleRate), originalDuration(other.originalDuration) { }
 
 AudioFingerprint& AudioFingerprint::operator=(const AudioFingerprint& other) {
     if (this != &other) {
@@ -43,8 +39,7 @@ AudioFingerprint& AudioFingerprint::operator=(const AudioFingerprint& other) {
     return *this;
 }
 
-AudioFingerprint::~AudioFingerprint() {
-}
+AudioFingerprint::~AudioFingerprint() { }
 
 AudioFingerprint AudioFingerprint::fromSamples(const std::vector<int32_t>& samples, int sampleRate) {
     AudioFingerprint fingerprint;
@@ -53,17 +48,19 @@ AudioFingerprint AudioFingerprint::fromSamples(const std::vector<int32_t>& sampl
 
     // Calculate block parameters
     int blockSamples = (BLOCK_SIZE_MS * sampleRate) / 1000;
-    if (blockSamples <= 0) {
-        // Can't compute meaningful blocks for this sample rate
-        return fingerprint;
-    }
+    
+    // Can't compute meaningful blocks for this sample rate
+    if (blockSamples <= 0) return fingerprint;
+
+    // Hop size is the amount of overlap between blocks
     int hopSize = std::max(1, blockSamples * (100 - OVERLAP_PERCENT) / 100);
 
     int numBlocks = 0;
+    // For very short inputs, create a single padded block
     if (samples.size() < static_cast<size_t>(blockSamples)) {
-        // For very short inputs, create a single padded block
         numBlocks = 1;
-    } else {
+    } 
+    else {
         numBlocks = (static_cast<int>(samples.size()) - blockSamples) / hopSize + 1;
         if (numBlocks <= 0) numBlocks = 1;
     }
@@ -72,7 +69,8 @@ AudioFingerprint AudioFingerprint::fromSamples(const std::vector<int32_t>& sampl
     
     // Create mel filter bank
     std::vector<double> melFilters = fingerprint.createMelFilterBank(blockSamples, sampleRate);
-    
+
+    // Process each block
     for (int block = 0; block < numBlocks; ++block) {
         int startSample = block * hopSize;
         int endSample = std::min(startSample + blockSamples, static_cast<int>(samples.size()));
@@ -80,13 +78,15 @@ AudioFingerprint AudioFingerprint::fromSamples(const std::vector<int32_t>& sampl
         // Extract block samples and convert to double; pad with zeros if short
         std::vector<double> blockData(blockSamples, 0.0);
         if (startSample < static_cast<int>(samples.size())) {
+            // Copy and normalize block samples
             int copyCount = std::max(0, endSample - startSample);
             for (int i = 0; i < copyCount; ++i) {
                 blockData[i] = static_cast<double>(samples[startSample + i]) / INT32_MAX;
             }
         }
         
-        // Apply window function (Hamming window)
+        // Apply window function (Hamming window) [See: https://en.wikipedia.org/wiki/Window_function]
+        // Hamming window formula: w[n] = 0.54 - 0.46 * cos(2 * π * n / (N - 1))
         for (int i = 0; i < blockSamples; ++i) {
             double window = 0.54 - 0.46 * std::cos(2.0 * M_PI * i / (blockSamples - 1));
             blockData[i] *= window;
@@ -99,6 +99,8 @@ AudioFingerprint AudioFingerprint::fromSamples(const std::vector<int32_t>& sampl
         std::vector<uint8_t> energies(FREQUENCY_BANDS);
         for (int band = 0; band < FREQUENCY_BANDS; ++band) {
             double energy = 0.0;
+
+            // Compute energy for each frequency band
             int startBin = (band * spectrum.size()) / (2 * FREQUENCY_BANDS);
             int endBin = ((band + 1) * spectrum.size()) / (2 * FREQUENCY_BANDS);
             
@@ -195,14 +197,18 @@ void AudioFingerprint::extractCodes(mpz_t genreCode, mpz_t artistCode, mpz_t alb
     size_t artistBlocks = totalBlocks / 4;
     size_t albumBlocks = totalBlocks / 4;
     size_t trackBlocks = totalBlocks - genreBlocks - artistBlocks - albumBlocks;
-    
+
+    // Lambda function to extract codes from a specific region
     auto extractFromRegion = [this](size_t start, size_t count, mpz_t result) {
         mpz_set_ui(result, 0);
+
+        // Initialize temporary variables for computation
         mpz_t base, temp;
         mpz_init(base);
         mpz_init(temp);
         mpz_set_ui(base, 256);
-        
+
+        // Iterate over each block and frequency band
         for (size_t block = start; block < start + count && block < timeFrequencyBlocks.size(); ++block) {
             for (int band = 0; band < FREQUENCY_BANDS; ++band) {
                 mpz_mul(result, result, base);
@@ -258,13 +264,13 @@ double AudioFingerprint::calculateSimilarity(const AudioFingerprint& other) cons
     }
     
     size_t minBlocks = std::min(timeFrequencyBlocks.size(), other.timeFrequencyBlocks.size());
-    
+
+    // Compute block-wise similarity
     double totalSimilarity = 0.0;
     for (size_t block = 0; block < minBlocks; ++block) {
         double blockSimilarity = 0.0;
         for (int band = 0; band < FREQUENCY_BANDS; ++band) {
-            int diff = static_cast<int>(timeFrequencyBlocks[block][band]) - 
-                    static_cast<int>(other.timeFrequencyBlocks[block][band]);
+            int diff = static_cast<int>(timeFrequencyBlocks[block][band]) - static_cast<int>(other.timeFrequencyBlocks[block][band]);
             blockSimilarity += std::exp(-0.1 * diff * diff); // Gaussian similarity
         }
         totalSimilarity += blockSimilarity / FREQUENCY_BANDS;
@@ -277,12 +283,9 @@ std::vector<uint8_t> AudioFingerprint::serialize() const {
     // Legacy payload (existing format): originalSampleRate(int), originalDuration(int), numBlocks(uint32_t), block data...
     std::vector<uint8_t> payload;
     uint32_t numBlocks = static_cast<uint32_t>(timeFrequencyBlocks.size());
-    payload.insert(payload.end(), reinterpret_cast<const uint8_t*>(&originalSampleRate), 
-                reinterpret_cast<const uint8_t*>(&originalSampleRate) + sizeof(originalSampleRate));
-    payload.insert(payload.end(), reinterpret_cast<const uint8_t*>(&originalDuration), 
-                reinterpret_cast<const uint8_t*>(&originalDuration) + sizeof(originalDuration));
-    payload.insert(payload.end(), reinterpret_cast<const uint8_t*>(&numBlocks), 
-                reinterpret_cast<const uint8_t*>(&numBlocks) + sizeof(numBlocks));
+    payload.insert(payload.end(), reinterpret_cast<const uint8_t*>(&originalSampleRate), reinterpret_cast<const uint8_t*>(&originalSampleRate) + sizeof(originalSampleRate));
+    payload.insert(payload.end(), reinterpret_cast<const uint8_t*>(&originalDuration), reinterpret_cast<const uint8_t*>(&originalDuration) + sizeof(originalDuration));
+    payload.insert(payload.end(), reinterpret_cast<const uint8_t*>(&numBlocks), reinterpret_cast<const uint8_t*>(&numBlocks) + sizeof(numBlocks));
 
     for (const auto& block : timeFrequencyBlocks) {
         payload.insert(payload.end(), block.begin(), block.end());
@@ -403,7 +406,6 @@ std::vector<double> AudioFingerprint::computeInverseFFT(const std::vector<std::c
 }
 
 uint8_t AudioFingerprint::quantizeEnergy(double energy) const {
-    // Quantize energy to 8-bit range with logarithmic scaling
     energy = std::max(0.0, std::min(10.0, energy)); // Clamp to reasonable range
     return static_cast<uint8_t>(energy * 25.5); // Scale to 0-255
 }
@@ -419,7 +421,8 @@ double AudioFingerprint::correlateWindows(const std::vector<std::vector<uint8_t>
     
     double correlation = 0.0;
     double norm1 = 0.0, norm2 = 0.0;
-    
+
+    // Compute norms
     for (size_t block = 0; block < window1.size(); ++block) {
         for (int band = 0; band < FREQUENCY_BANDS; ++band) {
             double val1 = static_cast<double>(window1[block][band]);
@@ -441,7 +444,8 @@ double AudioFingerprint::correlateWindows(const std::vector<std::vector<uint8_t>
 std::vector<double> AudioFingerprint::createMelFilterBank(int fftSize, int sampleRate) const {
     // Simplified mel filter bank creation
     std::vector<double> filters(fftSize / 2);
-    
+
+    // Create Mel filter bank by mapping frequencies to the Mel scale
     for (int i = 0; i < fftSize / 2; ++i) {
         double frequency = static_cast<double>(i * sampleRate) / fftSize;
         double mel = melScale(frequency);
@@ -459,7 +463,6 @@ double AudioFingerprint::inverseMelScale(double mel) const {
     return 700.0 * (std::pow(10.0, mel / 2595.0) - 1.0);
 }
 
-// Fallback implementations — replace with real computation if available.
 std::vector<double> AudioFingerprint::getSpectralCentroid() const {
     // return empty or computed centroid values
     return {};

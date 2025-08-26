@@ -1,19 +1,6 @@
 #ifndef AUDIO_INDEX_H
 #define AUDIO_INDEX_H
 
-/*
- * AudioIndex.h
- * ----------------
- * Purpose: Represents a deterministic, hierarchical audio index (genre/artist/album/track)
- *          used by the Speaker-of-Babel prototype. The class stores GMP big-integer
- *          codes for each level and a serialized fingerprint blob for reconstruction
- *          and search.
- *
- * Notes:
- *  - This header documents the public API only; implementations live in AudioIndex.cpp.
- *  - The index is intended to be deterministic for a given hierarchy or audio input.
- */
-
 #include <vector>
 #include <string>
 #include <cstdint>
@@ -22,100 +9,143 @@
 
 namespace AudioBabel {
 
-class AudioFingerprint; // Forward declaration
-
-/**
- * Represents a hierarchical audio index with genre/artist/album/track structure
- * Similar to Library of Babel's hexagon-wall-shelf-volume system
+/*
+ * AudioIndex.h
+ * ------------
+ * Public API for the AudioIndex type. The class represents a deterministic
+ * hierarchical index (genre / artist / album / track) encoded using GMP's
+ * big integers and paired with a serialized fingerprint blob used for
+ * reconstruction and similarity search.
  */
+
+class AudioFingerprint; // Forward declaration (defined in AudioFingerprint.h)
+
 class AudioIndex {
-private:
-    // Hierarchical components (stored as large integers)
-    mpz_t genreCode;
-    mpz_t artistCode;
-    mpz_t albumCode;
-    mpz_t trackCode;
-    
-    // Audio properties
-    int sampleRate = 44100;
-    int bitDepth = 16;
-    double duration;
-    
-    // Audio fingerprint for reconstruction and search
-    std::vector<uint8_t> audioFingerprint;
-    
 public:
+    // ------------------------------------------------------------------
+    // Construction / lifecycle
+    // ------------------------------------------------------------------
     AudioIndex();
     AudioIndex(const AudioIndex& other);
     AudioIndex& operator=(const AudioIndex& other);
     ~AudioIndex();
-    
-    // Factory methods
+
+    // ------------------------------------------------------------------
+    // Factory functions
+    // ------------------------------------------------------------------
     /**
-     * Creates index from raw audio samples
-     * @param samples PCM audio samples
-     * @param sampleRate Sample rate in Hz (Default: 44100)
-     * @param bitDepth Bit depth (Default: 16)
-     * @return AudioIndex object
+     * Create an AudioIndex from raw PCM samples. This deterministically
+     * computes a fingerprint and extracts hierarchical mpz codes.
+     * @param samples PCM samples (mono interleaved)
+     * @param sampleRate sample rate in Hz
+     * @param bitDepth bit depth (typically 16 or 32)
      */
     static AudioIndex fromAudioSamples(const std::vector<int32_t>& samples, int sampleRate = 44100, int bitDepth = 16);
 
     /**
-     * Creates index from hierarchical string identifiers
-     * String identifiers can be made up of numbers, uppercase, and lowercase letters.
-     * @param genreStr Genre identifier string
-     * @param artistStr Artist identifier string
-     * @param albumStr Album identifier string
-     * @param trackStr Track identifier string
-     * @return AudioIndex object
+     * Create an AudioIndex deterministically from textual hierarchy fields.
+     * Uses the printable ASCII base-94 alphabet (characters 33..126) to
+     * encode each component into an mpz_t value; invalid characters will
+     * cause that component to be set to zero.
+     * @param genreStr Genre string
+     * @param artistStr Artist string
+     * @param albumStr Album string
+     * @param trackStr Track string
      */
     static AudioIndex fromHierarchy(const std::string& genreStr, const std::string& artistStr, const std::string& albumStr, const std::string& trackStr);
-    
-    // Audio reconstruction
+
+    // ------------------------------------------------------------------
+    // Serialization / persistence
+    // ------------------------------------------------------------------
     /**
-     * Reconstructs audio samples from the index
-     * @return Vector of PCM samples
+     * Writes a compact binary representation of the index to the stream.
+     * Format (brief): sampleRate(int), duration(double), bitDepth(int),
+     * then four mpz fields serialized as (u64 length LE + raw bytes),
+     * followed by fingerprint blob as (u64 length LE + bytes).
+     * @param out Output stream to write to
+     */
+    void serialize(std::ostream& out) const;
+
+    /**
+     * Read a serialized AudioIndex from the stream. On failure, returns an
+     * AudioIndex with default fields (caller should validate contents).
+     * @param in Input stream to read from
+     * @returns AudioIndex instance
+     */
+    static AudioIndex deserialize(std::istream& in);
+
+    // ------------------------------------------------------------------
+    // Conversion / accessors
+    // ------------------------------------------------------------------
+    /**
+     * Reconstructs PCM samples from the stored serialized fingerprint.
+     * @returns an empty vector if no fingerprint is present.
      */
     std::vector<int32_t> toAudioSamples() const;
-    
-    // Serialization
-    void serialize(std::ostream& out) const;
-    static AudioIndex deserialize(std::istream& in);
-    
-    // Human-readable representations
+
     std::string getGenreString() const;
     std::string getArtistString() const;
     std::string getAlbumString() const;
     std::string getTrackString() const;
-    std::string getFullPath() const; // genre/artist/album/track
-    
-    // Properties
+    std::string getFullPath() const; // "genre/artist/album/track"
+
+    // Basic properties
     int getSampleRate() const { return sampleRate; }
     double getDuration() const { return duration; }
     int getBitDepth() const { return bitDepth; }
-    
-    // Navigation helpers for browsing
-    // std::vector<AudioIndex> getSimilarGenres(int count = 10) const;
-    // std::vector<AudioIndex> getArtistsInGenre(int count = 20) const;
-    // std::vector<AudioIndex> getAlbumsFromArtist(int count = 15) const;
-    // std::vector<AudioIndex> getTracksFromAlbum(int count = 12) const;
-    
-    // Comparison operators
+
+    /**
+     * Retrieve the serialized fingerprint blob used for reconstruction/search
+     * @returns Fingerprint blob
+     */
+    const std::vector<uint8_t>& getFingerprint() const { return audioFingerprint; }
+
+    // ------------------------------------------------------------------
+    // Comparison
+    // ------------------------------------------------------------------
     bool operator==(const AudioIndex& other) const;
     bool operator!=(const AudioIndex& other) const;
-    
-    // Get fingerprint for search operations
-    const std::vector<uint8_t>& getFingerprint() const { return audioFingerprint; }
-    
+
 private:
-    // Helper methods for managing mpz_t values
+    // ------------------------------------------------------------------
+    // Internal state
+    // ------------------------------------------------------------------
+    mpz_t genreCode;
+    mpz_t artistCode;
+    mpz_t albumCode;
+    mpz_t trackCode;
+
+    int sampleRate = 44100;
+    int bitDepth = 16;
+    double duration = 0.0;
+
+    // Serialized fingerprint blob (opaque to callers)
+    std::vector<uint8_t> audioFingerprint;
+
+    // ------------------------------------------------------------------
+    // Internal helpers (implementation details)
+    // ------------------------------------------------------------------
     void initializeMpzValues();
     void clearMpzValues();
     void copyMpzValues(const AudioIndex& other);
-    
-    // Helper methods for string to mpz conversion
-    // Convert a base-36 string into an mpz_t. Returns true on success, false on invalid input.
+
+    /**
+     * Convert a base-94 printable string into an mpz_t. Allowed characters
+     * are ASCII 33..126. Returns true on success, false if the input
+     * contains disallowed characters (caller can decide how to handle it).
+     * @param str Input string
+     * @param result Output mpz_t
+     * @returns true on success, false if the input is invalid
+     */
     bool stringToMpz(const std::string& str, mpz_t result) const;
+
+    /**
+     * Convert an mpz_t to a base-94 printable string (inverse of
+     * stringToMpz). Zero is represented by the single character '!'
+     * (ASCII 33) for determinism.
+     * @param value Input mpz_t
+     * @returns Base-94 printable string
+     */
     std::string mpzToString(const mpz_t value) const;
 };
 

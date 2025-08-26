@@ -27,15 +27,16 @@ namespace AudioBabel {
  */
 class AudioFingerprint {
 private:
-    // Configuration constants
     static constexpr int BLOCK_SIZE_MS = 100;           // 100ms blocks
     static constexpr int FREQUENCY_BANDS = 32;          // Number of frequency bands
     static constexpr int OVERLAP_PERCENT = 50;          // Block overlap percentage
     static constexpr double MIN_FREQUENCY = 80.0;       // Minimum frequency (Hz)
     static constexpr double MAX_FREQUENCY = 8000.0;     // Maximum frequency (Hz)
     
-    // Time-frequency representation
-    // Each inner vector represents frequency bands for one time block
+    /**
+     * Time-frequency representation
+     * Each inner vector represents frequency bands for one time block
+     */
     std::vector<std::vector<uint8_t>> timeFrequencyBlocks;
     
     int originalSampleRate;
@@ -90,36 +91,107 @@ public:
     
     // Serialization
     std::vector<uint8_t> serialize() const;
+
+    /**
+     * Deserialize an AudioFingerprint object from a byte array.
+     * @param data Byte array containing the serialized fingerprint
+     * @return AudioFingerprint object
+     */
     static AudioFingerprint deserialize(const std::vector<uint8_t>& data);
     
-    // Properties
     int getBlockCount() const { return timeFrequencyBlocks.size(); }
     int getFrequencyBands() const { return FREQUENCY_BANDS; }
     int getOriginalSampleRate() const { return originalSampleRate; }
     int getOriginalDuration() const { return originalDuration; }
     
-    // Debug/analysis methods
     void printFingerprint() const;
+
+    /**
+     * Get the spectral centroid of the audio fingerprint.
+     * This is the "center of mass" of the spectrum, indicating 
+     * where the most energy is concentrated.
+     * @return Vector of spectral centroid values
+     */
     std::vector<double> getSpectralCentroid() const;
+
+    /**
+     * Get the spectral rolloff of the audio fingerprint.
+     * This is the frequency below which a specified percentage of the 
+     * total spectral energy is contained.
+     * @return Vector of spectral rolloff values
+     */
     std::vector<double> getSpectralRolloff() const;
     
 private:
-    // FFT and signal processing helpers
+
+    /**
+     * Compute the Fast Fourier Transform (FFT) of a signal.
+     * @param samples Input audio samples
+     * @return Frequency spectrum as complex numbers
+     */
     std::vector<std::complex<double>> computeFFT(const std::vector<double>& samples) const;
+    
+    /**
+     * Compute the inverse Fast Fourier Transform (IFFT) of a frequency spectrum.
+     * @param spectrum Input frequency spectrum as complex numbers
+     * @return Time-domain signal as real numbers
+     */
     std::vector<double> computeInverseFFT(const std::vector<std::complex<double>>& spectrum) const;
     
-    // Mel-scale frequency mapping
+    /**
+     * Map a frequency in Hz to the Mel scale.
+     * The Mel scale is a perceptual scale of pitches which approximates the human ear's response to different frequencies.
+     * @param frequency Frequency in Hz
+     * @return Frequency in Mel
+     */
     double melScale(double frequency) const;
+    
+    /**
+     * Map a frequency in Mel to Hz.
+     * The inverse Mel scale is used to convert frequencies from the Mel scale back to Hz.
+     * @param mel Frequency in Mel
+     * @return Frequency in Hz
+     */
     double inverseMelScale(double mel) const;
+
+    /**
+     * Create a Mel filter bank. 
+     * A Mel Filter bank is a collection of triangular filters
+     * that are spaced according to the Mel scale, which approximates the human ear's
+     * perception of sound. This filter bank is used to extract Mel-frequency cepstral
+     * coefficients (MFCCs) from audio signals.
+     * @param fftSize Size of the FFT
+     * @param sampleRate Sample rate of the audio
+     * @return Vector of Mel filter bank coefficients
+     */
     std::vector<double> createMelFilterBank(int fftSize, int sampleRate) const;
     
-    // Quantization methods
+    /**
+     * Quantize energy value to uint8_t, an 8-bit range with log scaling
+     * Clamps the input to the valid range (0, 10)
+     * Applies a gain factor to the output (Scales <gain> dB 0-255)
+     * @param energy Energy value in dB
+     * @return Quantized energy value
+     */
     uint8_t quantizeEnergy(double energy) const;
+
+    /**
+     * Dequantize energy value from uint8_t to double
+     * Maps the 8-bit range [0, 255] back to the original energy scale
+     * Applies the inverse of the gain factor used in quantization
+     * Clamps the output to the valid range (0, 10)
+     * @param quantized Quantized energy value
+     * @return Dequantized energy value
+     */
     double dequantizeEnergy(uint8_t quantized) const;
     
-    // Sliding window correlation for search
-    double correlateWindows(const std::vector<std::vector<uint8_t>>& window1,
-                        const std::vector<std::vector<uint8_t>>& window2) const;
+    /**
+     * Compute correlation between two time-frequency windows
+     * @param window1 First window (reference)
+     * @param window2 Second window (query)
+     * @return Correlation score (0.0-1.0)
+     */
+    double correlateWindows(const std::vector<std::vector<uint8_t>>& window1, const std::vector<std::vector<uint8_t>>& window2) const;
 };
 
 } // namespace AudioBabel

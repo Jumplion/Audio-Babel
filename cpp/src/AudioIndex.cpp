@@ -23,6 +23,7 @@ namespace AudioBabel {
 // ---------------------------------------------------------------------------
 // 1) Binary IO helpers
 // ---------------------------------------------------------------------------
+
 static void write_u64_le(std::ostream& out, uint64_t v) {
     uint8_t buf[8];
     for (int i = 0; i < 8; ++i) buf[i] = static_cast<uint8_t>((v >> (i * 8)) & 0xFF);
@@ -40,6 +41,7 @@ static bool read_u64_le(std::istream& in, uint64_t& v) {
 // ---------------------------------------------------------------------------
 // 2) Construction / lifecycle
 // ---------------------------------------------------------------------------
+
 AudioIndex::AudioIndex() : sampleRate(44100), duration(0.0), bitDepth(16) {
     initializeMpzValues();
 }
@@ -90,6 +92,7 @@ void AudioIndex::copyMpzValues(const AudioIndex& other) {
 //    - fromAudioSamples: produce an AudioIndex from PCM samples
 //    - fromHierarchy: deterministically build an AudioIndex from strings
 // ---------------------------------------------------------------------------
+
 AudioIndex AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, int sampleRate, int bitDepth) {
     AudioIndex index;
     index.sampleRate = sampleRate;
@@ -143,7 +146,8 @@ AudioIndex AudioIndex::fromHierarchy(const std::string& genreStr, const std::str
     // Pad to full blocks
     combinedData.resize(numBlocks * FREQUENCY_BANDS, 0);
 
-    // Build serialized fingerprint: originalSampleRate (int), originalDuration (int), numBlocks (uint32_t), blocks...
+    // Build serialized fingerprint: 
+    // - originalSampleRate (int), originalDuration (int), numBlocks (uint32_t), blocks...
     std::vector<uint8_t> serialized;
     int originalSampleRate = index.sampleRate;
     serialized.insert(serialized.end(), reinterpret_cast<uint8_t*>(&originalSampleRate), reinterpret_cast<uint8_t*>(&originalSampleRate) + sizeof(originalSampleRate));
@@ -168,6 +172,7 @@ AudioIndex AudioIndex::fromHierarchy(const std::string& genreStr, const std::str
 // ---------------------------------------------------------------------------
 // 4) Serialization
 // ---------------------------------------------------------------------------
+
 void AudioIndex::serialize(std::ostream& out) const {
     // Write basic properties
     out.write(reinterpret_cast<const char*>(&sampleRate), sizeof(sampleRate));
@@ -176,13 +181,27 @@ void AudioIndex::serialize(std::ostream& out) const {
 
     // Helper: export an mpz_t as raw bytes, write length (u64 LE) then payload
     auto writeMpz = [&out](const mpz_t value) {
+
+        // Write length (u64 LE)
         size_t bits = mpz_sizeinbase(value, 2);
+
+        // Compute approximate byte size
         size_t approxBytes = (bits + 7) / 8;
+
+        // Zero out the buffer
         std::vector<uint8_t> buffer(approxBytes > 0 ? approxBytes : 1);
+
+        // Export the mpz_t value into the buffer
         size_t count = 0;
         mpz_export(buffer.data(), &count, 1, 1, 0, 0, value);
+
+        // Resize buffer to actual size
         if (count > 0) buffer.resize(count);
+
+        // Write length (u64 LE)
         write_u64_le(out, static_cast<uint64_t>(buffer.size()));
+
+        // Write the actual data
         if (!buffer.empty()) out.write(reinterpret_cast<const char*>(buffer.data()), static_cast<std::streamsize>(buffer.size()));
     };
 
@@ -237,6 +256,7 @@ AudioIndex AudioIndex::deserialize(std::istream& in) {
 // ---------------------------------------------------------------------------
 // 5) Converters / accessors
 // ---------------------------------------------------------------------------
+
 std::vector<int32_t> AudioIndex::toAudioSamples() const {
     if (audioFingerprint.empty()) return {};
     AudioFingerprint fingerprint = AudioFingerprint::deserialize(audioFingerprint);
@@ -254,6 +274,7 @@ std::string AudioIndex::getFullPath() const {
 // ---------------------------------------------------------------------------
 // 6) mpz <-> string helpers (base-94 printable alphabet 33..126)
 // ---------------------------------------------------------------------------
+
 bool AudioIndex::stringToMpz(const std::string& str, mpz_t result) const {
     const unsigned long BASE = 94UL;
 
@@ -318,6 +339,7 @@ std::vector<AudioIndex> AudioIndex::getTracksFromAlbum(int count) const { ... }
 // ---------------------------------------------------------------------------
 // 8) Comparison operators
 // ---------------------------------------------------------------------------
+
 bool AudioIndex::operator==(const AudioIndex& other) const {
     return mpz_cmp(genreCode, other.genreCode) == 0 &&
            mpz_cmp(artistCode, other.artistCode) == 0 &&

@@ -1,0 +1,316 @@
+[2025-08-29 18:12:16] TEST RUN START
+[2025-08-29 18:12:16] ============== RUNNING TEST: [AudioIndex: 16-bit edge values roundtrip] ==============
+[2025-08-29 18:12:16] START TEST: AudioIndex: 16-bit edge values roundtrip
+[2025-08-29 18:12:16] PASS: AudioIndex: 16-bit edge values roundtrip (0ms)
+[2025-08-29 18:12:16] ============== RUNNING TEST: [AudioIndex: 32-bit edge values roundtrip] ==============
+[2025-08-29 18:12:16] START TEST: AudioIndex: 32-bit edge values roundtrip
+[2025-08-29 18:12:16] PASS: AudioIndex: 32-bit edge values roundtrip (0ms)
+[2025-08-29 18:12:16] ============== RUNNING TEST: [AudioIndex: 6-channel 16-bit roundtrip] ==============
+[2025-08-29 18:12:16] START TEST: AudioIndex: 6-channel 16-bit roundtrip
+[2025-08-29 18:12:16] PASS: AudioIndex: 6-channel 16-bit roundtrip (0ms)
+[2025-08-29 18:12:16] ============== RUNNING TEST: [AudioIndex: audioData -> index -> audioData roundtrip] ==============
+[2025-08-29 18:12:16] START TEST: AudioIndex: audioData -> index -> audioData roundtrip
+[2025-08-29 18:12:16] PASS: AudioIndex: audioData -> index -> audioData roundtrip (0ms)
+[2025-08-29 18:12:16] ============== RUNNING TEST: [AudioIndex: empty samples roundtrip] ==============
+[2025-08-29 18:12:16] START TEST: AudioIndex: empty samples roundtrip
+[2025-08-29 18:12:16] PASS: AudioIndex: empty samples roundtrip (0ms)
+[2025-08-29 18:12:16] ============== RUNNING TEST: [AudioIndex: export_bits padding behavior] ==============
+[2025-08-29 18:12:16] START TEST: AudioIndex: export_bits padding behavior
+[2025-08-29 18:12:16] PASS: AudioIndex: export_bits padding behavior (0ms)
+[2025-08-29 18:12:16] ============== RUNNING TEST: [AudioIndex: extractAudioDataFromSamples] ==============
+[2025-08-29 18:12:16] START TEST: AudioIndex: extractAudioDataFromSamples
+[2025-08-29 18:12:16] PASS: AudioIndex: extractAudioDataFromSamples (0ms)
+[2025-08-29 18:12:16] ============== RUNNING TEST: [AudioIndex: fromAudioSamples and getters] ==============
+[2025-08-29 18:12:16] START TEST: AudioIndex: fromAudioSamples and getters
+[2025-08-29 18:12:16] PASS: AudioIndex: fromAudioSamples and getters (0ms)
+[2025-08-29 18:12:16] ============== RUNNING TEST: [AudioIndex: malformed header bit depth rejected] ==============
+[2025-08-29 18:12:16] START TEST: AudioIndex: malformed header bit depth rejected
+[2025-08-29 18:12:16] PASS: AudioIndex: malformed header bit depth rejected (0ms)
+[2025-08-29 18:12:16] ============== RUNNING TEST: [AudioIndex: operator== different sampleRate unequal] ==============
+[2025-08-29 18:12:16] START TEST: AudioIndex: operator== different sampleRate unequal
+[2025-08-29 18:12:16] PASS: AudioIndex: operator== different sampleRate unequal (0ms)
+[2025-08-29 18:12:16] ============== RUNNING TEST: [AudioIndex: operator== different samples unequal] ==============
+[2025-08-29 18:12:16] START TEST: AudioIndex: operator== different samples unequal
+[2025-08-29 18:12:16] PASS: AudioIndex: operator== different samples unequal (0ms)
+[2025-08-29 18:12:16] ============== RUNNING TEST: [AudioIndex: operator== equal objects] ==============
+[2025-08-29 18:12:16] START TEST: AudioIndex: operator== equal objects
+[2025-08-29 18:12:16] PASS: AudioIndex: operator== equal objects (0ms)
+[2025-08-29 18:12:16] ============== RUNNING TEST: [AudioIndex: round-trip test audio directory] ==============
+[2025-08-29 18:12:16] START TEST: AudioIndex: round-trip test audio directory
+[2025-08-29 18:12:16] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:12:16] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav
+[2025-08-29 18:12:16] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav
+[2025-08-29 18:12:16] WROTE INDEX REPRS: cpp/tests/indexes/120bmp 16 bars
+[2025-08-29 18:12:16] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav
+[2025-08-29 18:12:16] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav | import_bytes=2822400 expected_import=2822400 | export_bytes=2822400 expected_export=2822400 | ms_import=155 ms_export=0
+[2025-08-29 18:12:16] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav | sr=44100 | frames=1411200 | bytes=2822400
+[2025-08-29 18:12:16] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\120bmp 16 bars_recon.wav
+[2025-08-29 18:12:16] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:12:16] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav
+[2025-08-29 18:12:16] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav
+[2025-08-29 18:12:16] WROTE INDEX REPRS: cpp/tests/indexes/brown noise 2s
+[2025-08-29 18:12:16] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav
+[2025-08-29 18:12:16] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav | import_bytes=176400 expected_import=176400 | export_bytes=176400 expected_export=176400 | ms_import=10 ms_export=0
+[2025-08-29 18:12:16] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav | sr=44100 | frames=88200 | bytes=176400
+[2025-08-29 18:12:16] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\brown noise 2s_recon.wav
+[2025-08-29 18:12:16] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:12:16] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav
+[2025-08-29 18:12:16] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav
+[2025-08-29 18:12:16] WROTE INDEX REPRS: cpp/tests/indexes/pink noise 2s
+[2025-08-29 18:12:16] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav
+[2025-08-29 18:12:16] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav | import_bytes=176400 expected_import=176400 | export_bytes=176400 expected_export=176400 | ms_import=10 ms_export=0
+[2025-08-29 18:12:16] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav | sr=44100 | frames=88200 | bytes=176400
+[2025-08-29 18:12:16] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\pink noise 2s_recon.wav
+[2025-08-29 18:12:16] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:12:16] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav
+[2025-08-29 18:12:16] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav
+[2025-08-29 18:12:16] WROTE INDEX REPRS: cpp/tests/indexes/pluck 1s high
+[2025-08-29 18:12:16] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav
+[2025-08-29 18:12:16] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav | import_bytes=88200 expected_import=88200 | export_bytes=88200 expected_export=88200 | ms_import=4 ms_export=0
+[2025-08-29 18:12:16] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav | sr=44100 | frames=44100 | bytes=88200
+[2025-08-29 18:12:16] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\pluck 1s high_recon.wav
+[2025-08-29 18:12:16] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:12:16] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav
+[2025-08-29 18:12:16] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav
+[2025-08-29 18:12:16] WROTE INDEX REPRS: cpp/tests/indexes/pluck 1s low
+[2025-08-29 18:12:16] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav
+[2025-08-29 18:12:16] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav | import_bytes=88200 expected_import=88200 | export_bytes=88200 expected_export=88200 | ms_import=5 ms_export=0
+[2025-08-29 18:12:16] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav | sr=44100 | frames=44100 | bytes=88200
+[2025-08-29 18:12:16] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\pluck 1s low_recon.wav
+[2025-08-29 18:12:16] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:12:16] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav
+[2025-08-29 18:12:16] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav
+[2025-08-29 18:12:17] WROTE INDEX REPRS: cpp/tests/indexes/pluck 1s
+[2025-08-29 18:12:17] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav
+[2025-08-29 18:12:17] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav | import_bytes=88200 expected_import=88200 | export_bytes=88200 expected_export=88200 | ms_import=4 ms_export=0
+[2025-08-29 18:12:17] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav | sr=44100 | frames=44100 | bytes=88200
+[2025-08-29 18:12:17] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\pluck 1s_recon.wav
+[2025-08-29 18:12:17] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:12:17] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav
+[2025-08-29 18:12:17] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav
+[2025-08-29 18:12:17] WROTE INDEX REPRS: cpp/tests/indexes/sawtooth 4s 440
+[2025-08-29 18:12:17] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav
+[2025-08-29 18:12:17] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav | import_bytes=352800 expected_import=352800 | export_bytes=352800 expected_export=352800 | ms_import=18 ms_export=0
+[2025-08-29 18:12:17] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[2025-08-29 18:12:17] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\sawtooth 4s 440_recon.wav
+[2025-08-29 18:12:17] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:12:17] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav
+[2025-08-29 18:12:17] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav
+[2025-08-29 18:12:17] WROTE INDEX REPRS: cpp/tests/indexes/sine 4s 440
+[2025-08-29 18:12:17] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav
+[2025-08-29 18:12:17] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav | import_bytes=352800 expected_import=352800 | export_bytes=352800 expected_export=352800 | ms_import=18 ms_export=0
+[2025-08-29 18:12:17] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[2025-08-29 18:12:17] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\sine 4s 440_recon.wav
+[2025-08-29 18:12:17] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:12:17] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav
+[2025-08-29 18:12:17] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav
+[2025-08-29 18:12:17] WROTE INDEX REPRS: cpp/tests/indexes/square 4s 440
+[2025-08-29 18:12:17] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav
+[2025-08-29 18:12:17] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav | import_bytes=352800 expected_import=352800 | export_bytes=352800 expected_export=352800 | ms_import=19 ms_export=0
+[2025-08-29 18:12:17] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[2025-08-29 18:12:17] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\square 4s 440_recon.wav
+[2025-08-29 18:12:17] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:12:17] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav
+[2025-08-29 18:12:17] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav
+[2025-08-29 18:12:17] WROTE INDEX REPRS: cpp/tests/indexes/triangle 4s 440
+[2025-08-29 18:12:17] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav
+[2025-08-29 18:12:17] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav | import_bytes=352800 expected_import=352800 | export_bytes=352800 expected_export=352800 | ms_import=18 ms_export=0
+[2025-08-29 18:12:17] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[2025-08-29 18:12:17] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\triangle 4s 440_recon.wav
+[2025-08-29 18:12:17] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:12:17] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav
+[2025-08-29 18:12:17] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav
+[2025-08-29 18:12:17] WROTE INDEX REPRS: cpp/tests/indexes/white noise 1s
+[2025-08-29 18:12:17] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav
+[2025-08-29 18:12:17] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav | import_bytes=88200 expected_import=88200 | export_bytes=88200 expected_export=88200 | ms_import=4 ms_export=0
+[2025-08-29 18:12:17] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav | sr=44100 | frames=44100 | bytes=88200
+[2025-08-29 18:12:17] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\white noise 1s_recon.wav
+[2025-08-29 18:12:17] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:12:17] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav
+[2025-08-29 18:12:17] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav
+[2025-08-29 18:12:17] WROTE INDEX REPRS: cpp/tests/indexes/white noise 2s
+[2025-08-29 18:12:17] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav
+[2025-08-29 18:12:17] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav | import_bytes=176400 expected_import=176400 | export_bytes=176400 expected_export=176400 | ms_import=9 ms_export=0
+[2025-08-29 18:12:17] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav | sr=44100 | frames=88200 | bytes=176400
+[2025-08-29 18:12:17] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\white noise 2s_recon.wav
+[2025-08-29 18:12:17] PASS: AudioIndex: round-trip test audio directory (1306ms)
+[2025-08-29 18:12:17] ============== RUNNING TEST: [AudioIndex: serialization textual roundtrip] ==============
+[2025-08-29 18:12:17] START TEST: AudioIndex: serialization textual roundtrip
+[2025-08-29 18:12:17] PASS: AudioIndex: serialization textual roundtrip (0ms)
+[2025-08-29 18:12:17] ============== RUNNING TEST: [AudioIndex: stereo 16-bit roundtrip] ==============
+[2025-08-29 18:12:17] START TEST: AudioIndex: stereo 16-bit roundtrip
+[2025-08-29 18:12:17] PASS: AudioIndex: stereo 16-bit roundtrip (0ms)
+[2025-08-29 18:12:17] ============== RUNNING TEST: [AudioIndex: stereo 32-bit roundtrip] ==============
+[2025-08-29 18:12:17] START TEST: AudioIndex: stereo 32-bit roundtrip
+[2025-08-29 18:12:17] PASS: AudioIndex: stereo 32-bit roundtrip (1ms)
+[2025-08-29 18:12:17] ============== RUNNING TEST: [AudioIndex: unsupported bit depth throws] ==============
+[2025-08-29 18:12:17] START TEST: AudioIndex: unsupported bit depth throws
+[2025-08-29 18:12:17] PASS: AudioIndex: unsupported bit depth throws (0ms)
+[2025-08-29 18:12:17] ============== RUNNING TEST: [AudioIndex: writeAudioDataToFile and read back] ==============
+[2025-08-29 18:12:17] START TEST: AudioIndex: writeAudioDataToFile and read back
+[2025-08-29 18:12:17] PASS: AudioIndex: writeAudioDataToFile and read back (3ms)
+[2025-08-29 18:12:17] ============== RUNNING TEST: [AudioIndex: writeIndexRepresentations outputs] ==============
+[2025-08-29 18:12:17] START TEST: AudioIndex: writeIndexRepresentations outputs
+[2025-08-29 18:12:17] FAIL: AudioIndex: writeIndexRepresentations outputs (1ms)
+[2025-08-29 18:12:17] ============== RUNNING TEST: [AudioIndex: zero sampleRate duration is zero] ==============
+[2025-08-29 18:12:17] START TEST: AudioIndex: zero sampleRate duration is zero
+[2025-08-29 18:12:17] PASS: AudioIndex: zero sampleRate duration is zero (0ms)
+[2025-08-29 18:12:17] TEST RUN END: 19 passed, 1 failed
+[2025-08-29 18:13:09] TEST RUN START
+[2025-08-29 18:13:09] ============== RUNNING TEST: [AudioIndex: 16-bit edge values roundtrip] ==============
+[2025-08-29 18:13:09] START TEST: AudioIndex: 16-bit edge values roundtrip
+[2025-08-29 18:13:09] PASS: AudioIndex: 16-bit edge values roundtrip (0ms)
+[2025-08-29 18:13:09] ============== RUNNING TEST: [AudioIndex: 32-bit edge values roundtrip] ==============
+[2025-08-29 18:13:09] START TEST: AudioIndex: 32-bit edge values roundtrip
+[2025-08-29 18:13:09] PASS: AudioIndex: 32-bit edge values roundtrip (0ms)
+[2025-08-29 18:13:09] ============== RUNNING TEST: [AudioIndex: 6-channel 16-bit roundtrip] ==============
+[2025-08-29 18:13:09] START TEST: AudioIndex: 6-channel 16-bit roundtrip
+[2025-08-29 18:13:09] PASS: AudioIndex: 6-channel 16-bit roundtrip (0ms)
+[2025-08-29 18:13:09] ============== RUNNING TEST: [AudioIndex: audioData -> index -> audioData roundtrip] ==============
+[2025-08-29 18:13:09] START TEST: AudioIndex: audioData -> index -> audioData roundtrip
+[2025-08-29 18:13:09] PASS: AudioIndex: audioData -> index -> audioData roundtrip (0ms)
+[2025-08-29 18:13:09] ============== RUNNING TEST: [AudioIndex: empty samples roundtrip] ==============
+[2025-08-29 18:13:09] START TEST: AudioIndex: empty samples roundtrip
+[2025-08-29 18:13:09] PASS: AudioIndex: empty samples roundtrip (0ms)
+[2025-08-29 18:13:09] ============== RUNNING TEST: [AudioIndex: export_bits padding behavior] ==============
+[2025-08-29 18:13:09] START TEST: AudioIndex: export_bits padding behavior
+[2025-08-29 18:13:09] PASS: AudioIndex: export_bits padding behavior (0ms)
+[2025-08-29 18:13:09] ============== RUNNING TEST: [AudioIndex: extractAudioDataFromSamples] ==============
+[2025-08-29 18:13:09] START TEST: AudioIndex: extractAudioDataFromSamples
+[2025-08-29 18:13:09] PASS: AudioIndex: extractAudioDataFromSamples (0ms)
+[2025-08-29 18:13:09] ============== RUNNING TEST: [AudioIndex: fromAudioSamples and getters] ==============
+[2025-08-29 18:13:09] START TEST: AudioIndex: fromAudioSamples and getters
+[2025-08-29 18:13:09] PASS: AudioIndex: fromAudioSamples and getters (0ms)
+[2025-08-29 18:13:09] ============== RUNNING TEST: [AudioIndex: malformed header bit depth rejected] ==============
+[2025-08-29 18:13:09] START TEST: AudioIndex: malformed header bit depth rejected
+[2025-08-29 18:13:09] PASS: AudioIndex: malformed header bit depth rejected (0ms)
+[2025-08-29 18:13:09] ============== RUNNING TEST: [AudioIndex: operator== different sampleRate unequal] ==============
+[2025-08-29 18:13:09] START TEST: AudioIndex: operator== different sampleRate unequal
+[2025-08-29 18:13:09] PASS: AudioIndex: operator== different sampleRate unequal (0ms)
+[2025-08-29 18:13:09] ============== RUNNING TEST: [AudioIndex: operator== different samples unequal] ==============
+[2025-08-29 18:13:09] START TEST: AudioIndex: operator== different samples unequal
+[2025-08-29 18:13:09] PASS: AudioIndex: operator== different samples unequal (0ms)
+[2025-08-29 18:13:09] ============== RUNNING TEST: [AudioIndex: operator== equal objects] ==============
+[2025-08-29 18:13:09] START TEST: AudioIndex: operator== equal objects
+[2025-08-29 18:13:09] PASS: AudioIndex: operator== equal objects (0ms)
+[2025-08-29 18:13:09] ============== RUNNING TEST: [AudioIndex: round-trip test audio directory] ==============
+[2025-08-29 18:13:09] START TEST: AudioIndex: round-trip test audio directory
+[2025-08-29 18:13:09] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:13:09] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav
+[2025-08-29 18:13:09] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav
+[2025-08-29 18:13:10] WROTE INDEX REPRS: cpp/tests/indexes/120bmp 16 bars
+[2025-08-29 18:13:10] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav
+[2025-08-29 18:13:10] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav | import_bytes=2822400 expected_import=2822400 | export_bytes=2822400 expected_export=2822400 | ms_import=156 ms_export=0
+[2025-08-29 18:13:10] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav | sr=44100 | frames=1411200 | bytes=2822400
+[2025-08-29 18:13:10] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\120bmp 16 bars_recon.wav
+[2025-08-29 18:13:10] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:13:10] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav
+[2025-08-29 18:13:10] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav
+[2025-08-29 18:13:10] WROTE INDEX REPRS: cpp/tests/indexes/brown noise 2s
+[2025-08-29 18:13:10] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav
+[2025-08-29 18:13:10] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav | import_bytes=176400 expected_import=176400 | export_bytes=176400 expected_export=176400 | ms_import=10 ms_export=0
+[2025-08-29 18:13:10] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav | sr=44100 | frames=88200 | bytes=176400
+[2025-08-29 18:13:10] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\brown noise 2s_recon.wav
+[2025-08-29 18:13:10] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:13:10] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav
+[2025-08-29 18:13:10] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav
+[2025-08-29 18:13:10] WROTE INDEX REPRS: cpp/tests/indexes/pink noise 2s
+[2025-08-29 18:13:10] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav
+[2025-08-29 18:13:10] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav | import_bytes=176400 expected_import=176400 | export_bytes=176400 expected_export=176400 | ms_import=9 ms_export=0
+[2025-08-29 18:13:10] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav | sr=44100 | frames=88200 | bytes=176400
+[2025-08-29 18:13:10] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\pink noise 2s_recon.wav
+[2025-08-29 18:13:10] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:13:10] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav
+[2025-08-29 18:13:10] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav
+[2025-08-29 18:13:10] WROTE INDEX REPRS: cpp/tests/indexes/pluck 1s high
+[2025-08-29 18:13:10] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav
+[2025-08-29 18:13:10] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav | import_bytes=88200 expected_import=88200 | export_bytes=88200 expected_export=88200 | ms_import=5 ms_export=0
+[2025-08-29 18:13:10] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav | sr=44100 | frames=44100 | bytes=88200
+[2025-08-29 18:13:10] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\pluck 1s high_recon.wav
+[2025-08-29 18:13:10] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:13:10] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav
+[2025-08-29 18:13:10] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav
+[2025-08-29 18:13:10] WROTE INDEX REPRS: cpp/tests/indexes/pluck 1s low
+[2025-08-29 18:13:10] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav
+[2025-08-29 18:13:10] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav | import_bytes=88200 expected_import=88200 | export_bytes=88200 expected_export=88200 | ms_import=4 ms_export=0
+[2025-08-29 18:13:10] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav | sr=44100 | frames=44100 | bytes=88200
+[2025-08-29 18:13:10] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\pluck 1s low_recon.wav
+[2025-08-29 18:13:10] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:13:10] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav
+[2025-08-29 18:13:10] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav
+[2025-08-29 18:13:10] WROTE INDEX REPRS: cpp/tests/indexes/pluck 1s
+[2025-08-29 18:13:10] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav
+[2025-08-29 18:13:10] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav | import_bytes=88200 expected_import=88200 | export_bytes=88200 expected_export=88200 | ms_import=4 ms_export=0
+[2025-08-29 18:13:10] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav | sr=44100 | frames=44100 | bytes=88200
+[2025-08-29 18:13:10] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\pluck 1s_recon.wav
+[2025-08-29 18:13:10] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:13:10] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav
+[2025-08-29 18:13:10] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav
+[2025-08-29 18:13:10] WROTE INDEX REPRS: cpp/tests/indexes/sawtooth 4s 440
+[2025-08-29 18:13:10] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav
+[2025-08-29 18:13:10] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav | import_bytes=352800 expected_import=352800 | export_bytes=352800 expected_export=352800 | ms_import=22 ms_export=0
+[2025-08-29 18:13:10] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[2025-08-29 18:13:10] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\sawtooth 4s 440_recon.wav
+[2025-08-29 18:13:10] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:13:10] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav
+[2025-08-29 18:13:10] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav
+[2025-08-29 18:13:10] WROTE INDEX REPRS: cpp/tests/indexes/sine 4s 440
+[2025-08-29 18:13:10] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav
+[2025-08-29 18:13:10] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav | import_bytes=352800 expected_import=352800 | export_bytes=352800 expected_export=352800 | ms_import=19 ms_export=0
+[2025-08-29 18:13:10] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[2025-08-29 18:13:10] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\sine 4s 440_recon.wav
+[2025-08-29 18:13:10] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:13:10] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav
+[2025-08-29 18:13:10] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav
+[2025-08-29 18:13:10] WROTE INDEX REPRS: cpp/tests/indexes/square 4s 440
+[2025-08-29 18:13:10] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav
+[2025-08-29 18:13:10] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav | import_bytes=352800 expected_import=352800 | export_bytes=352800 expected_export=352800 | ms_import=18 ms_export=0
+[2025-08-29 18:13:10] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[2025-08-29 18:13:10] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\square 4s 440_recon.wav
+[2025-08-29 18:13:10] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:13:10] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav
+[2025-08-29 18:13:10] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav
+[2025-08-29 18:13:10] WROTE INDEX REPRS: cpp/tests/indexes/triangle 4s 440
+[2025-08-29 18:13:10] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav
+[2025-08-29 18:13:10] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav | import_bytes=352800 expected_import=352800 | export_bytes=352800 expected_export=352800 | ms_import=18 ms_export=0
+[2025-08-29 18:13:10] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[2025-08-29 18:13:10] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\triangle 4s 440_recon.wav
+[2025-08-29 18:13:10] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:13:10] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav
+[2025-08-29 18:13:10] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav
+[2025-08-29 18:13:10] WROTE INDEX REPRS: cpp/tests/indexes/white noise 1s
+[2025-08-29 18:13:10] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav
+[2025-08-29 18:13:10] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav | import_bytes=88200 expected_import=88200 | export_bytes=88200 expected_export=88200 | ms_import=4 ms_export=0
+[2025-08-29 18:13:10] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav | sr=44100 | frames=44100 | bytes=88200
+[2025-08-29 18:13:10] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\white noise 1s_recon.wav
+[2025-08-29 18:13:10] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav | sr=0 | frames=0 | bytes=0
+[2025-08-29 18:13:10] Extracting Audio Data from: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav
+[2025-08-29 18:13:10] Converting Audio Data to Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav
+[2025-08-29 18:13:10] WROTE INDEX REPRS: cpp/tests/indexes/white noise 2s
+[2025-08-29 18:13:10] Reconstructing Audio Data from Index for: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav
+[2025-08-29 18:13:10] DEBUG: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav | import_bytes=176400 expected_import=176400 | export_bytes=176400 expected_export=176400 | ms_import=9 ms_export=0
+[2025-08-29 18:13:10] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav | sr=44100 | frames=88200 | bytes=176400
+[2025-08-29 18:13:10] Writing Reconstructed Audio Data to: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\Outputs\white noise 2s_recon.wav
+[2025-08-29 18:13:10] PASS: AudioIndex: round-trip test audio directory (1283ms)
+[2025-08-29 18:13:10] ============== RUNNING TEST: [AudioIndex: serialization textual roundtrip] ==============
+[2025-08-29 18:13:10] START TEST: AudioIndex: serialization textual roundtrip
+[2025-08-29 18:13:10] PASS: AudioIndex: serialization textual roundtrip (1ms)
+[2025-08-29 18:13:10] ============== RUNNING TEST: [AudioIndex: stereo 16-bit roundtrip] ==============
+[2025-08-29 18:13:10] START TEST: AudioIndex: stereo 16-bit roundtrip
+[2025-08-29 18:13:10] PASS: AudioIndex: stereo 16-bit roundtrip (0ms)
+[2025-08-29 18:13:10] ============== RUNNING TEST: [AudioIndex: stereo 32-bit roundtrip] ==============
+[2025-08-29 18:13:10] START TEST: AudioIndex: stereo 32-bit roundtrip
+[2025-08-29 18:13:10] PASS: AudioIndex: stereo 32-bit roundtrip (0ms)
+[2025-08-29 18:13:10] ============== RUNNING TEST: [AudioIndex: unsupported bit depth throws] ==============
+[2025-08-29 18:13:10] START TEST: AudioIndex: unsupported bit depth throws
+[2025-08-29 18:13:10] PASS: AudioIndex: unsupported bit depth throws (0ms)
+[2025-08-29 18:13:10] ============== RUNNING TEST: [AudioIndex: writeAudioDataToFile and read back] ==============
+[2025-08-29 18:13:10] START TEST: AudioIndex: writeAudioDataToFile and read back
+[2025-08-29 18:13:10] PASS: AudioIndex: writeAudioDataToFile and read back (1ms)
+[2025-08-29 18:13:10] ============== RUNNING TEST: [AudioIndex: writeIndexRepresentations outputs] ==============
+[2025-08-29 18:13:10] START TEST: AudioIndex: writeIndexRepresentations outputs
+[2025-08-29 18:13:10] PASS: AudioIndex: writeIndexRepresentations outputs (1ms)
+[2025-08-29 18:13:10] ============== RUNNING TEST: [AudioIndex: zero sampleRate duration is zero] ==============
+[2025-08-29 18:13:10] START TEST: AudioIndex: zero sampleRate duration is zero
+[2025-08-29 18:13:10] PASS: AudioIndex: zero sampleRate duration is zero (0ms)
+[2025-08-29 18:13:10] TEST RUN END: 20 passed, 0 failed

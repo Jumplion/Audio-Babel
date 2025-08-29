@@ -314,7 +314,6 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
         size_t bytes_per_sample = bit_depth / 8;
         size_t expected_bytes = total_samples * bytes_per_sample;
         if (pcm_be_bytes.size() != expected_bytes) {
-            std::cerr << "[indexToAudioData] warning: exported byte count mismatch: " << pcm_be_bytes.size() << " vs expected " << expected_bytes << std::endl;
             if (pcm_be_bytes.size() < expected_bytes) {
                 // export_bits may omit leading zero bytes; pad at the front (MSB side)
                 size_t pad = expected_bytes - pcm_be_bytes.size();
@@ -424,32 +423,6 @@ bool AudioIndex::operator!=(const AudioIndex& other) const {
 // 9) Index representation helpers
 // ---------------------------------------------------------------------------
 
-// base-N encoder for arbitrary small radix (2..256) using repeated divmod
-static std::string encode_base(const boost::multiprecision::cpp_int &value, unsigned radix, const std::string &alphabet) {
-    if (radix < 2 || alphabet.size() < radix) return std::string();
-    if (value == 0) return std::string(1, alphabet[0]);
-    boost::multiprecision::cpp_int v = value;
-    std::string out;
-    while (v > 0) {
-        boost::multiprecision::cpp_int q = v / radix;
-        unsigned digit = static_cast<unsigned>(static_cast<uint64_t>(v - q * radix));
-        out.push_back(alphabet[digit]);
-        v = q;
-    }
-    std::reverse(out.begin(), out.end());
-    return out;
-}
-
-static std::string to_base64_rfc4648(const boost::multiprecision::cpp_int &v) {
-    static const std::string alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    return encode_base(v, 64, alpha);
-}
-
-// Base64 encode bytes (RFC4648, no linewrap)
-static void write_base64_from_bytes(const std::string &path, const std::vector<uint8_t> &bytes) {
-
-}
-
 void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int& index, const std::string& outPrefix) {
     // Ensure target directory exists: write under cpp/tests/indexes/<basename>
     fs::path baseDir = fs::path("cpp") / "tests" / "indexes";
@@ -459,7 +432,7 @@ void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int&
 
     std::ofstream out(targetPrefix.string() + ".txt");
     if (!out) return;
-    
+
     // Export bytes once (MSB-first) and produce all encodings from these bytes
     std::vector<uint8_t> bytes;
     boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8, true);

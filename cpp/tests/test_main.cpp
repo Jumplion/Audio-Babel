@@ -1,7 +1,4 @@
 #include "AudioIndex.h"
-#include "AudioFingerprint.h"
-#include "AudioSearch.h"
-#include "AudioBrowser.h"
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -17,11 +14,27 @@
 #include <chrono>
 #include <iomanip>
 #include <filesystem>
+#include <fstream>
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 using namespace AudioBabel;
+
+// Global log file used by the test runner and integration tests
+static std::ofstream g_log;
+
+static void log_now(const std::string& msg, bool printToConsole = false) {
+    if (!g_log) return;
+    auto now = std::chrono::system_clock::now();
+    std::time_t tt = std::chrono::system_clock::to_time_t(now);
+    g_log << "[" << std::put_time(std::localtime(&tt), "%F %T") << "] " << msg << std::endl;
+    g_log.flush();
+
+    if (printToConsole) {
+        std::cout << "[" << std::put_time(std::localtime(&tt), "%F %T") << "] " << msg << std::endl;
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Test harness for Speaker-of-Babel (cpp/tests/test_main.cpp)
@@ -94,7 +107,8 @@ struct TestRunner {
         size_t failed_before = static_cast<size_t>(failed);
         bool ok = false;
         std::string exceptionMsg;
-        auto t0 = std::chrono::steady_clock::now();
+    auto t0 = std::chrono::steady_clock::now();
+    log_now(std::string("START TEST: ") + name);
         try {
             ok = it->second();
         } catch (const std::exception& e) {
@@ -104,7 +118,7 @@ struct TestRunner {
             ok = false;
             exceptionMsg = "unknown exception";
         }
-        auto t1 = std::chrono::steady_clock::now();
+    auto t1 = std::chrono::steady_clock::now();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
         // If the test passed, increment pass counter once. If it failed but
@@ -112,7 +126,9 @@ struct TestRunner {
         // don't increment failed again; otherwise increment failed once.
         if (ok) {
             ++passed;
+            log_now(std::string("PASS: ") + name + " (" + std::to_string(ms) + "ms)");
         } else {
+            log_now(std::string("FAIL: ") + name + " (" + std::to_string(ms) + "ms)");
             if (failed > static_cast<int>(failed_before)) {
                 // failure already reported by assertions; just print summary
             } else {
@@ -125,6 +141,9 @@ struct TestRunner {
     void runAll(const std::string& filter = "") {
         for (auto& kv : tests) {
             if (!filter.empty() && kv.first.find(filter) == std::string::npos) continue;
+            // Log the start of the test
+            log_now(std::string("============== RUNNING TEST: [") + kv.first + "] ==============");
+            std::cout << "============== RUNNING TEST: [" << kv.first << "] ==============" << std::endl;
             runOne(kv.first);
         }
         std::cout << "\nSummary: " << passed << " passed, " << failed << " failed" << std::endl;
@@ -140,341 +159,633 @@ static bool CHECK(bool cond, TestRunner& runner, const std::string& test, const 
     return true;
 }
 
-/**
- * CHECK: Minimal assertion helper used by tests in this file. It delegates
- * reporting to the TestRunner so failures increment the shared counters.
- */
-
-// ---------------------------------------------------------------------------
-// AudioIndex unit tests (split into focused functions)
-// ---------------------------------------------------------------------------
-
 // Shared helper: run CHECK and print per-assertion status for a named test
 static bool RUN_CHECK(TestRunner& runner, const std::string& testName, bool cond, const std::string& msg) {
     bool ok = CHECK(cond, runner, testName, msg);
-    if (ok) std::cout << "  [OK]   " << testName << std::endl;
-    else std::cout << "  [FAIL] " << testName << std::endl;
+    if (ok) std::cout << "  [OK]   " << msg << std::endl;
+    else std::cout << "  [FAIL] " << msg << std::endl;
     return ok;
-}
-
-bool testAudioIndex_selfEquality(TestRunner& runner) {
-    const std::string name = "AudioIndex: self-equality";
-    AudioIndex index1 = AudioIndex::fromHierarchy("genre1", "artist1", "album1", "track1");
-    return RUN_CHECK(runner, name, index1 == index1, "self-equality");
-}
-
-bool testAudioIndex_inequality(TestRunner& runner) {
-    const std::string name = "AudioIndex: inequality";
-    AudioIndex index1 = AudioIndex::fromHierarchy("genre1", "artist1", "album1", "track1");
-    AudioIndex index2 = AudioIndex::fromHierarchy("genre1", "artist1", "album1", "track2");
-    return RUN_CHECK(runner, name, index1 != index2, "inequality");
-}
-
-bool testAudioIndex_genreString(TestRunner& runner) {
-    const std::string name = "AudioIndex: genre string";
-    AudioIndex index1 = AudioIndex::fromHierarchy("genre1", "artist1", "album1", "track1");
-    return RUN_CHECK(runner, name, index1.getGenreString() == "genre1", "genre string");
-}
-
-bool testAudioIndex_serializeDeserialize(TestRunner& runner) {
-    const std::string name = "AudioIndex: serialize/deserialize (hierarchy)";
-    AudioIndex index1 = AudioIndex::fromHierarchy("genre1", "artist1", "album1", "track1");
-    std::stringstream ss;
-    index1.serialize(ss);
-    ss.seekg(0);
-    AudioIndex deserialized = AudioIndex::deserialize(ss);
-    return RUN_CHECK(runner, name, index1 == deserialized, "serialize/deserialize");
-}
-
-bool testAudioIndex_duration_fromSamples(TestRunner& runner) {
-    const std::string name = "AudioIndex: duration from 1s samples";
-    const int sr = 44100;
-    std::vector<int32_t> samples(sr, 0); // 1 second of silence
-    AudioIndex ai = AudioIndex::fromAudioSamples(samples, sr);
-    return RUN_CHECK(runner, name, TestRunner::approxEqual(ai.getDuration(), 1.0, 1e-6), "duration from 1s samples");
-}
-
-bool testAudioIndex_serialize_fromSamples(TestRunner& runner) {
-    const std::string name = "AudioIndex: serialize/deserialize fromAudioSamples";
-    const int sr = 44100;
-    std::vector<int32_t> samples(sr, 0);
-    AudioIndex ai = AudioIndex::fromAudioSamples(samples, sr);
-    std::stringstream ss2;
-    ai.serialize(ss2);
-    ss2.seekg(0);
-    AudioIndex ai2 = AudioIndex::deserialize(ss2);
-    return RUN_CHECK(runner, name, ai == ai2, "serialize/deserialize fromAudioSamples");
-}
-
-bool testAudioIndex_veryShort_duration(TestRunner& runner) {
-    const std::string name = "AudioIndex: very short duration";
-    const int sr = 44100;
-    std::vector<int32_t> tiny(2, 12345);
-    AudioIndex ai_short = AudioIndex::fromAudioSamples(tiny, sr);
-    return RUN_CHECK(runner, name, TestRunner::approxEqual(ai_short.getDuration(), 2.0 / sr, 1e-9), "very short duration");
-}
-
-bool testAudioIndex_veryShort_serialize(TestRunner& runner) {
-    const std::string name = "AudioIndex: serialize/deserialize tiny";
-    const int sr = 44100;
-    std::vector<int32_t> tiny(2, 12345);
-    AudioIndex ai_short = AudioIndex::fromAudioSamples(tiny, sr);
-    std::stringstream ss3;
-    ai_short.serialize(ss3);
-    ss3.seekg(0);
-    AudioIndex ai_short2 = AudioIndex::deserialize(ss3);
-    return RUN_CHECK(runner, name, ai_short == ai_short2, "serialize/deserialize tiny");
-}
-
-// ---------------------------------------------------------------------------
-// WAV loader helper (small, resilient, for tests only)
-// - loadWavToInt32: reads a WAV file and returns mono 32-bit PCM samples
-//   scaled to the full int32 range. Supports PCM16/PCM32/float32.
-// ---------------------------------------------------------------------------
-static bool loadWavToInt32(const std::string& path, std::vector<int32_t>& outSamples, int& outSampleRate) {
-    std::ifstream f(path, std::ios::binary);
-    if (!f) return false;
-
-    auto read_le = [&](void* buf, size_t n) { f.read(reinterpret_cast<char*>(buf), n); return f.gcount() == (std::streamsize)n; };
-
-    // RIFF header
-    char riff[4];
-    if (!read_le(riff, 4)) return false;
-    if (std::memcmp(riff, "RIFF", 4) != 0) return false;
-    uint32_t riff_size;
-    if (!read_le(&riff_size, 4)) return false;
-    char wave[4];
-    if (!read_le(wave,4)) return false;
-    if (std::memcmp(wave, "WAVE", 4) != 0) return false;
-
-    bool gotFmt = false, gotData = false;
-    uint16_t audioFormat = 0, numChannels = 0, bitsPerSample = 0;
-    uint32_t sampleRate = 0, byteRate = 0;
-    std::vector<char> dataChunk;
-
-    while (!gotFmt || !gotData) {
-        char chunkId[4];
-        if (!read_le(chunkId, 4)) break;
-        uint32_t chunkSize = 0;
-        if (!read_le(&chunkSize, 4)) break;
-        std::streampos nextPos = f.tellg();
-        nextPos += static_cast<std::streamoff>(chunkSize + (chunkSize & 1)); // pad to even
-
-        if (std::memcmp(chunkId, "fmt ", 4) == 0) {
-            // fmt chunk
-            if (chunkSize < 16) return false;
-            if (!read_le(&audioFormat, 2)) return false;
-            if (!read_le(&numChannels, 2)) return false;
-            if (!read_le(&sampleRate, 4)) return false;
-            if (!read_le(&byteRate, 4)) return false;
-            uint16_t blockAlign = 0;
-            if (!read_le(&blockAlign, 2)) return false;
-            if (!read_le(&bitsPerSample, 2)) return false;
-            // skip any extra fmt bytes
-            if (chunkSize > 16) {
-                f.seekg(chunkSize - 16, std::ios::cur);
-            }
-            gotFmt = true;
-        } else if (std::memcmp(chunkId, "data", 4) == 0) {
-            dataChunk.resize(chunkSize);
-            if (!read_le(dataChunk.data(), chunkSize)) return false;
-            gotData = true;
-        } else {
-            // skip unknown chunk
-            f.seekg(chunkSize, std::ios::cur);
-        }
-        // seek to chunk boundary (handle odd padding)
-        if (f.tellg() != nextPos) f.seekg(nextPos);
-    }
-
-    if (!gotFmt || !gotData) return false;
-    if (sampleRate == 0) return false;
-
-    outSampleRate = static_cast<int>(sampleRate);
-    outSamples.clear();
-
-    const size_t frameCount = dataChunk.size() / (numChannels * (bitsPerSample/8));
-
-    if (audioFormat == 1) {
-        // PCM integer
-        if (bitsPerSample == 16) {
-            const int16_t* src = reinterpret_cast<const int16_t*>(dataChunk.data());
-            for (size_t i = 0; i < frameCount; ++i) {
-                int64_t acc = 0;
-                for (uint16_t ch = 0; ch < numChannels; ++ch) acc += src[i * numChannels + ch];
-                int16_t avg = static_cast<int16_t>(acc / numChannels);
-                outSamples.push_back(static_cast<int32_t>(avg) << 16); // scale to 32-bit range
-            }
-        } else if (bitsPerSample == 32) {
-            const int32_t* src = reinterpret_cast<const int32_t*>(dataChunk.data());
-            for (size_t i = 0; i < frameCount; ++i) {
-                int64_t acc = 0;
-                for (uint16_t ch = 0; ch < numChannels; ++ch) acc += src[i * numChannels + ch];
-                int32_t avg = static_cast<int32_t>(acc / numChannels);
-                outSamples.push_back(avg);
-            }
-        } else {
-            return false; // unsupported PCM bit depth for tests
-        }
-    } else if (audioFormat == 3) {
-        // IEEE float
-        const float* src = reinterpret_cast<const float*>(dataChunk.data());
-        for (size_t i = 0; i < frameCount; ++i) {
-            double acc = 0.0;
-            for (uint16_t ch = 0; ch < numChannels; ++ch) acc += src[i * numChannels + ch];
-            float avg = static_cast<float>(acc / numChannels);
-            int32_t sample = static_cast<int32_t>(std::max(-1.0f, std::min(1.0f, avg)) * static_cast<float>(INT32_MAX));
-            outSamples.push_back(sample);
-        }
-    } else {
-        return false; // unsupported format
-    }
-
-    return true;
-}
-
-bool testAudioIndex_wav_impl(TestRunner& runner) {
-    // Integration-style test: iterate WAV files under tests/Test Audio, build
-    // an AudioIndex from each, verify duration/round-trip serialization and
-    // append a structured log to tests/test_results.log. The test continues
-    // through all files and reports per-file status to the console.
-    const std::string name = "AudioIndex: wav files";
-    
-    // Clear previous log
-    try {
-        std::ofstream clearLog("tests/test_results.log", std::ios::trunc);
-        if (clearLog) clearLog.close();
-    } catch (...) {}
-
-    // Enumerate WAV files under tests/Test Audio
-    namespace fs = std::filesystem;
-    std::vector<std::string> files;
-    try {
-        // Gather and Enumerate WAV files
-        for (auto &entry : fs::directory_iterator("tests/Test Audio")) {
-            if (!entry.is_regular_file()) continue;
-            auto ext = entry.path().extension().string();
-            std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c){ return std::tolower(c); });
-            if (ext == ".wav") files.push_back(entry.path().string());
-        }
-        std::sort(files.begin(), files.end());
-    } catch (...) {
-        // ignore directory errors; will result in empty files vector
-    }
-
-    // Test each WAV file
-    bool all_ok = true;
-    for (const auto& rel : files) {
-        bool file_ok = true;
-        std::vector<int32_t> samples;
-        int sr = 0;
-
-        // If loading fails, report and continue
-        if (!loadWavToInt32(rel, samples, sr)) {
-            runner.failMsg(name, std::string("failed to load: ") + rel);
-            all_ok = false;
-            file_ok = false;
-            // continue to next file instead of aborting the whole test
-            std::cout << "  [FAIL] " << rel << " (load failure)\n";
-            continue;
-        }
-
-        // Check sample validity
-        if (!CHECK(!samples.empty(), runner, name, rel + " non-empty samples")) { all_ok = false; file_ok = false; std::cout << "  [FAIL] " << rel << " (empty samples)\n"; continue; }
-        
-        // Check duration validity
-        double duration = static_cast<double>(samples.size()) / sr;
-        if (!CHECK(duration > 0.0, runner, name, rel + " duration>0")) { all_ok = false; file_ok = false; std::cout << "  [FAIL] " << rel << " (duration<=0)\n"; continue; }
-
-        // Build AudioIndex from samples
-        AudioIndex ai = AudioIndex::fromAudioSamples(samples, sr);
-        if (!CHECK(TestRunner::approxEqual(ai.getDuration(), duration, 1e-3), runner, name, rel + " duration match")) { all_ok = false; file_ok = false; std::cout << "  [FAIL] " << rel << " (duration mismatch)\n"; continue; }
-
-        // Serialize -> Deserialize round-trip
-        std::stringstream ss;
-        ai.serialize(ss);
-        ss.seekg(0);
-        AudioIndex ai2 = AudioIndex::deserialize(ss);
-        if (!CHECK(ai == ai2, runner, name, rel + " roundtrip")) { all_ok = false; file_ok = false; std::cout << "  [FAIL] " << rel << " (roundtrip mismatch)\n"; continue; }
-
-        // --- Logging: write index hex blobs and basic metadata to a log file ---
-        try {
-            const std::string logPath = "tests/test_results.log"; // relative to cpp/ working dir
-            std::ofstream log(logPath, std::ios::app);
-            if (log) {
-                // Re-serialize to parse the raw mpz blobs
-                std::stringstream s2;
-                ai.serialize(s2);
-                s2.seekg(0);
-                // Skip fixed-size header written by AudioIndex::serialize: int(4) + double(8) + int(4) = 16 bytes
-                s2.seekg(16);
-
-                // Helper: read uint64_t little-endian from stream; returns false on failure
-                auto read_u64_le = [&](uint64_t &v)->bool {
-                    uint64_t x=0;
-                    char buf[8];
-                    if (!s2.read(buf,8)) return false;
-                    for (int i=0;i<8;++i) {
-                        x |= (static_cast<uint64_t>(static_cast<unsigned char>(buf[i])) << (8*i));
-                    }
-                    v = x; 
-                    return true;
-                };
-
-                // Read blob lengths
-                uint64_t len;
-                std::vector<std::string> blobs;
-                for (int i = 0; i < 4; ++i) {
-                    if (!read_u64_le(len)) break;
-                    std::vector<unsigned char> buf(len);
-                    if (!s2.read(reinterpret_cast<char*>(buf.data()), len)) break;
-                    // hex dump
-                    std::ostringstream h;
-                    h << std::hex << std::setfill('0');
-                    for (auto b : buf) {
-                        h << std::setw(2) << static_cast<int>(b);
-                    }
-                    blobs.push_back(h.str());
-                }
-
-                // Fingerprint length from the object (reliable)
-                uint64_t fpLen = static_cast<uint64_t>(ai.getFingerprint().size());
-
-                log << "File=" << rel << " SR=" << sr << " Dur=" << duration << " FPbytes=" << fpLen << "\nIndexPath=" << ai.getFullPath() << "\n";
-                for (size_t i = 0; i < blobs.size(); ++i) {
-                    log << "  part" << i << "=" << blobs[i] << "\n";
-                }
-                log << "---\n";
-                log.flush();
-                log.close();
-            }
-        } catch (...) {
-            // non-fatal: logging failure should not break tests
-            std::cout << "  ! Warning: failed to write log for " << rel << std::endl;
-        }
-        if (file_ok) {
-            std::cout << "  [OK]   " << rel << "\n";
-        }
-    }
-    return true;
 }
 
 int main(int argc, char** argv) {
     TestRunner runner;
     // Register split AudioIndex unit tests
-    runner.add("AudioIndex: self-equality", std::bind(testAudioIndex_selfEquality, std::ref(runner)));
-    runner.add("AudioIndex: inequality", std::bind(testAudioIndex_inequality, std::ref(runner)));
-    runner.add("AudioIndex: genre string", std::bind(testAudioIndex_genreString, std::ref(runner)));
-    runner.add("AudioIndex: serialize/deserialize (hierarchy)", std::bind(testAudioIndex_serializeDeserialize, std::ref(runner)));
-    runner.add("AudioIndex: duration from 1s samples", std::bind(testAudioIndex_duration_fromSamples, std::ref(runner)));
-    runner.add("AudioIndex: serialize/deserialize fromAudioSamples", std::bind(testAudioIndex_serialize_fromSamples, std::ref(runner)));
-    runner.add("AudioIndex: very short duration", std::bind(testAudioIndex_veryShort_duration, std::ref(runner)));
-    runner.add("AudioIndex: serialize/deserialize tiny", std::bind(testAudioIndex_veryShort_serialize, std::ref(runner)));
-    runner.add("AudioIndex: wav files", std::bind(testAudioIndex_wav_impl, std::ref(runner)));
+
+    // -- Unit tests for AudioIndex basic behavior
+    runner.add("AudioIndex: extractAudioDataFromSamples", [&runner]() -> bool {
+        const std::string name = "AudioIndex: extractAudioDataFromSamples";
+        std::vector<int32_t> samples;
+        for (int i = 0; i < 10; ++i) samples.push_back((i % 2 == 0) ? 1000 : -1000);
+        auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 8000, 16);
+
+        bool ok = true;
+        ok &= RUN_CHECK(runner, name, audioData.sample_rate == 8000, "sample_rate");
+        ok &= RUN_CHECK(runner, name, audioData.bit_rate == 16, "bit_rate");
+        ok &= RUN_CHECK(runner, name, audioData.num_channels == 1, "num_channels");
+        ok &= RUN_CHECK(runner, name, audioData.num_frames == samples.size(), "num_frames");
+        ok &= RUN_CHECK(runner, name, audioData.samples.size() == samples.size() * (size_t)(audioData.bit_rate/8), "samples byte length");
+        return ok;
+    });
+
+    runner.add("AudioIndex: audioData -> index -> audioData roundtrip", [&runner]() -> bool {
+        const std::string name = "AudioIndex: audioData -> index -> audioData roundtrip";
+        std::vector<int32_t> samples = {0, 12345, -12345, 30000, -30000};
+        auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
+        auto idx = AudioIndex::audioDataToIndex(audioData);
+        auto audioData2 = AudioIndex::indexToAudioData(idx);
+
+        bool ok = true;
+        ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
+        ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
+        ok &= RUN_CHECK(runner, name, audioData2.num_channels == audioData.num_channels, "num_channels match");
+        ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
+        ok &= RUN_CHECK(runner, name, audioData2.samples.size() == audioData.samples.size(), "samples size match");
+        ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
+        return ok;
+    });
+
+    runner.add("AudioIndex: fromAudioSamples and getters", [&runner]() -> bool {
+        const std::string name = "AudioIndex: fromAudioSamples and getters";
+        std::vector<int32_t> samples(44100); // 1 second of silence at 44.1k
+        for (size_t i = 0; i < samples.size(); ++i) samples[i] = 0;
+        auto ai = AudioIndex::fromAudioSamples(samples, 44100, 16);
+
+        bool ok = true;
+        ok &= RUN_CHECK(runner, name, ai.getSampleRate() == 44100, "getSampleRate");
+        ok &= RUN_CHECK(runner, name, ai.getBitDepth() == 16, "getBitDepth");
+        ok &= RUN_CHECK(runner, name, TestRunner::approxEqual(ai.getDuration(), 1.0, 1e-6), "getDuration ~ 1s");
+        return ok;
+    });
+
+    runner.add("AudioIndex: writeAudioDataToFile and read back", [&runner]() -> bool {
+        const std::string name = "AudioIndex: writeAudioDataToFile and read back";
+        std::vector<int32_t> samples = {0, 1000, -1000, 2000, -2000};
+        auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 22050, 16);
+        std::string tmpPath = "./temp_test.wav";
+        bool ok = true;
+        try {
+            AudioIndex::writeAudioDataToFile(audioData, tmpPath);
+            auto audioData2 = AudioIndex::extractAudioDataFromAudioFile(tmpPath);
+            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_channels == audioData.num_channels, "num_channels match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
+            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples match");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        // best-effort cleanup
+        try { std::remove(tmpPath.c_str()); } catch(...) {}
+        return ok;
+    });
+
+    // ------------------ Negative / edge-case tests ------------------
+    runner.add("AudioIndex: unsupported bit depth throws", [&runner]() -> bool {
+        const std::string name = "AudioIndex: unsupported bit depth throws";
+        std::vector<int32_t> samples = {0,1,2};
+        auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 8000, 12); // 12-bit unsupported
+        bool threw = false;
+        try {
+            auto idx = AudioIndex::audioDataToIndex(audioData);
+        } catch (const std::exception& e) {
+            threw = true;
+        }
+        return RUN_CHECK(runner, name, threw, "audioDataToIndex should throw for unsupported bit depth");
+    });
+
+    runner.add("AudioIndex: empty samples roundtrip", [&runner]() -> bool {
+        const std::string name = "AudioIndex: empty samples roundtrip";
+        std::vector<int32_t> samples; // empty
+        auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 48000, 16);
+        bool ok = true;
+        ok &= RUN_CHECK(runner, name, audioData.num_frames == 0, "num_frames==0");
+        try {
+            auto idx = AudioIndex::audioDataToIndex(audioData);
+            auto audioData2 = AudioIndex::indexToAudioData(idx);
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == 0, "roundtrip num_frames==0");
+            ok &= RUN_CHECK(runner, name, audioData2.samples.empty(), "roundtrip samples empty");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("AudioIndex: zero sampleRate duration is zero", [&runner]() -> bool {
+        const std::string name = "AudioIndex: zero sampleRate duration is zero";
+        std::vector<int32_t> samples(10, 1000);
+        auto ai = AudioIndex::fromAudioSamples(samples, 0, 16);
+        bool ok = RUN_CHECK(runner, name, TestRunner::approxEqual(ai.getDuration(), 0.0, 1e-12), "duration==0 when sampleRate==0");
+        return ok;
+    });
+
+    runner.add("AudioIndex: malformed header bit depth rejected", [&runner]() -> bool {
+        const std::string name = "AudioIndex: malformed header bit depth rejected";
+        using boost::multiprecision::cpp_int;
+        
+        // Build a header with unsupported bit depth (7)
+        std::vector<uint8_t> header_buf;
+        uint32_t sr = 44100;
+        header_buf.push_back(static_cast<uint8_t>((sr >> 24) & 0xFF));
+        header_buf.push_back(static_cast<uint8_t>((sr >> 16) & 0xFF));
+        header_buf.push_back(static_cast<uint8_t>((sr >> 8) & 0xFF));
+        header_buf.push_back(static_cast<uint8_t>((sr >> 0) & 0xFF));
+        uint16_t bd = 7;
+        header_buf.push_back(static_cast<uint8_t>((bd >> 8) & 0xFF));
+        header_buf.push_back(static_cast<uint8_t>((bd >> 0) & 0xFF));
+        uint16_t nc = 1;
+        header_buf.push_back(static_cast<uint8_t>((nc >> 8) & 0xFF));
+        header_buf.push_back(static_cast<uint8_t>((nc >> 0) & 0xFF));
+        uint64_t nf = 1;
+        for (int i = 7; i >= 0; --i) header_buf.push_back(static_cast<uint8_t>((nf >> (i*8)) & 0xFF));
+
+        cpp_int header_int = 0;
+        for (uint8_t b : header_buf) { header_int <<= 8; header_int |= cpp_int(uint32_t(b)); }
+        // pcm_int = 0
+        cpp_int idx = header_int;
+
+        bool threw = false;
+        try {
+            auto audioData = AudioIndex::indexToAudioData(idx);
+        } catch (const std::exception& e) {
+            threw = true;
+        }
+        return RUN_CHECK(runner, name, threw, "indexToAudioData should throw for malformed/unsupported header bit depth");
+    });
+
+    // ------------------ operator== / operator!= tests ------------------
+    runner.add("AudioIndex: operator== equal objects", [&runner]() -> bool {
+        const std::string name = "AudioIndex: operator== equal objects";
+        std::vector<int32_t> samples = {100, -100, 200, -200};
+        auto a = AudioIndex::fromAudioSamples(samples, 44100, 16);
+        auto b = AudioIndex::fromAudioSamples(samples, 44100, 16);
+        bool ok = true;
+        ok &= RUN_CHECK(runner, name, a == b, "a == b");
+        ok &= RUN_CHECK(runner, name, !(a != b), "!(a != b)");
+        return ok;
+    });
+
+    runner.add("AudioIndex: operator== different samples unequal", [&runner]() -> bool {
+        const std::string name = "AudioIndex: operator== different samples unequal";
+        std::vector<int32_t> s1 = {0,1,2,3};
+        std::vector<int32_t> s2 = {0,1,2,4};
+        auto a = AudioIndex::fromAudioSamples(s1, 44100, 16);
+        auto b = AudioIndex::fromAudioSamples(s2, 44100, 16);
+        bool ok = true;
+        ok &= RUN_CHECK(runner, name, a != b, "a != b for different samples");
+        ok &= RUN_CHECK(runner, name, !(a == b), "!(a == b)");
+        return ok;
+    });
+
+    runner.add("AudioIndex: operator== different sampleRate unequal", [&runner]() -> bool {
+        const std::string name = "AudioIndex: operator== different sampleRate unequal";
+        std::vector<int32_t> samples = {10,20,30,40};
+        auto a = AudioIndex::fromAudioSamples(samples, 44100, 16);
+        auto b = AudioIndex::fromAudioSamples(samples, 22050, 16);
+        bool ok = true;
+        ok &= RUN_CHECK(runner, name, a != b, "a != b for different sample rates");
+        ok &= RUN_CHECK(runner, name, !(a == b), "!(a == b)");
+        return ok;
+    });
+
+    // ------------------ Multi-channel and bit-depth round-trip tests ------------------
+    runner.add("AudioIndex: stereo 16-bit roundtrip", [&runner]() -> bool {
+        const std::string name = "AudioIndex: stereo 16-bit roundtrip";
+        AudioIndex::AudioData audioData{};
+        audioData.sample_rate = 44100;
+        audioData.bit_rate = 16;
+        audioData.num_channels = 2;
+        audioData.audio_format = 1;
+        audioData.num_frames = 4; // 4 frames, interleaved L,R
+
+        // build interleaved samples: frames: (1000,-1000), (2000,-2000), ...
+        std::vector<int16_t> left = {1000, 2000, 3000, 4000};
+        std::vector<int16_t> right = {-1000, -2000, -3000, -4000};
+        size_t bytes = audioData.num_frames * audioData.num_channels * (audioData.bit_rate/8);
+        audioData.samples.resize(bytes);
+        for (size_t i=0;i<audioData.num_frames;i++){
+            int16_t l = left[i];
+            int16_t r = right[i];
+            size_t off = i * 2 * 2; // frame index * channels * bytes_per_sample
+            audioData.samples[off + 0] = static_cast<uint8_t>(l & 0xFF);
+            audioData.samples[off + 1] = static_cast<uint8_t>((l >> 8) & 0xFF);
+            audioData.samples[off + 2] = static_cast<uint8_t>(r & 0xFF);
+            audioData.samples[off + 3] = static_cast<uint8_t>((r >> 8) & 0xFF);
+        }
+
+        bool ok = true;
+        try {
+            auto idx = AudioIndex::audioDataToIndex(audioData);
+            auto audioData2 = AudioIndex::indexToAudioData(idx);
+            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_channels == audioData.num_channels, "num_channels match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
+            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+
+    runner.add("AudioIndex: stereo 32-bit roundtrip", [&runner]() -> bool {
+        const std::string name = "AudioIndex: stereo 32-bit roundtrip";
+        AudioIndex::AudioData audioData{};
+        audioData.sample_rate = 48000;
+        audioData.bit_rate = 32;
+        audioData.num_channels = 2;
+        audioData.audio_format = 1;
+        audioData.num_frames = 3; // 3 frames
+
+        std::vector<int32_t> left = {100000, 200000, -300000};
+        std::vector<int32_t> right = {-100000, -200000, 300000};
+        size_t bytes = audioData.num_frames * audioData.num_channels * (audioData.bit_rate/8);
+        audioData.samples.resize(bytes);
+        for (size_t i=0;i<audioData.num_frames;i++){
+            int32_t l = left[i];
+            int32_t r = right[i];
+            size_t off = i * 2 * 4; // frame * channels * bytes_per_sample
+            for (size_t b=0;b<4;b++) audioData.samples[off + b] = static_cast<uint8_t>((l >> (8*b)) & 0xFF);
+            for (size_t b=0;b<4;b++) audioData.samples[off + 4 + b] = static_cast<uint8_t>((r >> (8*b)) & 0xFF);
+        }
+
+        bool ok = true;
+        try {
+            auto idx = AudioIndex::audioDataToIndex(audioData);
+            auto audioData2 = AudioIndex::indexToAudioData(idx);
+            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_channels == audioData.num_channels, "num_channels match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
+            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("AudioIndex: writeIndexRepresentations outputs", [&runner]() -> bool {
+        const std::string name = "AudioIndex: writeIndexRepresentations outputs";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+        try {
+            // use a known value that has varied digits
+            cpp_int v = 0;
+            // build a moderately-sized value: 0x1234_5678_9ABC_DEF0_1122
+            v = cpp_int(0x12345678);
+            v <<= 64;
+            v |= cpp_int(0x9ABCDEF01122ULL);
+
+            std::string prefix = "test_index_out"; // basename only; files are written into cpp/tests/indexes/
+            AudioIndex::writeIndexRepresentations(v, prefix);
+
+            // Check decimal file exists and contains digits
+            std::ifstream dec(std::string("cpp/tests/indexes/") + prefix + ".dec.txt");
+            std::string decs;
+            if (!dec || !std::getline(dec, decs)) {
+                ok &= RUN_CHECK(runner, name, false, "decimal file written");
+            } else {
+                ok &= RUN_CHECK(runner, name, !decs.empty(), "decimal non-empty");
+            }
+
+            // Check hex file contains '1234'
+            std::ifstream hexf(std::string("cpp/tests/indexes/") + prefix + ".hex.txt");
+            std::string hexs;
+            if (!hexf || !std::getline(hexf, hexs)) {
+                ok &= RUN_CHECK(runner, name, false, "hex file written");
+            } else {
+                ok &= RUN_CHECK(runner, name, hexs.find("1234") != std::string::npos, "hex contains 1234");
+            }
+
+            // Check binary textual file starts with '1' (non-zero value)
+            std::ifstream binf(std::string("cpp/tests/indexes/") + prefix + ".bin.txt");
+            std::string bins;
+            if (!binf || !std::getline(binf, bins)) {
+                ok &= RUN_CHECK(runner, name, false, "bin file written");
+            } else {
+                ok &= RUN_CHECK(runner, name, !bins.empty() && bins[0] == '1', "bin starts with 1");
+            }
+
+            // Check base32/base64 exist
+            std::ifstream b32(std::string("cpp/tests/indexes/") + prefix + ".b32.txt");
+            ok &= RUN_CHECK(runner, name, bool(b32), "b32 file exists");
+            std::ifstream b64(std::string("cpp/tests/indexes/") + prefix + ".b64.txt");
+            ok &= RUN_CHECK(runner, name, bool(b64), "b64 file exists");
+
+            // Check raw base256 file exists and is non-empty
+            std::ifstream b256(std::string("cpp/tests/indexes/") + prefix + ".b256", std::ios::binary);
+            if (!b256) ok &= RUN_CHECK(runner, name, false, "b256 file exists");
+            else {
+                b256.seekg(0, std::ios::end);
+                ok &= RUN_CHECK(runner, name, b256.tellg() > 0, "b256 non-empty");
+            }
+
+            // cleanup
+            auto safe_rm = [&](const std::string &p){ try{ std::filesystem::remove(p); } catch(...) {} };
+            safe_rm(std::string("cpp/tests/indexes/") + prefix + ".dec.txt"); safe_rm(std::string("cpp/tests/indexes/") + prefix + ".hex.txt"); safe_rm(std::string("cpp/tests/indexes/") + prefix + ".bin.txt"); safe_rm(std::string("cpp/tests/indexes/") + prefix + ".b32.txt"); safe_rm(std::string("cpp/tests/indexes/") + prefix + ".b64.txt"); safe_rm(std::string("cpp/tests/indexes/") + prefix + ".b128"); safe_rm(std::string("cpp/tests/indexes/") + prefix + ".b256");
+
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    // ------------------ Additional unit tests ------------------
+    runner.add("AudioIndex: 16-bit edge values roundtrip", [&runner]() -> bool {
+        const std::string name = "AudioIndex: 16-bit edge values roundtrip";
+        AudioIndex::AudioData audioData{};
+        audioData.sample_rate = 44100;
+        audioData.bit_rate = 16;
+        audioData.num_channels = 1;
+        audioData.audio_format = 1;
+        audioData.num_frames = 2;
+        // samples: INT16_MIN, INT16_MAX
+        int16_t s0 = static_cast<int16_t>(std::numeric_limits<int16_t>::min());
+        int16_t s1 = static_cast<int16_t>(std::numeric_limits<int16_t>::max());
+        audioData.samples.resize(2 * 2);
+        audioData.samples[0] = static_cast<uint8_t>(s0 & 0xFF);
+        audioData.samples[1] = static_cast<uint8_t>((s0 >> 8) & 0xFF);
+        audioData.samples[2] = static_cast<uint8_t>(s1 & 0xFF);
+        audioData.samples[3] = static_cast<uint8_t>((s1 >> 8) & 0xFF);
+
+        bool ok = true;
+        try {
+            auto idx = AudioIndex::audioDataToIndex(audioData);
+            auto audioData2 = AudioIndex::indexToAudioData(idx);
+            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
+            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("AudioIndex: 32-bit edge values roundtrip", [&runner]() -> bool {
+        const std::string name = "AudioIndex: 32-bit edge values roundtrip";
+        AudioIndex::AudioData audioData{};
+        audioData.sample_rate = 48000;
+        audioData.bit_rate = 32;
+        audioData.num_channels = 1;
+        audioData.audio_format = 1;
+        audioData.num_frames = 2;
+        int32_t s0 = std::numeric_limits<int32_t>::min();
+        int32_t s1 = std::numeric_limits<int32_t>::max();
+        audioData.samples.resize(2 * 4);
+        for (size_t b = 0; b < 4; ++b) audioData.samples[b] = static_cast<uint8_t>((s0 >> (8*b)) & 0xFF);
+        for (size_t b = 0; b < 4; ++b) audioData.samples[4 + b] = static_cast<uint8_t>((s1 >> (8*b)) & 0xFF);
+
+        bool ok = true;
+        try {
+            auto idx = AudioIndex::audioDataToIndex(audioData);
+            auto audioData2 = AudioIndex::indexToAudioData(idx);
+            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
+            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("AudioIndex: 6-channel 16-bit roundtrip", [&runner]() -> bool {
+        const std::string name = "AudioIndex: 6-channel 16-bit roundtrip";
+        AudioIndex::AudioData audioData{};
+        audioData.sample_rate = 48000;
+        audioData.bit_rate = 16;
+        audioData.num_channels = 6;
+        audioData.audio_format = 1;
+        audioData.num_frames = 3; // 3 frames
+
+        // Build simple interleaved pattern for 6 channels
+        audioData.samples.resize(audioData.num_frames * audioData.num_channels * 2);
+        for (size_t f = 0; f < audioData.num_frames; ++f) {
+            for (uint16_t ch = 0; ch < audioData.num_channels; ++ch) {
+                int16_t val = static_cast<int16_t>((int)f * 100 + (int)ch * 10 - 50);
+                size_t off = (f * audioData.num_channels + ch) * 2;
+                audioData.samples[off + 0] = static_cast<uint8_t>(val & 0xFF);
+                audioData.samples[off + 1] = static_cast<uint8_t>((val >> 8) & 0xFF);
+            }
+        }
+
+        bool ok = true;
+        try {
+            auto idx = AudioIndex::audioDataToIndex(audioData);
+            auto audioData2 = AudioIndex::indexToAudioData(idx);
+            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_channels == audioData.num_channels, "num_channels match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
+            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("AudioIndex: serialization textual roundtrip", [&runner]() -> bool {
+        const std::string name = "AudioIndex: serialization textual roundtrip";
+        using boost::multiprecision::cpp_int;
+        AudioIndex::AudioData audioData = AudioIndex::extractAudioDataFromSamples(std::vector<int32_t>{0,12345,-12345}, 44100, 16);
+        bool ok = true;
+        try {
+            cpp_int idx = AudioIndex::audioDataToIndex(audioData);
+            std::string s = idx.convert_to<std::string>();
+            cpp_int idx2(s);
+            auto audioData2 = AudioIndex::indexToAudioData(idx2);
+            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
+            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("AudioIndex: export_bits padding behavior", [&runner]() -> bool {
+        const std::string name = "AudioIndex: export_bits padding behavior";
+        using AudioBabel::AudioIndex;
+        // Build audioData with small 16-bit samples whose MSB bytes are zero
+        AudioIndex::AudioData audioData{};
+        audioData.sample_rate = 44100;
+        audioData.bit_rate = 16;
+        audioData.num_channels = 1;
+        audioData.audio_format = 1;
+        audioData.num_frames = 4;
+        size_t bytes = audioData.num_frames * audioData.num_channels * (audioData.bit_rate/8);
+        audioData.samples.resize(bytes);
+        // samples: 1,2,3,4 -> little-endian bytes (LSB first), big-endian MSB will be zero
+        for (size_t i = 0; i < audioData.num_frames; ++i) {
+            int16_t v = static_cast<int16_t>(i + 1);
+            size_t off = i * 2;
+            audioData.samples[off + 0] = static_cast<uint8_t>(v & 0xFF);
+            audioData.samples[off + 1] = static_cast<uint8_t>((v >> 8) & 0xFF);
+        }
+
+        // Clear any previous debug info
+        AudioIndex::clearLastDebugInfo();
+
+        bool ok = true;
+        try {
+            auto idx = AudioIndex::audioDataToIndex(audioData);
+            auto audioData2 = AudioIndex::indexToAudioData(idx);
+
+            auto dbg = AudioIndex::getLastDebugInfo();
+            size_t expected_bytes = audioData.num_frames * audioData.num_channels * (audioData.bit_rate/8);
+            ok &= RUN_CHECK(runner, name, dbg.export_expected_bytes == expected_bytes, "export_expected_bytes equals expected");
+            ok &= RUN_CHECK(runner, name, dbg.export_pcm_bytes == expected_bytes, "export_pcm_bytes was padded to expected");
+            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples round-trip exactly");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    // ------------------ Integration: round-trip Test Audio files ------------------
+    runner.add("AudioIndex: round-trip test audio directory", [&runner]() -> bool {
+        const std::string name = "AudioIndex: round-trip test audio directory";
+        namespace fs = std::filesystem;
+        // Locate the Test Audio directory relative to the current working directory.
+        auto locate_in_dir = [&]() -> fs::path {
+            fs::path cur = fs::current_path();
+            for (int i = 0; i < 6; ++i) {
+                fs::path cand = cur / "cpp" / "tests" / "Test Audio";
+                if (fs::exists(cand) && fs::is_directory(cand)) return cand;
+                if (cur.has_parent_path()) cur = cur.parent_path(); else break;
+            }
+            return fs::path();
+        };
+
+        fs::path inDir = locate_in_dir();
+        fs::path outDir = inDir / "Outputs";
+        bool ok = true;
+        try {
+            if (!fs::exists(inDir) || !fs::is_directory(inDir)) {
+                std::cout << "  [SKIP] " << name << " — tests/Test Audio directory not found\n";
+                return true; // skip if test data not present
+            }
+            if (!fs::exists(outDir)) fs::create_directories(outDir);
+
+            for (auto& ent : fs::directory_iterator(inDir)) {
+                if (!ent.is_regular_file()) continue;
+                auto p = ent.path();
+                if (p.extension() != ".wav" && p.extension() != ".WAV") continue;
+                std::vector<int32_t> samples;
+                int sr = 0;
+
+                // Log original properties
+                std::ostringstream orig;
+                orig << "FILE: " << p.string() << " | sr=" << sr << " | frames=" << samples.size() << " | bytes=" << (samples.size() * 2) ;
+                log_now(orig.str());
+
+                // Load, round-trip, and verify
+                log_now("Extracting Audio Data from: " + p.string());
+                auto originalData = AudioIndex::extractAudioDataFromAudioFile(p.string());
+
+                log_now("Converting Audio Data to Index for: " + p.string());
+                auto idx = AudioIndex::audioDataToIndex(originalData);
+
+                // Write index representations (hex/dec/bin/b32/b64/b128/b256)
+                try {
+                    std::string stem = p.stem().string();
+                    AudioIndex::writeIndexRepresentations(idx, stem);
+                    log_now(std::string("WROTE INDEX REPRS: cpp/tests/indexes/" ) + stem);
+                } catch (const std::exception& e) {
+                    log_now(std::string("WARN: failed to write index representations for: ") + p.string() + " err=" + e.what());
+                } catch (...) {
+                    log_now(std::string("WARN: failed to write index representations for: ") + p.string());
+                }
+
+                log_now("Reconstructing Audio Data from Index for: " + p.string());
+                auto reconstructedData = AudioIndex::indexToAudioData(idx);
+
+                // Log debug stats if available
+                try {
+                    auto dbg = AudioIndex::getLastDebugInfo();
+                    std::ostringstream dbgss;
+                    dbgss << "DEBUG: " << p.string() << " | import_bytes=" << dbg.import_pcm_bytes << " expected_import=" << dbg.import_expected_bytes
+                        << " | export_bytes=" << dbg.export_pcm_bytes << " expected_export=" << dbg.export_expected_bytes
+                        << " | ms_import=" << dbg.audioDataToIndexMs << " ms_export=" << dbg.indexToAudioDataMs;
+                    log_now(dbgss.str());
+                } catch (...) {}
+
+                // Fidelity checks: ensure reconstructed audio matches original metadata and payload
+                if (reconstructedData.sample_rate != originalData.sample_rate) {
+                    runner.failMsg(name, std::string("sample_rate mismatch for: ") + p.string());
+                    ok = false;
+                }
+                if (reconstructedData.bit_rate != originalData.bit_rate) {
+                    runner.failMsg(name, std::string("bit_rate mismatch for: ") + p.string());
+                    ok = false;
+                }
+                if (reconstructedData.num_channels != originalData.num_channels) {
+                    runner.failMsg(name, std::string("num_channels mismatch for: ") + p.string());
+                    ok = false;
+                }
+                if (reconstructedData.num_frames != originalData.num_frames) {
+                    runner.failMsg(name, std::string("num_frames mismatch for: ") + p.string());
+                    ok = false;
+                }
+                if (reconstructedData.samples.size() != originalData.samples.size()) {
+                    runner.failMsg(name, std::string("samples byte-size mismatch for: ") + p.string());
+                    ok = false;
+                } else if (reconstructedData.samples != originalData.samples) {
+                    // compute a simple diff summary (count differing bytes)
+                    size_t diffs = 0;
+                    for (size_t i = 0; i < originalData.samples.size(); ++i) if (originalData.samples[i] != reconstructedData.samples[i]) ++diffs;
+                    std::ostringstream ss;
+                    ss << "sample payload differs (" << diffs << " bytes) for: " << p.string();
+                    runner.failMsg(name, ss.str());
+                    log_now(std::string("FILE DIFF: ") + ss.str());
+                    ok = false;
+                }
+
+                // Log reconstructed properties
+                std::ostringstream recon;
+                recon << "RECON: " << p.string() << " | sr=" << reconstructedData.sample_rate << " | frames=" << reconstructedData.num_frames << " | bytes=" << reconstructedData.samples.size();
+                log_now(recon.str());
+
+                fs::path outPath = outDir / (p.stem().string() + std::string("_recon.wav"));
+                try {
+                    log_now("Writing Reconstructed Audio Data to: " + outPath.string());
+                    AudioIndex::writeAudioDataToFile(reconstructedData, outPath.string());
+                } catch (const std::exception& e) {
+                    runner.failMsg(name, std::string("failed to write recon for: ") + p.string());
+                    ok = false;
+                    continue;
+                }
+            }
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            return false;
+        }
+        return RUN_CHECK(runner, name, ok, "round-trip all wav files in tests/Test Audio");
+    });
+
+    // open log file in the repo root (or current dir) as test_run.log
+    try {
+        // Place the log under cpp/tests for easier discovery
+        g_log.open("cpp/tests/test_run.log", std::ios::out | std::ios::app);
+        log_now(std::string("TEST RUN START"));
+    } catch(...) {}
 
     std::string filter;
     if (argc > 1) filter = argv[1];
 
     runner.runAll(filter);
+
+    log_now(std::string("TEST RUN END: ") + std::to_string(runner.passed) + " passed, " + std::to_string(runner.failed) + " failed");
+    if (g_log) g_log.close();
     return (runner.failed == 0) ? 0 : 1;
 }

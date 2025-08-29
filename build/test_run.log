@@ -1,0 +1,50 @@
+[ ] TEST RUN START
+[ ] START TEST: AudioIndex: audioData -> index -> audioData roundtrip
+[ ] PASS: AudioIndex: audioData -> index -> audioData roundtrip (1ms)
+[ ] START TEST: AudioIndex: empty samples roundtrip
+[ ] PASS: AudioIndex: empty samples roundtrip (0ms)
+[ ] START TEST: AudioIndex: extractAudioDataFromSamples
+[ ] PASS: AudioIndex: extractAudioDataFromSamples (0ms)
+[ ] START TEST: AudioIndex: fromAudioSamples and getters
+[ ] PASS: AudioIndex: fromAudioSamples and getters (1ms)
+[ ] START TEST: AudioIndex: malformed header bit depth rejected
+[ ] PASS: AudioIndex: malformed header bit depth rejected (0ms)
+[ ] START TEST: AudioIndex: operator== different sampleRate unequal
+[ ] PASS: AudioIndex: operator== different sampleRate unequal (0ms)
+[ ] START TEST: AudioIndex: operator== different samples unequal
+[ ] PASS: AudioIndex: operator== different samples unequal (0ms)
+[ ] START TEST: AudioIndex: operator== equal objects
+[ ] PASS: AudioIndex: operator== equal objects (0ms)
+[ ] START TEST: AudioIndex: round-trip test audio directory
+[ ] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav | sr=44100 | frames=1411200 | bytes=2822400
+[ ] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\120bmp 16 bars.wav | sr=44100 | frames=1411200 | bytes=2822400
+[ ] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav | sr=44100 | frames=88200 | bytes=176400
+[ ] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\brown noise 2s.wav | sr=44100 | frames=88200 | bytes=176400
+[ ] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav | sr=44100 | frames=88200 | bytes=176400
+[ ] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pink noise 2s.wav | sr=44100 | frames=88200 | bytes=176400
+[ ] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav | sr=44100 | frames=44100 | bytes=88200
+[ ] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s high.wav | sr=44100 | frames=44100 | bytes=88200
+[ ] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav | sr=44100 | frames=44100 | bytes=88200
+[ ] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s low.wav | sr=44100 | frames=44100 | bytes=88200
+[ ] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav | sr=44100 | frames=44100 | bytes=88200
+[ ] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\pluck 1s.wav | sr=44100 | frames=44100 | bytes=88200
+[ ] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[ ] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sawtooth 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[ ] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[ ] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\sine 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[ ] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[ ] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\square 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[ ] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[ ] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\triangle 4s 440.wav | sr=44100 | frames=176400 | bytes=352800
+[ ] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav | sr=44100 | frames=44100 | bytes=88200
+[ ] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 1s.wav | sr=44100 | frames=44100 | bytes=88200
+[ ] FILE: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav | sr=44100 | frames=88200 | bytes=176400
+[ ] RECON: F:\Repos\Speaker of Babel\cpp\tests\Test Audio\white noise 2s.wav | sr=44100 | frames=88200 | bytes=176400
+[ ] PASS: AudioIndex: round-trip test audio directory (972ms)
+[ ] START TEST: AudioIndex: unsupported bit depth throws
+[ ] PASS: AudioIndex: unsupported bit depth throws (0ms)
+[ ] START TEST: AudioIndex: writeAudioDataToFile and read back
+[ ] PASS: AudioIndex: writeAudioDataToFile and read back (1ms)
+[ ] START TEST: AudioIndex: zero sampleRate duration is zero
+[ ] PASS: AudioIndex: zero sampleRate duration is zero (0ms)
+[ ] TEST RUN END: 12 passed, 0 failed

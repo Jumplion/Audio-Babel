@@ -1,354 +1,487 @@
 #include "AudioIndex.h"
-#include "AudioFingerprint.h"
-#include <sstream>
+#include <filesystem>
+#include <fstream>
 #include <iomanip>
+#include <iostream>
+#include <sstream>
 #include <random>
 #include <cstring>
 #include <algorithm>
+#include <chrono>
+
+#include <boost/multiprecision/cpp_int.hpp>
+#include <vector>
+#include <cstdint>
+#include <stdexcept>
+
+using boost::multiprecision::cpp_int;
+namespace fs = std::filesystem;
 
 namespace AudioBabel {
-// AudioIndex.cpp
-//
-// Reorganized implementation for readability. Sections:
-//  1) Binary IO helpers
-//  2) Construction / lifecycle
-//  3) Factory functions (from audio / hierarchy)
-//  4) Serialization (serialize/deserialize)
-//  5) Converters / accessors (toAudioSamples, get*String)
-//  6) mpz <-> string helpers (base-94)
-//  7) Browsing helpers (commented out)
-//  8) Comparison operators
-// ===========================================================================
 
 // ---------------------------------------------------------------------------
 // 1) Binary IO helpers
 // ---------------------------------------------------------------------------
 
-static void write_u64_le(std::ostream& out, uint64_t v) {
-    uint8_t buf[8];
-    for (int i = 0; i < 8; ++i) buf[i] = static_cast<uint8_t>((v >> (i * 8)) & 0xFF);
-    out.write(reinterpret_cast<const char*>(buf), 8);
+template<typename T>
+static void write_le(std::ostream& out, T v) {
+    uint8_t buf[sizeof(T)];
+    for (size_t i = 0; i < sizeof(T); ++i) buf[i] = static_cast<uint8_t>((v >> (i * 8)) & 0xFF);
+    out.write(reinterpret_cast<const char*>(buf), sizeof(T));
 }
 
-static bool read_u64_le(std::istream& in, uint64_t& v) {
-    uint8_t buf[8];
-    if (!in.read(reinterpret_cast<char*>(buf), 8)) return false;
-    v = 0;
-    for (int i = 0; i < 8; ++i) v |= (static_cast<uint64_t>(buf[i]) << (i * 8));
-    return true;
+static void write_u32_le(std::ostream& out, uint32_t v) { write_le<uint32_t>(out, v); }
+static void write_u16_le(std::ostream& out, uint16_t v) { write_le<uint16_t>(out, v); }
+
+template<typename T>
+static T read_le(const char* p) {
+    // use a 64-bit accumulator to avoid needing type_traits; safe for up to 64-bit reads
+    uint64_t acc = 0;
+    for (size_t i = 0; i < sizeof(T); ++i) {
+        acc |= (uint64_t(static_cast<uint8_t>(p[i])) << (i * 8));
+    }
+    return static_cast<T>(acc);
 }
+
+static uint16_t read_u16_le(const char* p) { return read_le<uint16_t>(p); }
+static uint32_t read_u32_le(const char* p) { return read_le<uint32_t>(p); }
 
 // ---------------------------------------------------------------------------
 // 2) Construction / lifecycle
 // ---------------------------------------------------------------------------
 
-AudioIndex::AudioIndex() : sampleRate(44100), duration(0.0), bitDepth(16) {
-    initializeMpzValues();
-}
+AudioIndex::AudioIndex() : audioData{} { }
 
-AudioIndex::AudioIndex(const AudioIndex& other) : sampleRate(other.sampleRate), duration(other.duration), bitDepth(other.bitDepth), audioFingerprint(other.audioFingerprint) {
-    initializeMpzValues();
-    copyMpzValues(other);
-}
+AudioIndex::AudioIndex(const AudioIndex& other) : audioData(other.audioData) { }
 
 AudioIndex& AudioIndex::operator=(const AudioIndex& other) {
     if (this != &other) {
-        sampleRate = other.sampleRate;
-        duration = other.duration;
-        bitDepth = other.bitDepth;
-        audioFingerprint = other.audioFingerprint;
-        copyMpzValues(other);
+    audioData = other.audioData;
     }
     return *this;
 }
 
 AudioIndex::~AudioIndex() {
-    clearMpzValues();
-}
-
-void AudioIndex::initializeMpzValues() {
-    mpz_init(genreCode);
-    mpz_init(artistCode);
-    mpz_init(albumCode);
-    mpz_init(trackCode);
-}
-
-void AudioIndex::clearMpzValues() {
-    mpz_clear(genreCode);
-    mpz_clear(artistCode);
-    mpz_clear(albumCode);
-    mpz_clear(trackCode);
-}
-
-void AudioIndex::copyMpzValues(const AudioIndex& other) {
-    mpz_set(genreCode, other.genreCode);
-    mpz_set(artistCode, other.artistCode);
-    mpz_set(albumCode, other.albumCode);
-    mpz_set(trackCode, other.trackCode);
+    audioData.samples.clear();
 }
 
 // ---------------------------------------------------------------------------
 // 3) Factory functions
-//    - fromAudioSamples: produce an AudioIndex from PCM samples
-//    - fromHierarchy: deterministically build an AudioIndex from strings
 // ---------------------------------------------------------------------------
 
 AudioIndex AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, int sampleRate, int bitDepth) {
     AudioIndex index;
-    index.sampleRate = sampleRate;
-    index.bitDepth = bitDepth;
-    // Duration in seconds; guard against division by zero and allow fractional seconds
-    if (sampleRate > 0) {
-        index.duration = static_cast<double>(samples.size()) / static_cast<double>(sampleRate);
-    } else {
-        index.duration = 0.0;
-    }
-
-    // Generate fingerprint from samples
-    AudioFingerprint fingerprint = AudioFingerprint::fromSamples(samples, sampleRate);
-    index.audioFingerprint = fingerprint.serialize();
-
-    // Extract hierarchical codes from fingerprint
-    fingerprint.extractCodes(index.genreCode, index.artistCode, index.albumCode, index.trackCode);
-
+    index.audioData = AudioIndex::extractAudioDataFromSamples(samples, sampleRate, bitDepth);
     return index;
 }
 
-AudioIndex AudioIndex::fromHierarchy(const std::string& genreStr, const std::string& artistStr, const std::string& albumStr, const std::string& trackStr) {
-    AudioIndex index;
+AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::string &path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) throw std::runtime_error("Failed to open WAV file: " + path);
 
-    // Convert strings into mpz codes (base-94 encoding). Invalid strings map to zero.
-    if (!index.stringToMpz(genreStr, index.genreCode)) mpz_set_ui(index.genreCode, 0);
-    if (!index.stringToMpz(artistStr, index.artistCode)) mpz_set_ui(index.artistCode, 0);
-    if (!index.stringToMpz(albumStr, index.albumCode)) mpz_set_ui(index.albumCode, 0);
-    if (!index.stringToMpz(trackStr, index.trackCode)) mpz_set_ui(index.trackCode, 0);
+    // Read RIFF header
+    char riff[4]; in.read(riff, 4);
+    if (std::strncmp(riff, "RIFF", 4) != 0) throw std::runtime_error("Not a RIFF file");
 
-    // Combine the textual base-94 digits for each component into a deterministic
-    // payload that matches the serialized AudioFingerprint layout so that
-    // AudioFingerprint::deserialize() can reconstruct a fingerprint deterministically.
-    std::vector<uint8_t> combinedData;
+    // Read file size
+    char tmp4[4]; in.read(tmp4, 4);
 
-    auto appendMpz = [&combinedData, &index](const mpz_t value) {
-        std::string s = index.mpzToString(value);
-        combinedData.insert(combinedData.end(), s.begin(), s.end());
-    };
+    // Read "WAVE" header
+    char wave[4]; in.read(wave, 4);
+    
+    if (std::strncmp(wave, "WAVE", 4) != 0) throw std::runtime_error("Not a WAVE file");
 
-    appendMpz(index.genreCode);
-    appendMpz(index.artistCode);
-    appendMpz(index.albumCode);
-    appendMpz(index.trackCode);
-
-    // AudioFingerprint block layout expectations (must match AudioFingerprint impl)
-    const size_t FREQUENCY_BANDS = 32;
-    size_t numBlocks = (combinedData.size() + FREQUENCY_BANDS - 1) / FREQUENCY_BANDS;
-    if (numBlocks == 0) numBlocks = 1;
-
-    // Pad to full blocks
-    combinedData.resize(numBlocks * FREQUENCY_BANDS, 0);
-
-    // Build serialized fingerprint: 
-    // - originalSampleRate (int), originalDuration (int), numBlocks (uint32_t), blocks...
-    std::vector<uint8_t> serialized;
-    int originalSampleRate = index.sampleRate;
-    serialized.insert(serialized.end(), reinterpret_cast<uint8_t*>(&originalSampleRate), reinterpret_cast<uint8_t*>(&originalSampleRate) + sizeof(originalSampleRate));
-    int originalDuration = 0; // unknown
-    serialized.insert(serialized.end(), reinterpret_cast<uint8_t*>(&originalDuration), reinterpret_cast<uint8_t*>(&originalDuration) + sizeof(originalDuration));
-    uint32_t nb = static_cast<uint32_t>(numBlocks);
-    serialized.insert(serialized.end(), reinterpret_cast<uint8_t*>(&nb), reinterpret_cast<uint8_t*>(&nb) + sizeof(nb));
-    serialized.insert(serialized.end(), combinedData.begin(), combinedData.end());
-
-    // Wrap with magic + version to match AudioFingerprint::serialize() output
-    const uint8_t magic[4] = { 'A', 'F', 'P', 'B' };
-    const uint8_t version = 0x01;
-    std::vector<uint8_t> wrapped;
-    wrapped.insert(wrapped.end(), std::begin(magic), std::end(magic));
-    wrapped.push_back(version);
-    wrapped.insert(wrapped.end(), serialized.begin(), serialized.end());
-
-    index.audioFingerprint = std::move(wrapped);
-    return index;
-}
-
-// ---------------------------------------------------------------------------
-// 4) Serialization
-// ---------------------------------------------------------------------------
-
-void AudioIndex::serialize(std::ostream& out) const {
-    // Write basic properties
-    out.write(reinterpret_cast<const char*>(&sampleRate), sizeof(sampleRate));
-    out.write(reinterpret_cast<const char*>(&duration), sizeof(duration));
-    out.write(reinterpret_cast<const char*>(&bitDepth), sizeof(bitDepth));
-
-    // Helper: export an mpz_t as raw bytes, write length (u64 LE) then payload
-    auto writeMpz = [&out](const mpz_t value) {
-
-        // Write length (u64 LE)
-        size_t bits = mpz_sizeinbase(value, 2);
-
-        // Compute approximate byte size
-        size_t approxBytes = (bits + 7) / 8;
-
-        // Zero out the buffer
-        std::vector<uint8_t> buffer(approxBytes > 0 ? approxBytes : 1);
-
-        // Export the mpz_t value into the buffer
-        size_t count = 0;
-        mpz_export(buffer.data(), &count, 1, 1, 0, 0, value);
-
-        // Resize buffer to actual size
-        if (count > 0) buffer.resize(count);
-
-        // Write length (u64 LE)
-        write_u64_le(out, static_cast<uint64_t>(buffer.size()));
-
-        // Write the actual data
-        if (!buffer.empty()) out.write(reinterpret_cast<const char*>(buffer.data()), static_cast<std::streamsize>(buffer.size()));
-    };
-
-    writeMpz(genreCode);
-    writeMpz(artistCode);
-    writeMpz(albumCode);
-    writeMpz(trackCode);
-
-    // Write fingerprint blob
-    uint64_t fingerprintSize = static_cast<uint64_t>(audioFingerprint.size());
-    write_u64_le(out, fingerprintSize);
-    if (fingerprintSize > 0) out.write(reinterpret_cast<const char*>(audioFingerprint.data()), fingerprintSize);
-}
-
-AudioIndex AudioIndex::deserialize(std::istream& in) {
-    AudioIndex index;
-
-    // Read basic properties
-    in.read(reinterpret_cast<char*>(&index.sampleRate), sizeof(index.sampleRate));
-    in.read(reinterpret_cast<char*>(&index.duration), sizeof(index.duration));
-    in.read(reinterpret_cast<char*>(&index.bitDepth), sizeof(index.bitDepth));
-
-    // Read mpz values: read length (u64 LE) then import raw bytes
-    auto readMpz = [&in](mpz_t value) {
-        uint64_t size64 = 0;
-        if (!read_u64_le(in, size64)) return false;
-        size_t size = static_cast<size_t>(size64);
-        if (size > 0) {
-            std::vector<uint8_t> buffer(size);
-            if (!in.read(reinterpret_cast<char*>(buffer.data()), size)) return false;
-            mpz_import(value, size, 1, 1, 0, 0, buffer.data());
-        }
-        return true;
-    };
-
-    if (!readMpz(index.genreCode)) return index;
-    if (!readMpz(index.artistCode)) return index;
-    if (!readMpz(index.albumCode)) return index;
-    if (!readMpz(index.trackCode)) return index;
-
-    // Read fingerprint
-    uint64_t fingerprintSize = 0;
-    if (!read_u64_le(in, fingerprintSize)) return index;
-    if (fingerprintSize > 0) {
-        index.audioFingerprint.resize(static_cast<size_t>(fingerprintSize));
-        in.read(reinterpret_cast<char*>(index.audioFingerprint.data()), static_cast<std::streamsize>(fingerprintSize));
-    }
-
-    return index;
-}
-
-// ---------------------------------------------------------------------------
-// 5) Converters / accessors
-// ---------------------------------------------------------------------------
-
-std::vector<int32_t> AudioIndex::toAudioSamples() const {
-    if (audioFingerprint.empty()) return {};
-    AudioFingerprint fingerprint = AudioFingerprint::deserialize(audioFingerprint);
-    return fingerprint.toSamples(sampleRate);
-}
-
-std::string AudioIndex::getGenreString() const { return mpzToString(genreCode); }
-std::string AudioIndex::getArtistString() const { return mpzToString(artistCode); }
-std::string AudioIndex::getAlbumString() const { return mpzToString(albumCode); }
-std::string AudioIndex::getTrackString() const { return mpzToString(trackCode); }
-std::string AudioIndex::getFullPath() const {
-    return getGenreString() + "/" + getArtistString() + "/" + getAlbumString() + "/" + getTrackString();
-}
-
-// ---------------------------------------------------------------------------
-// 6) mpz <-> string helpers (base-94 printable alphabet 33..126)
-// ---------------------------------------------------------------------------
-
-bool AudioIndex::stringToMpz(const std::string& str, mpz_t result) const {
-    const unsigned long BASE = 94UL;
-
-    // Handle empty string case
-    if (str.empty()) {
-        mpz_set_ui(result, 0);
-        return true;
-    }
-
-    // Validate allowed characters
-    for (unsigned char c : str) if (c < 33 || c > 126) return false;
-
-    // Initialize result
-    mpz_set_ui(result, 0);
-
-    // Convert each character to its base-94 digit
-    for (unsigned char c : str) {
-        unsigned long digit = static_cast<unsigned long>(c - 33);
-        mpz_mul_ui(result, result, BASE);
-        mpz_add_ui(result, result, digit);
-    }
-    return true;
-}
-
-std::string AudioIndex::mpzToString(const mpz_t value) const {
-    const unsigned long BASE = 94UL;
-    if (mpz_cmp_ui(value, 0) == 0) return std::string(1, static_cast<char>(33)); // '!' for zero
-
-    mpz_t tmp, q, d, rem_mpz;
-    mpz_init_set(tmp, value);
-    mpz_init(q);
-    mpz_init_set_ui(d, BASE);
-    mpz_init(rem_mpz);
-
-    std::string rev;
-    while (mpz_cmp_ui(tmp, 0) > 0) {
-        mpz_tdiv_qr(q, rem_mpz, tmp, d);
-        unsigned long r = mpz_get_ui(rem_mpz);
-        rev.push_back(static_cast<char>(33 + r));
-        mpz_set(tmp, q);
-    }
-
-    mpz_clear(rem_mpz);
-    mpz_clear(d);
-    mpz_clear(tmp);
-    mpz_clear(q);
-    std::reverse(rev.begin(), rev.end());
-    return rev;
-}
+    AudioData audioData{};
 
 /*
-// ---------------------------------------------------------------------------
-// 7) Optional browsing helpers
-//    (commented out: keep for future exploration)
-// ---------------------------------------------------------------------------
-std::vector<AudioIndex> AudioIndex::getSimilarGenres(int count) const { ... }
-std::vector<AudioIndex> AudioIndex::getArtistsInGenre(int count) const { ... }
-std::vector<AudioIndex> AudioIndex::getAlbumsFromArtist(int count) const { ... }
-std::vector<AudioIndex> AudioIndex::getTracksFromAlbum(int count) const { ... }
+This loop is a simple RIFF/WAV chunk parser that iterates over chunks until EOF or an error. 
+Each iteration reads a 4‑byte chunk ID (into a non‑nul-terminated char[4]) and then reads the 
+next 4 bytes into a temporary buffer sizeBuf. The code converts those four bytes to a host 
+uint32_t via read_u32_le — this explicitly interprets the on‑disk size as little‑endian, which 
+is why the size is first read into bytes and then converted rather than read directly into a uint32_t.
+
+After converting the chunk size the code performs a sanity check (rejecting sizes larger than 1<<30) 
+to avoid unreasonable allocations. It then dispatches on the chunk ID using std::strncmp with a length of 4, 
+which is appropriate here because id is not nul‑terminated and the comparison only needs to match exactly four bytes.
+
+For the "fmt " chunk the code requires at least 16 bytes (the canonical minimum for PCM fmt) and reads 
+the entire chunk into a temporary buffer. It then extracts fields using the provided little‑endian helpers: 
+audio_format at offset 0, num_channels at offset 2, sample_rate at offset 4, and bits_per_sample at offset 14. 
+ote that these offsets correspond to the standard 16‑byte PCM fmt layout (AudioFormat, NumChannels, SampleRate, 
+ByteRate, BlockAlign, BitsPerSample). If the fmt chunk is shorter than 16 bytes or the chunk is a non‑PCM/extended fmt, 
+those fixed offsets can be invalid or insufficient — additional validation and handling for extensible fmt structures would be required.
+
+For the "data" chunk the code resizes audioData.samples to the chunk size and reads raw sample bytes into that buffer. 
+Unknown chunks are skipped by advancing the stream by sz bytes plus one extra byte when sz is odd (sz + (sz & 1)), 
+which correctly handles RIFF’s even‑byte padding rule. Throughout the loop the code uses placeholder comments for error handling; 
+robust code should check every read/gcount and handle partial reads, malformed chunks, non‑PCM formats, and excessive sizes 
+(to prevent OOM or denial‑of‑service).
 */
+    // Read chunks
+    while (in) {
+        char id[4];
+        if (!in.read(id, 4)) break;
+
+        // Read size as 4 bytes then interpret as little-endian to be portable
+        char sizeBuf[4];
+        if (!in.read(sizeBuf, 4)) break;
+        uint32_t sz = read_u32_le(sizeBuf);
+
+        // Guard against unreasonable sizes
+        if (sz > (1u << 30)) { /* handle error */ break; }
+
+        if (std::strncmp(id, "fmt ", 4) == 0) {
+            if (sz < 16) { /* handle malformed fmt chunk */ break; }
+            std::vector<char> buf(sz);
+            if (!in.read(buf.data(), sz)) { /* handle partial read */ break; }
+            audioData.audio_format = read_u16_le(buf.data());
+            audioData.num_channels = read_u16_le(buf.data()+2);
+            audioData.sample_rate = read_u32_le(buf.data()+4);
+            audioData.bit_rate = read_u16_le(buf.data()+14);
+        } else if (std::strncmp(id, "data", 4) == 0) {
+            audioData.samples.resize(sz);
+            if (!in.read(reinterpret_cast<char*>(audioData.samples.data()), sz)) { /* handle partial read */ break; }
+        } else {
+            // Skip unknown chunk and account for RIFF padding (chunks are even-sized)
+            in.seekg(sz + (sz & 1), std::ios::cur);
+            if (!in) break;
+        }
+    }
+
+    if (audioData.samples.empty()) throw std::runtime_error("No data chunk found in WAV");
+
+    // Compute number of frames
+    size_t bytes_per_sample = audioData.bit_rate / 8;
+    audioData.num_frames = audioData.samples.size() / (bytes_per_sample * audioData.num_channels);
+    return audioData;
+}
+
+AudioIndex::AudioData AudioIndex::extractAudioDataFromSamples(const std::vector<int32_t>& samples, int sampleRate, int bitDepth) {
+    AudioData audioData{};
+    audioData.sample_rate = static_cast<uint32_t>(sampleRate);
+    audioData.bit_rate = static_cast<uint16_t>(bitDepth);
+    audioData.num_channels = 1; // assuming mono input
+    audioData.audio_format = 1; // PCM format
+
+    // Convert int32 samples to bytes (little-endian)
+    size_t bytes_per_sample = bitDepth / 8;
+    audioData.samples.resize(samples.size() * bytes_per_sample);
+    for (size_t i = 0; i < samples.size(); ++i) {
+        int32_t sample = samples[i];
+        for (size_t b = 0; b < bytes_per_sample; ++b) {
+            audioData.samples[i * bytes_per_sample + b] = static_cast<uint8_t>((sample >> (b * 8)) & 0xFF);
+        }
+    }
+
+    // compute number of frames
+    audioData.num_frames = samples.size() / audioData.num_channels;
+    return audioData;
+}
+
+// Debug storage for import/export statistics
+static AudioIndex::DebugInfo lastDebug;
+
+AudioIndex::DebugInfo AudioIndex::getLastDebugInfo() {
+    return lastDebug;
+}
+
+void AudioIndex::clearLastDebugInfo() {
+    lastDebug = DebugInfo();
+}
+
+boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) {
+
+    // only support 8,16,32
+    if (!(audioData.bit_rate==8 || audioData.bit_rate==16 || audioData.bit_rate==32))
+        throw std::runtime_error("Unsupported bit depth");
+
+    // Build pcm_int by concatenating samples. The canonical on-disk layout for
+    // our serialized index is: [PCM_payload (MSB-first)] [16-byte big-endian header]
+    // where the header occupies the least-significant bytes of the integer.
+    // To construct the PCM portion efficiently we assemble a MSB-first byte
+    // buffer and call boost::multiprecision::import_bits with the MSB flag set.
+    size_t bytes_per_sample = audioData.bit_rate/8;
+    size_t total_samples = audioData.num_frames * audioData.num_channels;
+    cpp_int pcm_int = 0;
+
+    auto t0_import = std::chrono::steady_clock::now();
+    if (total_samples > 0) {
+        std::vector<uint8_t> pcm_be;
+        pcm_be.reserve(total_samples * bytes_per_sample);
+        
+        // audioData.samples stores little-endian bytes per sample; we need
+        // to append each sample's bytes in big-endian order so the first
+        // sample ends up as the most-significant bytes in the resulting integer.
+        for (size_t i = 0; i < total_samples; ++i) {
+            size_t offset = i * bytes_per_sample;
+            for (int b = static_cast<int>(bytes_per_sample) - 1; b >= 0; --b) {
+                pcm_be.push_back(audioData.samples[offset + b]);
+            }
+        }
+        
+        // Import bytes into cpp_int (MSB-first)
+        boost::multiprecision::import_bits(pcm_int, pcm_be.begin(), pcm_be.end(), 8, true);
+
+        // populate debug info
+        lastDebug.import_pcm_bytes = pcm_be.size();
+        lastDebug.import_expected_bytes = total_samples * bytes_per_sample;
+    }
+
+    auto t1_import = std::chrono::steady_clock::now();
+    lastDebug.audioDataToIndexMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(t1_import - t0_import).count());
+
+    // Build explicit header bytes (big-endian): u32 sample_rate, u16 bit_depth, u16 num_channels, u64 num_frames
+    // The header is placed into the least-significant 128 bits (16 bytes) so
+    // consumers may extract it by masking the low bits. This explicit layout
+    // avoids fragile bitwidth assumptions and makes deserialization robust.
+    const size_t HEADER_BYTES = 4 + 2 + 2 + 8; // 16 bytes
+    std::vector<uint8_t> header_buf;
+    header_buf.reserve(HEADER_BYTES);
+
+    uint32_t sr = audioData.sample_rate;
+    header_buf.push_back(static_cast<uint8_t>((sr >> 24) & 0xFF));
+    header_buf.push_back(static_cast<uint8_t>((sr >> 16) & 0xFF));
+    header_buf.push_back(static_cast<uint8_t>((sr >> 8) & 0xFF));
+    header_buf.push_back(static_cast<uint8_t>((sr >> 0) & 0xFF));
+
+    uint16_t bd = audioData.bit_rate;
+    header_buf.push_back(static_cast<uint8_t>((bd >> 8) & 0xFF));
+    header_buf.push_back(static_cast<uint8_t>((bd >> 0) & 0xFF));
+
+    uint16_t nc = audioData.num_channels;
+    header_buf.push_back(static_cast<uint8_t>((nc >> 8) & 0xFF));
+    header_buf.push_back(static_cast<uint8_t>((nc >> 0) & 0xFF));
+
+    uint64_t nf = audioData.num_frames;
+    for (int i = 7; i >= 0; --i) header_buf.push_back(static_cast<uint8_t>((nf >> (i*8)) & 0xFF));
+
+    // Convert header_buf to cpp_int (big-endian bytes)
+    cpp_int header_int = 0;
+    for (uint8_t b : header_buf) {
+        header_int <<= 8;
+        header_int |= cpp_int(uint32_t(b));
+    }
+
+    // Combine: shift pcm_int left by header_bits and OR header_int
+    size_t header_bits = HEADER_BYTES * 8;
+    cpp_int idx = (pcm_int << header_bits) | header_int;
+    return idx;
+}
+
+AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) {
+    // Header layout must match audioDataToIndex: HEADER_BYTES = 16
+    const size_t HEADER_BYTES = 4 + 2 + 2 + 8;
+    const size_t HEADER_BITS = HEADER_BYTES * 8;
+
+    // Extract header_int as the lower HEADER_BITS bits
+    cpp_int mask = (cpp_int(1) << HEADER_BITS) - 1;
+    cpp_int header_int = index & mask;
+    cpp_int pcm_int = index >> HEADER_BITS;
+
+    // Convert header_int to bytes (big-endian)
+    std::vector<uint8_t> header_buf(HEADER_BYTES);
+    cpp_int tmp = header_int;
+    for (int i = static_cast<int>(HEADER_BYTES) - 1; i >= 0; --i) {
+        uint8_t byte = static_cast<uint8_t>(static_cast<uint64_t>(tmp & 0xFF));
+        header_buf[i] = byte;
+        tmp >>= 8;
+    }
+
+    // Parse fields from header_buf (big-endian)
+    uint32_t sample_rate = (uint32_t(header_buf[0]) << 24) | (uint32_t(header_buf[1]) << 16) | (uint32_t(header_buf[2]) << 8) | uint32_t(header_buf[3]);
+    uint16_t bit_depth = static_cast<uint16_t>((uint16_t(header_buf[4]) << 8) | uint16_t(header_buf[5]));
+    uint16_t num_channels = static_cast<uint16_t>((uint16_t(header_buf[6]) << 8) | uint16_t(header_buf[7]));
+    uint64_t num_frames = 0;
+    for (int i = 0; i < 8; ++i) num_frames = (num_frames << 8) | header_buf[8 + i];
+
+    if (!(bit_depth==8 || bit_depth==16 || bit_depth==32)) throw std::runtime_error("Unsupported bit depth in index");
+
+    // Compute number of samples
+    size_t total_samples = static_cast<size_t>(num_frames) * static_cast<size_t>(num_channels);
+    cpp_int sample_mask = (cpp_int(1) << bit_depth) - 1;
+    std::vector<uint64_t> samples;
+    samples.reserve(total_samples);
+
+    // Extract samples: use export_bits to extract PCM bytes in big-endian
+    if (total_samples > 0) {
+        // export_bits writes least-significant byte first by default; request MSB-first
+        std::vector<uint8_t> pcm_be_bytes;
+        pcm_be_bytes.reserve(total_samples * (bit_depth/8));
+        boost::multiprecision::export_bits(pcm_int, std::back_inserter(pcm_be_bytes), 8, true);
+
+        // pcm_be_bytes now contains samples in big-endian sample order
+        // We need to split into samples and convert each to host-endian little-endian byte order
+        size_t bytes_per_sample = bit_depth / 8;
+        size_t expected_bytes = total_samples * bytes_per_sample;
+        if (pcm_be_bytes.size() != expected_bytes) {
+            std::cerr << "[indexToAudioData] warning: exported byte count mismatch: " << pcm_be_bytes.size() << " vs expected " << expected_bytes << std::endl;
+            if (pcm_be_bytes.size() < expected_bytes) {
+                // export_bits may omit leading zero bytes; pad at the front (MSB side)
+                size_t pad = expected_bytes - pcm_be_bytes.size();
+                pcm_be_bytes.insert(pcm_be_bytes.begin(), pad, 0);
+            } else {
+                // If larger, keep the least-significant expected bytes (rightmost)
+                pcm_be_bytes = std::vector<uint8_t>(pcm_be_bytes.end() - expected_bytes, pcm_be_bytes.end());
+            }
+        }
+
+        // iterate samples in order and convert to unsigned sample words
+        for (size_t i = 0; i < total_samples; ++i) {
+            size_t base = i * bytes_per_sample;
+            uint64_t word = 0;
+            for (size_t b = 0; b < bytes_per_sample; ++b) {
+                word = (word << 8) | uint64_t(pcm_be_bytes[base + b]);
+            }
+            // Handle signed values depending on bit depth
+            uint64_t signbit = uint64_t(1) << (bit_depth - 1);
+            int64_t sval = 0;
+            if (word & signbit) sval = static_cast<int64_t>(word - (uint64_t(1) << bit_depth));
+            else sval = static_cast<int64_t>(word);
+            samples.push_back(static_cast<uint64_t>(sval & ((1ULL << bit_depth) - 1)));
+        }
+        std::cout << std::endl;
+
+        // record export stats
+        lastDebug.export_pcm_bytes = pcm_be_bytes.size();
+        lastDebug.export_expected_bytes = expected_bytes;
+    }
+
+    // pack bytes
+    AudioData audioData{};
+    audioData.audio_format = 1;
+    audioData.num_channels = static_cast<uint16_t>(num_channels);
+    audioData.sample_rate = sample_rate;
+    audioData.bit_rate = static_cast<uint16_t>(bit_depth);
+    size_t bytes_per_sample = bit_depth/8;
+    audioData.samples.resize(total_samples * bytes_per_sample);
+
+    for (size_t i=0;i<total_samples;i++){
+        uint64_t v = samples[i];
+        for (size_t b=0;b<bytes_per_sample;b++){
+            audioData.samples[i*bytes_per_sample + b] = static_cast<uint8_t>((v >> (8*b)) & 0xFF);
+        }
+    }
+    audioData.num_frames = static_cast<size_t>(num_frames);
+    return audioData;
+}
+
+void AudioIndex::writeAudioDataToFile(const AudioData& audioData, const std::string& path) {
+    std::ofstream out(path, std::ios::binary);
+    if (!out) throw std::runtime_error("Failed to open output WAV: " + path);
+    
+    // RIFF header
+    out.write("RIFF", 4);
+    uint32_t file_size = 36 + (uint32_t)audioData.samples.size();
+    write_u32_le(out, file_size);
+    out.write("WAVE", 4);
+    
+    // fmt chunk
+    out.write("fmt ", 4);
+    uint32_t fmt_size = 16;
+    write_u32_le(out, fmt_size);
+
+    uint16_t audio_format = audioData.audio_format;
+    write_u16_le(out, audio_format);
+    write_u16_le(out, audioData.num_channels);
+    write_u32_le(out, audioData.sample_rate);
+
+    uint32_t byte_rate = audioData.sample_rate * audioData.num_channels * (audioData.bit_rate/8);
+    write_u32_le(out, byte_rate);
+
+    uint16_t block_align = static_cast<uint16_t>(audioData.num_channels * (audioData.bit_rate/8));
+    write_u16_le(out, block_align);
+    write_u16_le(out, audioData.bit_rate);
+
+    // data chunk
+    out.write("data", 4);
+    uint32_t data_size = static_cast<uint32_t>(audioData.samples.size());
+    write_u32_le(out, data_size);
+    out.write(reinterpret_cast<const char*>(audioData.samples.data()), audioData.samples.size());
+}
 
 // ---------------------------------------------------------------------------
 // 8) Comparison operators
 // ---------------------------------------------------------------------------
 
 bool AudioIndex::operator==(const AudioIndex& other) const {
-    return mpz_cmp(genreCode, other.genreCode) == 0 &&
-           mpz_cmp(artistCode, other.artistCode) == 0 &&
-           mpz_cmp(albumCode, other.albumCode) == 0 &&
-           mpz_cmp(trackCode, other.trackCode) == 0;
+    // Compare audioData fields (audioData is the single source of truth)
+    if (audioData.audio_format != other.audioData.audio_format) return false;
+    if (audioData.num_channels != other.audioData.num_channels) return false;
+    if (audioData.sample_rate != other.audioData.sample_rate) return false;
+    if (audioData.bit_rate != other.audioData.bit_rate) return false;
+    if (audioData.num_frames != other.audioData.num_frames) return false;
+
+    // Compare sample payload sizes first to short-circuit heavy comparisons
+    if (audioData.samples.size() != other.audioData.samples.size()) return false;
+    return audioData.samples == other.audioData.samples;
 }
 
 bool AudioIndex::operator!=(const AudioIndex& other) const {
     return !(*this == other);
+}
+
+// ---------------------------------------------------------------------------
+// 9) Index representation helpers
+// ---------------------------------------------------------------------------
+
+// base-N encoder for arbitrary small radix (2..256) using repeated divmod
+static std::string encode_base(const boost::multiprecision::cpp_int &value, unsigned radix, const std::string &alphabet) {
+    if (radix < 2 || alphabet.size() < radix) return std::string();
+    if (value == 0) return std::string(1, alphabet[0]);
+    boost::multiprecision::cpp_int v = value;
+    std::string out;
+    while (v > 0) {
+        boost::multiprecision::cpp_int q = v / radix;
+        unsigned digit = static_cast<unsigned>(static_cast<uint64_t>(v - q * radix));
+        out.push_back(alphabet[digit]);
+        v = q;
+    }
+    std::reverse(out.begin(), out.end());
+    return out;
+}
+
+static std::string to_base64_rfc4648(const boost::multiprecision::cpp_int &v) {
+    static const std::string alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    return encode_base(v, 64, alpha);
+}
+
+// Base64 encode bytes (RFC4648, no linewrap)
+static void write_base64_from_bytes(const std::string &path, const std::vector<uint8_t> &bytes) {
+
+}
+
+void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int& index, const std::string& outPrefix) {
+    // Ensure target directory exists: write under cpp/tests/indexes/<basename>
+    fs::path baseDir = fs::path("cpp") / "tests" / "indexes";
+    try { fs::create_directories(baseDir); } catch(...) {}
+    fs::path stem = fs::path(outPrefix).filename();
+    fs::path targetPrefix = baseDir / stem;
+
+    std::ofstream out(targetPrefix.string() + ".txt");
+    if (!out) return;
+    
+    // Export bytes once (MSB-first) and produce all encodings from these bytes
+    std::vector<uint8_t> bytes;
+    boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8, true);
+
+    static const char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    size_t i = 0;
+    uint32_t acc = 0; int acc_bits = 0;
+    for (uint8_t byte : bytes) {
+        acc = (acc << 8) | byte;
+        acc_bits += 8;
+        while (acc_bits >= 6) {
+            acc_bits -= 6;
+            uint8_t idx = static_cast<uint8_t>((acc >> acc_bits) & 0x3F);
+            out.put(b64[idx]);
+        }
+    }
+    if (acc_bits > 0) {
+        uint8_t idx = static_cast<uint8_t>((acc << (6 - acc_bits)) & 0x3F);
+        out.put(b64[idx]);
+    }
+    out.put('\n');
+    out.close();
 }
 
 } // namespace AudioBabel

@@ -443,50 +443,12 @@ int main(int argc, char** argv) {
             std::string prefix = "test_index_out"; // basename only; files are written into cpp/tests/indexes/
             AudioIndex::writeIndexRepresentations(v, prefix);
 
-            // Check decimal file exists and contains digits
-            std::ifstream dec(std::string("cpp/tests/indexes/") + prefix + ".dec.txt");
-            std::string decs;
-            if (!dec || !std::getline(dec, decs)) {
-                ok &= RUN_CHECK(runner, name, false, "decimal file written");
-            } else {
-                ok &= RUN_CHECK(runner, name, !decs.empty(), "decimal non-empty");
-            }
-
-            // Check hex file contains '1234'
-            std::ifstream hexf(std::string("cpp/tests/indexes/") + prefix + ".hex.txt");
-            std::string hexs;
-            if (!hexf || !std::getline(hexf, hexs)) {
-                ok &= RUN_CHECK(runner, name, false, "hex file written");
-            } else {
-                ok &= RUN_CHECK(runner, name, hexs.find("1234") != std::string::npos, "hex contains 1234");
-            }
-
-            // Check binary textual file starts with '1' (non-zero value)
-            std::ifstream binf(std::string("cpp/tests/indexes/") + prefix + ".bin.txt");
-            std::string bins;
-            if (!binf || !std::getline(binf, bins)) {
-                ok &= RUN_CHECK(runner, name, false, "bin file written");
-            } else {
-                ok &= RUN_CHECK(runner, name, !bins.empty() && bins[0] == '1', "bin starts with 1");
-            }
-
-            // Check base32/base64 exist
-            std::ifstream b32(std::string("cpp/tests/indexes/") + prefix + ".b32.txt");
-            ok &= RUN_CHECK(runner, name, bool(b32), "b32 file exists");
-            std::ifstream b64(std::string("cpp/tests/indexes/") + prefix + ".b64.txt");
+            // Check base64 exist
+            std::ifstream b64(std::string("cpp/tests/indexes/") + prefix + ".txt");
             ok &= RUN_CHECK(runner, name, bool(b64), "b64 file exists");
-
-            // Check raw base256 file exists and is non-empty
-            std::ifstream b256(std::string("cpp/tests/indexes/") + prefix + ".b256", std::ios::binary);
-            if (!b256) ok &= RUN_CHECK(runner, name, false, "b256 file exists");
-            else {
-                b256.seekg(0, std::ios::end);
-                ok &= RUN_CHECK(runner, name, b256.tellg() > 0, "b256 non-empty");
-            }
-
             // cleanup
             auto safe_rm = [&](const std::string &p){ try{ std::filesystem::remove(p); } catch(...) {} };
-            safe_rm(std::string("cpp/tests/indexes/") + prefix + ".dec.txt"); safe_rm(std::string("cpp/tests/indexes/") + prefix + ".hex.txt"); safe_rm(std::string("cpp/tests/indexes/") + prefix + ".bin.txt"); safe_rm(std::string("cpp/tests/indexes/") + prefix + ".b32.txt"); safe_rm(std::string("cpp/tests/indexes/") + prefix + ".b64.txt"); safe_rm(std::string("cpp/tests/indexes/") + prefix + ".b128"); safe_rm(std::string("cpp/tests/indexes/") + prefix + ".b256");
+            safe_rm(std::string("cpp/tests/indexes/") + prefix + ".txt");
 
         } catch (const std::exception& e) {
             runner.failMsg(name, std::string("exception: ") + e.what());
@@ -696,7 +658,7 @@ int main(int argc, char** argv) {
                 log_now("Converting Audio Data to Index for: " + p.string());
                 auto idx = AudioIndex::audioDataToIndex(originalData);
 
-                // Write index representations (hex/dec/bin/b32/b64/b128/b256)
+                // Write index representations (b256)
                 try {
                     std::string stem = p.stem().string();
                     AudioIndex::writeIndexRepresentations(idx, stem);

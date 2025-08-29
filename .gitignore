@@ -1,0 +1,98 @@
+# Top-level .gitignore for Speaker-of-Babel
+# Typical C++ / CMake project ignores (Visual Studio, MinGW/MSYS2, generated build files)
+
+### OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+### Temporary / swap / backup files
+*~
+*.swp
+*.swo
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+
+### Visual Studio
+.vs/
+*.vcxproj.user
+*.suo
+*.user
+ipch/
+*.VC.db
+*.VC.VC.opendb
+
+### CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CMakeScripts/
+CTestTestfile.cmake
+Makefile
+compile_commands.json
+CMakeDirectoryInformation.cmake
+
+# Build directories (common names)
+build/
+build-*/
+Debug/
+Release/
+RelWithDebInfo/
+MinSizeRel/
+
+### Compiled objects and libraries
+*.o
+*.obj
+*.lo
+*.la
+*.al
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.exe
+*.out
+
+### Linker and intermediate
+*.exp
+*.ilk
+*.pdb
+*.idb
+*.ipdb
+
+### Static analysis / coverage
+*.gcno
+*.gcda
+*.profdata
+*.profraw
+coverage/
+
+### Test outputs and generated test artifacts
+cpp/tests/indexes/
+cpp/tests/Outputs/
+cpp/tests/test_run.log
+build/test_run.log
+
+### Logs
+*.log
+*.log.*
+
+### Editor folders
+.vscode/
+.idea/
+*.code-workspace
+
+### Package manager / tools
+# (no node/python/rust specifics in this repo by default)
+
+### Misc
+coverage/
+dist/
+
+# End of .gitignore

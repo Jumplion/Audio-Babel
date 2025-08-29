@@ -12,14 +12,29 @@
     "tasks": [
         {
             "type": "shell",
-            "label": "g++ (MSYS2) build",
-            "command": "/mingw64/bin/g++ -std=c++17 -g -I include src/*.cpp examples/main.cpp -o examples/main.exe -lgmp -lfftw3 -lm",
+            "label": "CMake: configure and build",
+            "command": "mkdir -p build; cd build; cmake -G \"MinGW Makefiles\" ..; mingw32-make -j 4",
             "problemMatcher": [
                 "$gcc"
             ],
             "group": {
                 "kind": "build",
                 "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "type": "shell",
+            "label": "Run tests_runner",
+            "command": "cd build; ./tests_runner.exe",
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": false
             },
             "presentation": {
                 "echo": true,

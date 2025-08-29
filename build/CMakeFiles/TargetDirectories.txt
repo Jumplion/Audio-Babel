@@ -1,5 +1,0 @@
-F:/Repos/Speaker of Babel/build/CMakeFiles/audiolib.dir
-F:/Repos/Speaker of Babel/build/CMakeFiles/example_main.dir
-F:/Repos/Speaker of Babel/build/CMakeFiles/tests_runner.dir
-F:/Repos/Speaker of Babel/build/CMakeFiles/ALL_BUILD.dir
-F:/Repos/Speaker of Babel/build/CMakeFiles/ZERO_CHECK.dir

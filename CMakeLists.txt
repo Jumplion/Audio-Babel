@@ -77,4 +77,12 @@ if(EXISTS ${TEST_SRC})
     target_include_directories(tests_runner PRIVATE ${CPP_ROOT}/include)
 endif()
 
+# Small reconstruction CLI used by the web server
+set(RECON_SRC "${CPP_ROOT}/tools/reconstruct_cli.cpp")
+if(EXISTS ${RECON_SRC})
+    add_executable(reconstruct_cli ${RECON_SRC})
+    target_link_libraries(reconstruct_cli PRIVATE audiolib)
+    target_include_directories(reconstruct_cli PRIVATE ${CPP_ROOT}/include)
+endif()
+
 message(STATUS "Project configured: ${PROJECT_NAME}")

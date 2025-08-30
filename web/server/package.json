@@ -2,6 +2,7 @@
   "name": "speaker-of-babel-server",
   "version": "0.1.0",
   "description": "Minimal Node backend to accept encoded index strings and return decoded binary for reconstruction.",
+  "type": "module",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js"

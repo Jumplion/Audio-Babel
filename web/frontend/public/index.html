@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Audibel: The Library of Babel</title>
+  <style>
+    :root { --bg:#0f1720; --card:#0b1220; --accent:#9ad3ff; --muted:#9aa6b2; }
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;color:var(--accent);background:linear-gradient(180deg,#041025 0%, #071426 100%);}
+    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:48px 16px;}
+    .card{background:rgba(255,255,255,0.02);border-radius:12px;padding:40px 32px;max-width:640px;width:100%;box-shadow:0 6px 24px rgba(2,6,23,0.6);}
+    h1{margin:0 0 24px 0;font-size:28px;line-height:1.1;color:#fff}
+    p.lead{margin:0 0 24px 0;color:var(--muted)}
+    .options{display:flex;flex-direction:column;gap:12px}
+    .option{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px 18px;border-radius:8px;color:#e6f7ff;text-decoration:none;font-weight:600;border:1px solid rgba(255,255,255,0.03);}
+    .option:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(2,6,23,0.6);}
+    footer{margin-top:20px;color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <main class="card">
+      <h1>Audibel: The Library of Babel</h1>
+      <p class="lead">A prototype interface for exploring deterministic audio indexes and their reconstructions.</p>
+
+      <nav class="options" aria-label="site navigation">
+        <a class="option" href="#">Browse</a>
+        <a class="option" href="#">Search</a>
+        <a class="option" href="#">Random</a>
+        <a class="option" href="#">About</a>
+      </nav>
+
+      <footer>
+        <small>Prototype — links are placeholders for now.</small>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

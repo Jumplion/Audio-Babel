@@ -1,11 +1,31 @@
 import express, { json } from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import { fileURLToPath } from 'url';
+// POST /reconstruct
+// Body (application/json): { format: 'base64', data: string }
+import { tmpdir } from 'os';
+import { randomBytes } from 'crypto';
+import { writeFileSync, unlinkSync, createReadStream, existsSync, statSync } from 'fs';
+import { spawn } from 'child_process';
+import path from 'path';
 
 const app = express();
 app.use(cors());
 app.use(morgan('dev'));
 app.use(json({ limit: '50mb' }));
+
+// Resolve __dirname for ES modules and serve static frontend (public)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendPublic = path.resolve(path.join(__dirname, '..', '..', 'frontend', 'public'));
+try { require('fs').accessSync(frontendPublic); console.log('Serving static frontend from', frontendPublic); } catch(e) { console.log('Frontend public not found at', frontendPublic); }
+app.use(express.static(frontendPublic));
+
+// Serve index at root explicitly
+app.get('/', (req, res) => {
+    res.sendFile(path.join(frontendPublic, 'index.html'));
+});
 
 function normalizeBase64(s) {
     // Convert base64url to standard base64 and add padding
@@ -18,15 +38,6 @@ function normalizeBase64(s) {
 }
 
 app.get('/health', (req, res) => { res.json({ status: 'ok' }); });
-
-// POST /reconstruct
-// Body (application/json): { format: 'base64', data: string }
-import { tmpdir } from 'os';
-import { randomBytes } from 'crypto';
-import { writeFileSync, unlinkSync, createReadStream, existsSync, statSync } from 'fs';
-import { spawn } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 // Limits (tunable)
 const MAX_INDEX_BYTES = 5 * 1024 * 1024; // 5 MB max raw index input
@@ -118,10 +129,6 @@ app.post('/reconstruct', async (req, res) => {
         console.error('failed to write temp file', err);
         return res.status(500).json({ error: 'Failed to write temp file' });
     }
-
-    // Locate reconstruct_cli: prefer common build locations. Use fileURLToPath to get a Windows-safe __dirname
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
 
     // server.js lives at <repo>/web/server/src, repo root is three levels up
     const repoRoot = path.resolve(__dirname, '..', '..', '..');

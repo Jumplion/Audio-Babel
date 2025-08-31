@@ -21,18 +21,18 @@ namespace AudioBabel {
 
 // Repository-wide numeric constants to avoid magic numbers in the implementation.
 namespace {
-constexpr size_t   WAV_ID_LEN = 4;                      // 'RIFF'/'WAVE' id length
-constexpr size_t   FMT_CHUNK_MIN_SIZE = 16;             // canonical PCM fmt chunk size
-constexpr size_t   HEADER_BYTES_CONST = 4 + 2 + 2 + 8;  // 16 bytes header layout
-constexpr size_t   BITS_PER_BYTE = 8;
-constexpr int      BASE64_BITS = 6;                // bits per base64 digit in our table
-constexpr uint32_t BYTE_MASK = 0xFFu;              // mask for a single byte
-constexpr uint32_t BASE64_MASK = 0x3Fu;            // mask for 6-bit base64 values
-constexpr uint16_t PCM_FORMAT_CODE = 1;            // PCM format value
-constexpr uint16_t DEFAULT_NUM_CHANNELS = 1;       // default assumed channels for sample vectors
-constexpr uint32_t CHUNK_SIZE_LIMIT = (1u << 30);  // sanity limit for chunk sizes
-constexpr uint32_t WAV_FILE_BASE_OVERHEAD = 36;    // base size used in RIFF size field
-}  // namespace
+    constexpr size_t   WAV_ID_LEN             = 4;             // 'RIFF'/'WAVE' id length
+    constexpr size_t   FMT_CHUNK_MIN_SIZE     = 16;            // canonical PCM fmt chunk size
+    constexpr size_t   HEADER_BYTES_CONST     = 4 + 2 + 2 + 8; // 16 bytes header layout
+    constexpr size_t   BITS_PER_BYTE          = 8;
+    constexpr int      BASE64_BITS            = 6;          // bits per base64 digit in our table
+    constexpr uint32_t BYTE_MASK              = 0xFFu;      // mask for a single byte
+    constexpr uint32_t BASE64_MASK            = 0x3Fu;      // mask for 6-bit base64 values
+    constexpr uint16_t PCM_FORMAT_CODE        = 1;          // PCM format value
+    constexpr uint16_t DEFAULT_NUM_CHANNELS   = 1;          // default assumed channels for sample vectors
+    constexpr uint32_t CHUNK_SIZE_LIMIT       = (1u << 30); // sanity limit for chunk sizes
+    constexpr uint32_t WAV_FILE_BASE_OVERHEAD = 36;         // base size used in RIFF size field
+} // namespace
 
 // ---------------------------------------------------------------------------
 // 1) Binary IO helpers
@@ -186,8 +186,8 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
             }
             audioData.audio_format = read_u16_le(buf.data());
             audioData.num_channels = read_u16_le(buf.data() + 2);
-            audioData.sample_rate = read_u32_le(buf.data() + 4);
-            audioData.bit_rate = read_u16_le(buf.data() + 14);
+            audioData.sample_rate  = read_u32_le(buf.data() + 4);
+            audioData.bit_rate     = read_u16_le(buf.data() + 14);
         } else if (std::strncmp(id, "data", WAV_ID_LEN) == 0) {
             audioData.samples.resize(chunkSize);
             if (!in.read(reinterpret_cast<char*>(audioData.samples.data()), chunkSize)) {
@@ -208,16 +208,16 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
 
     // Compute number of frames
     size_t bytes_per_sample = audioData.bit_rate / BITS_PER_BYTE;
-    audioData.num_frames = audioData.samples.size() / (bytes_per_sample * audioData.num_channels);
+    audioData.num_frames    = audioData.samples.size() / (bytes_per_sample * audioData.num_channels);
     return audioData;
 }
 
 AudioIndex::AudioData AudioIndex::extractAudioDataFromSamples(const std::vector<int32_t>& samples, int sampleRate, int bitDepth) {
     AudioData audioData{};
-    audioData.sample_rate = static_cast<uint32_t>(sampleRate);
-    audioData.bit_rate = static_cast<uint16_t>(bitDepth);
-    audioData.num_channels = DEFAULT_NUM_CHANNELS;  // assuming mono input
-    audioData.audio_format = PCM_FORMAT_CODE;       // PCM format
+    audioData.sample_rate  = static_cast<uint32_t>(sampleRate);
+    audioData.bit_rate     = static_cast<uint16_t>(bitDepth);
+    audioData.num_channels = DEFAULT_NUM_CHANNELS; // assuming mono input
+    audioData.audio_format = PCM_FORMAT_CODE;      // PCM format
 
     // Convert int32 samples to bytes (little-endian)
     size_t bytes_per_sample = bitDepth / BITS_PER_BYTE;
@@ -258,8 +258,8 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
     // To construct the PCM portion efficiently we assemble a MSB-first byte
     // buffer and call boost::multiprecision::import_bits with the MSB flag set.
     size_t  bytes_per_sample = audioData.bit_rate / BITS_PER_BYTE;
-    size_t  total_samples = audioData.num_frames * audioData.num_channels;
-    cpp_int pcm_int = 0;
+    size_t  total_samples    = audioData.num_frames * audioData.num_channels;
+    cpp_int pcm_int          = 0;
 
     auto t0_import = std::chrono::steady_clock::now();
     if (total_samples > 0) {
@@ -280,11 +280,11 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
         boost::multiprecision::import_bits(pcm_int, pcm_be.begin(), pcm_be.end(), BITS_PER_BYTE, true);
 
         // populate debug info
-        lastDebug.import_pcm_bytes = pcm_be.size();
+        lastDebug.import_pcm_bytes      = pcm_be.size();
         lastDebug.import_expected_bytes = total_samples * bytes_per_sample;
     }
 
-    auto t1_import = std::chrono::steady_clock::now();
+    auto t1_import               = std::chrono::steady_clock::now();
     lastDebug.audioDataToIndexMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(t1_import - t0_import).count());
 
     // Build explicit header bytes (big-endian): u32 sample_rate, u16 bit_depth, u16 num_channels,
@@ -325,25 +325,25 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
 
     // Combine: shift pcm_int left by header_bits and OR header_int
     size_t  header_bits = HEADER_BYTES * BITS_PER_BYTE;
-    cpp_int idx = (pcm_int << header_bits) | header_int;
+    cpp_int idx         = (pcm_int << header_bits) | header_int;
     return idx;
 }
 
 AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) {
     // Header layout must match audioDataToIndex: HEADER_BYTES = 16
     const size_t HEADER_BYTES = HEADER_BYTES_CONST;
-    const size_t HEADER_BITS = HEADER_BYTES * BITS_PER_BYTE;
+    const size_t HEADER_BITS  = HEADER_BYTES * BITS_PER_BYTE;
 
     // Extract header_int as the lower HEADER_BITS bits
-    cpp_int mask = (cpp_int(1) << HEADER_BITS) - 1;
+    cpp_int mask       = (cpp_int(1) << HEADER_BITS) - 1;
     cpp_int header_int = index & mask;
-    cpp_int pcm_int = index >> HEADER_BITS;
+    cpp_int pcm_int    = index >> HEADER_BITS;
 
     // Convert header_int to bytes (big-endian)
     std::vector<uint8_t> header_buf(HEADER_BYTES);
     cpp_int              tmp = header_int;
     for (int headerIndex = static_cast<int>(HEADER_BYTES) - 1; headerIndex >= 0; --headerIndex) {
-        uint8_t byte = static_cast<uint8_t>(static_cast<uint64_t>(tmp & BYTE_MASK));
+        uint8_t byte            = static_cast<uint8_t>(static_cast<uint64_t>(tmp & BYTE_MASK));
         header_buf[headerIndex] = byte;
         tmp >>= BITS_PER_BYTE;
     }
@@ -351,9 +351,9 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
     // Parse fields from header_buf (big-endian)
     uint32_t sample_rate =
         (uint32_t(header_buf[0]) << 24) | (uint32_t(header_buf[1]) << 16) | (uint32_t(header_buf[2]) << 8) | uint32_t(header_buf[3]);
-    uint16_t bit_depth = static_cast<uint16_t>((uint16_t(header_buf[4]) << 8) | uint16_t(header_buf[5]));
+    uint16_t bit_depth    = static_cast<uint16_t>((uint16_t(header_buf[4]) << 8) | uint16_t(header_buf[5]));
     uint16_t num_channels = static_cast<uint16_t>((uint16_t(header_buf[6]) << 8) | uint16_t(header_buf[7]));
-    uint64_t num_frames = 0;
+    uint64_t num_frames   = 0;
     for (int i = 0; i < 8; ++i) {
         num_frames = (num_frames << BITS_PER_BYTE) | header_buf[8 + i];
     }
@@ -364,7 +364,7 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
 
     // Compute number of samples
     size_t                total_samples = static_cast<size_t>(num_frames) * static_cast<size_t>(num_channels);
-    cpp_int               sample_mask = (cpp_int(1) << bit_depth) - 1;
+    cpp_int               sample_mask   = (cpp_int(1) << bit_depth) - 1;
     std::vector<uint64_t> samples;
     samples.reserve(total_samples);
 
@@ -378,7 +378,7 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
         // pcm_be_bytes now contains samples in big-endian sample order
         // We need to split into samples and convert each to host-endian little-endian byte order
         size_t bytes_per_sample = bit_depth / BITS_PER_BYTE;
-        size_t expected_bytes = total_samples * bytes_per_sample;
+        size_t expected_bytes   = total_samples * bytes_per_sample;
         if (pcm_be_bytes.size() != expected_bytes) {
             if (pcm_be_bytes.size() < expected_bytes) {
                 // export_bits may omit leading zero bytes; pad at the front (MSB side)
@@ -399,7 +399,7 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
             }
             // Handle signed values depending on bit depth
             uint64_t signbit = uint64_t(1) << (bit_depth - 1);
-            int64_t  sval = 0;
+            int64_t  sval    = 0;
             if (word & signbit) {
                 sval = static_cast<int64_t>(word - (uint64_t(1) << bit_depth));
             } else {
@@ -410,16 +410,16 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
         std::cout << std::endl;
 
         // record export stats
-        lastDebug.export_pcm_bytes = pcm_be_bytes.size();
+        lastDebug.export_pcm_bytes      = pcm_be_bytes.size();
         lastDebug.export_expected_bytes = expected_bytes;
     }
 
     // pack bytes
     AudioData audioData{};
-    audioData.audio_format = 1;
-    audioData.num_channels = static_cast<uint16_t>(num_channels);
-    audioData.sample_rate = sample_rate;
-    audioData.bit_rate = static_cast<uint16_t>(bit_depth);
+    audioData.audio_format  = 1;
+    audioData.num_channels  = static_cast<uint16_t>(num_channels);
+    audioData.sample_rate   = sample_rate;
+    audioData.bit_rate      = static_cast<uint16_t>(bit_depth);
     size_t bytes_per_sample = bit_depth / BITS_PER_BYTE;
     audioData.samples.resize(total_samples * bytes_per_sample);
 
@@ -474,12 +474,9 @@ void AudioIndex::writeAudioDataToFile(const AudioData& audioData, const std::str
 // ---------------------------------------------------------------------------
 
 bool AudioIndex::operator==(const AudioIndex& other) const {
-    return audioData.audio_format == other.audioData.audio_format
-        && audioData.num_channels == other.audioData.num_channels
-        && audioData.sample_rate == other.audioData.sample_rate
-        && audioData.bit_rate == other.audioData.bit_rate
-        && audioData.num_frames == other.audioData.num_frames
-        && audioData.samples == other.audioData.samples;
+    return audioData.audio_format == other.audioData.audio_format && audioData.num_channels == other.audioData.num_channels &&
+           audioData.sample_rate == other.audioData.sample_rate && audioData.bit_rate == other.audioData.bit_rate &&
+           audioData.num_frames == other.audioData.num_frames && audioData.samples == other.audioData.samples;
 }
 
 bool AudioIndex::operator!=(const AudioIndex& other) const {
@@ -497,7 +494,7 @@ void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int&
         fs::create_directories(baseDir);
     } catch (...) {
     }
-    fs::path stem = fs::path(outPrefix).filename();
+    fs::path stem         = fs::path(outPrefix).filename();
     fs::path targetPrefix = baseDir / stem;
 
     std::ofstream out(targetPrefix.string() + ".txt");
@@ -509,9 +506,9 @@ void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int&
     std::vector<uint8_t> bytes;
     boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8, true);
 
-    static const char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    size_t            i = 0;
-    uint32_t          acc = 0;
+    static const char b64[]    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    size_t            i        = 0;
+    uint32_t          acc      = 0;
     int               acc_bits = 0;
     for (uint8_t byte : bytes) {
         acc = (acc << BITS_PER_BYTE) | byte;
@@ -530,4 +527,4 @@ void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int&
     out.close();
 }
 
-}  // namespace AudioBabel
+} // namespace AudioBabel

@@ -1,10 +1,59 @@
 BasedOnStyle: Google
+Language: Cpp
+
 IndentWidth: 4
-ColumnLimit: 100
+ContinuationIndentWidth: 4
+ColumnLimit: 150
+UseTab: Never
+
 DerivePointerAlignment: false
 PointerAlignment: Left
+
 AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: false
+
 BreakBeforeBraces: Attach
+BraceWrapping:
+  AfterClass: false
+  AfterControlStatement: false
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: false
+  AfterUnion: false
+  BeforeElse: true
+  BeforeCatch: true
+
 AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: true
+AlignAfterOpenBracket: Align
+AlignOperands: true
+AlignTrailingComments: true
+
+BinPackParameters: false
+BinPackArguments: false
+ExperimentalAutoDetectBinPacking: false
+
+IndentCaseLabels: true
+IndentPPDirectives: AfterHash
+NamespaceIndentation: Inner
+
+MaxEmptyLinesToKeep: 1
+ReflowComments: false
+
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpacesBeforeTrailingComments: 1
+SpacesInContainerLiterals: true
+SpaceAfterCStyleCast: true
+SpaceAfterTemplateKeyword: true
+
+ConstructorInitializerIndentWidth: 4
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+Cpp11BracedListStyle: true
+
 SortIncludes: true
-Language: Cpp
+IncludeBlocks: Regroup

@@ -1,11 +1,11 @@
 #ifndef AUDIO_INDEX_H
 #define AUDIO_INDEX_H
 
-#include <vector>
-#include <string>
+#include <boost/multiprecision/cpp_int.hpp>
 #include <cstdint>
 #include <iostream>
-#include <boost/multiprecision/cpp_int.hpp>
+#include <string>
+#include <vector>
 
 // Using boost::multiprecision::cpp_int for large integer audio indexes.
 // Note: this header previously included GMP directly; we now use Boost.Multiprecision
@@ -25,7 +25,7 @@ namespace AudioBabel {
 class AudioFingerprint; // Forward declaration (defined in AudioFingerprint.h)
 
 class AudioIndex {
-public:
+   public:
     // ---------------------
     // Public data container
     // ---------------------
@@ -33,12 +33,12 @@ public:
     // Fields are intentionally simple PODs so tests and callers can construct
     // or inspect them directly.
     struct AudioData {
-        uint32_t sample_rate;       // Sample rate in Hz (e.g. 44100)
-        uint16_t bit_rate;          // Bits per sample (8, 16 or 32)
-        uint16_t num_channels;      // Number of audio channels (1 = mono, 2 = stereo)
-        uint16_t audio_format;      // Audio format code (1 = PCM)
-        size_t num_frames;          // Number of audio frames (per-channel)
-        std::vector<uint8_t> samples; // PCM bytes (little-endian per-sample)
+        uint32_t             sample_rate;  // Sample rate in Hz (e.g. 44100)
+        uint16_t             bit_rate;     // Bits per sample (8, 16 or 32)
+        uint16_t             num_channels; // Number of audio channels (1 = mono, 2 = stereo)
+        uint16_t             audio_format; // Audio format code (1 = PCM)
+        size_t               num_frames;   // Number of audio frames (per-channel)
+        std::vector<uint8_t> samples;      // PCM bytes (little-endian per-sample)
     };
 
     // ---------------------
@@ -52,7 +52,7 @@ public:
     // ---------------------
     // Factory helpers
     // ---------------------
-    
+
     /**
      * Create an AudioIndex from raw PCM samples. This deterministically
      * computes a fingerprint and extracts hierarchical mpz codes.
@@ -83,11 +83,10 @@ public:
      */
     static AudioData extractAudioDataFromSamples(const std::vector<int32_t>& samples, int sampleRate = 44100, int bitDepth = 16);
 
+    // ---------------------
+    // Serialization / Deserialization
+    // ---------------------
 
-     // ---------------------
-     // Serialization / Deserialization
-     // ---------------------
-    
     /**
      *  Convert audio payload + header into a single big integer index. The
      *  implementation packs a fixed 16-byte big-endian header into the least
@@ -112,18 +111,18 @@ public:
     // Debug / diagnostics
     // ---------------------
     struct DebugInfo {
-        size_t import_pcm_bytes = 0;     // bytes fed to import_bits in audioDataToIndex
-        size_t import_expected_bytes = 0;
-        size_t export_pcm_bytes = 0;     // bytes returned by export_bits in indexToAudioData
-        size_t export_expected_bytes = 0;
-        uint64_t audioDataToIndexMs = 0; // ms spent in audioDataToIndex
-        uint64_t indexToAudioDataMs = 0; // ms spent in indexToAudioData
+        size_t   import_pcm_bytes      = 0; // bytes fed to import_bits in audioDataToIndex
+        size_t   import_expected_bytes = 0;
+        size_t   export_pcm_bytes      = 0; // bytes returned by export_bits in indexToAudioData
+        size_t   export_expected_bytes = 0;
+        uint64_t audioDataToIndexMs    = 0; // ms spent in audioDataToIndex
+        uint64_t indexToAudioDataMs    = 0; // ms spent in indexToAudioData
     };
 
     // Retrieve the last debug info populated by the most recent serialization
     // or deserialization call on this translation unit.
     static DebugInfo getLastDebugInfo();
-    static void clearLastDebugInfo();
+    static void      clearLastDebugInfo();
 
     // ---------------------
     // File I/O
@@ -135,7 +134,7 @@ public:
      */
     static void writeAudioDataToFile(const AudioData& audioData, const std::string& path);
 
-        /**
+    /**
          * Write multiple textual and binary representations of a big-integer index
          * to files prefixed with outPrefix. The following files are produced:
          *  - <outPrefix>.bin.txt   : binary (0/1) textual representation (MSB-first)
@@ -146,30 +145,36 @@ public:
          *  - <outPrefix>.b128      : raw 7-bit digit stream (one byte per digit, MSB-first)
          *  - <outPrefix>.b256      : raw big-endian bytes (base-256)
          */
-        static void writeIndexRepresentations(const boost::multiprecision::cpp_int& index, const std::string& outPrefix);
-    
+    static void writeIndexRepresentations(const boost::multiprecision::cpp_int& index, const std::string& outPrefix);
+
     /**
      * Get the sample rate of the audio index.
      * @returns Sample rate in Hz
      */
-    int getSampleRate() const { return static_cast<int>(audioData.sample_rate); }
+    int getSampleRate() const {
+        return static_cast<int>(audioData.sample_rate);
+    }
 
     /**
      * Get the duration of the audio index.
      * @returns Duration in seconds
      */
-    double getDuration() const { return (audioData.sample_rate > 0) ? (static_cast<double>(audioData.num_frames) / static_cast<double>(audioData.sample_rate)) : 0.0; }
+    double getDuration() const {
+        return (audioData.sample_rate > 0) ? (static_cast<double>(audioData.num_frames) / static_cast<double>(audioData.sample_rate)) : 0.0;
+    }
 
     /**
      * Get the bit depth of the audio index.
      * @returns Bit depth in bits
      */
-    int getBitDepth() const { return static_cast<int>(audioData.bit_rate); }
+    int getBitDepth() const {
+        return static_cast<int>(audioData.bit_rate);
+    }
 
     bool operator==(const AudioIndex& other) const;
     bool operator!=(const AudioIndex& other) const;
 
-private:
+   private:
     AudioData audioData;
 };
 

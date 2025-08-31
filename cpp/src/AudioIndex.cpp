@@ -26,7 +26,7 @@ namespace AudioBabel {
 template<typename T>
 static void write_le(std::ostream& out, T v) {
     uint8_t buf[sizeof(T)];
-    for (size_t i = 0; i < sizeof(T); ++i) buf[i] = static_cast<uint8_t>((v >> (i * 8)) & 0xFF);
+    for (size_t index = 0; index < sizeof(T); ++index) buf[index] = static_cast<uint8_t>((v >> (index * 8)) & 0xFF);
     out.write(reinterpret_cast<const char*>(buf), sizeof(T));
 }
 
@@ -37,8 +37,8 @@ template<typename T>
 static T read_le(const char* p) {
     // use a 64-bit accumulator to avoid needing type_traits; safe for up to 64-bit reads
     uint64_t acc = 0;
-    for (size_t i = 0; i < sizeof(T); ++i) {
-        acc |= (uint64_t(static_cast<uint8_t>(p[i])) << (i * 8));
+    for (size_t index = 0; index < sizeof(T); ++index) {
+        acc |= (uint64_t(static_cast<uint8_t>(p[index])) << (index * 8));
     }
     return static_cast<T>(acc);
 }
@@ -166,10 +166,10 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromSamples(const std::vector<
     // Convert int32 samples to bytes (little-endian)
     size_t bytes_per_sample = bitDepth / 8;
     audioData.samples.resize(samples.size() * bytes_per_sample);
-    for (size_t i = 0; i < samples.size(); ++i) {
-        int32_t sample = samples[i];
-        for (size_t b = 0; b < bytes_per_sample; ++b) {
-            audioData.samples[i * bytes_per_sample + b] = static_cast<uint8_t>((sample >> (b * 8)) & 0xFF);
+    for (size_t sampleIndex = 0; sampleIndex < samples.size(); ++sampleIndex) {
+        int32_t sample = samples[sampleIndex];
+        for (size_t byteIndex = 0; byteIndex < bytes_per_sample; ++byteIndex) {
+            audioData.samples[(sampleIndex * bytes_per_sample) + byteIndex] = static_cast<uint8_t>((sample >> (byteIndex * 8)) & 0xFF);
         }
     }
 
@@ -212,10 +212,10 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
         // audioData.samples stores little-endian bytes per sample; we need
         // to append each sample's bytes in big-endian order so the first
         // sample ends up as the most-significant bytes in the resulting integer.
-        for (size_t i = 0; i < total_samples; ++i) {
-            size_t offset = i * bytes_per_sample;
-            for (int b = static_cast<int>(bytes_per_sample) - 1; b >= 0; --b) {
-                pcm_be.push_back(audioData.samples[offset + b]);
+        for (size_t sampleIndex = 0; sampleIndex < total_samples; ++sampleIndex) {
+            size_t offset = sampleIndex * bytes_per_sample;
+            for (int byteIndex = static_cast<int>(bytes_per_sample) - 1; byteIndex >= 0; --byteIndex) {
+                pcm_be.push_back(audioData.samples[offset + byteIndex]);
             }
         }
         
@@ -253,13 +253,13 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
     header_buf.push_back(static_cast<uint8_t>((nc >> 0) & 0xFF));
 
     uint64_t nf = audioData.num_frames;
-    for (int i = 7; i >= 0; --i) header_buf.push_back(static_cast<uint8_t>((nf >> (i*8)) & 0xFF));
+    for (int headerIndex = 7; headerIndex >= 0; --headerIndex) header_buf.push_back(static_cast<uint8_t>((nf >> (headerIndex*8)) & 0xFF));
 
     // Convert header_buf to cpp_int (big-endian bytes)
     cpp_int header_int = 0;
-    for (uint8_t b : header_buf) {
+    for (uint8_t headerByte : header_buf) {
         header_int <<= 8;
-        header_int |= cpp_int(uint32_t(b));
+        header_int |= cpp_int(uint32_t(headerByte));
     }
 
     // Combine: shift pcm_int left by header_bits and OR header_int
@@ -281,9 +281,9 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
     // Convert header_int to bytes (big-endian)
     std::vector<uint8_t> header_buf(HEADER_BYTES);
     cpp_int tmp = header_int;
-    for (int i = static_cast<int>(HEADER_BYTES) - 1; i >= 0; --i) {
+    for (int headerIndex = static_cast<int>(HEADER_BYTES) - 1; headerIndex >= 0; --headerIndex) {
         uint8_t byte = static_cast<uint8_t>(static_cast<uint64_t>(tmp & 0xFF));
-        header_buf[i] = byte;
+        header_buf[headerIndex] = byte;
         tmp >>= 8;
     }
 
@@ -325,19 +325,19 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
         }
 
         // iterate samples in order and convert to unsigned sample words
-        for (size_t i = 0; i < total_samples; ++i) {
-            size_t base = i * bytes_per_sample;
-            uint64_t word = 0;
-            for (size_t b = 0; b < bytes_per_sample; ++b) {
-                word = (word << 8) | uint64_t(pcm_be_bytes[base + b]);
+            for (size_t sampleIndex = 0; sampleIndex < total_samples; ++sampleIndex) {
+                size_t base = sampleIndex * bytes_per_sample;
+                uint64_t word = 0;
+                for (size_t byteIndex = 0; byteIndex < bytes_per_sample; ++byteIndex) {
+                    word = (word << 8) | uint64_t(pcm_be_bytes[base + byteIndex]);
+                }
+                // Handle signed values depending on bit depth
+                uint64_t signbit = uint64_t(1) << (bit_depth - 1);
+                int64_t sval = 0;
+                if (word & signbit) sval = static_cast<int64_t>(word - (uint64_t(1) << bit_depth));
+                else sval = static_cast<int64_t>(word);
+                samples.push_back(static_cast<uint64_t>(sval & ((1ULL << bit_depth) - 1)));
             }
-            // Handle signed values depending on bit depth
-            uint64_t signbit = uint64_t(1) << (bit_depth - 1);
-            int64_t sval = 0;
-            if (word & signbit) sval = static_cast<int64_t>(word - (uint64_t(1) << bit_depth));
-            else sval = static_cast<int64_t>(word);
-            samples.push_back(static_cast<uint64_t>(sval & ((1ULL << bit_depth) - 1)));
-        }
         std::cout << std::endl;
 
         // record export stats
@@ -354,10 +354,10 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
     size_t bytes_per_sample = bit_depth/8;
     audioData.samples.resize(total_samples * bytes_per_sample);
 
-    for (size_t i=0;i<total_samples;i++){
-        uint64_t v = samples[i];
-        for (size_t b=0;b<bytes_per_sample;b++){
-            audioData.samples[i*bytes_per_sample + b] = static_cast<uint8_t>((v >> (8*b)) & 0xFF);
+    for (size_t sampleIndex=0; sampleIndex<total_samples; sampleIndex++){
+        uint64_t v = samples[sampleIndex];
+        for (size_t byteIndex=0; byteIndex<bytes_per_sample; byteIndex++){
+            audioData.samples[(sampleIndex*bytes_per_sample) + byteIndex] = static_cast<uint8_t>((v >> (8*byteIndex)) & 0xFF);
         }
     }
     audioData.num_frames = static_cast<size_t>(num_frames);

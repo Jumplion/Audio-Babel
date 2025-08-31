@@ -24,27 +24,29 @@ namespace AudioBabel {
 // ---------------------------------------------------------------------------
 
 template<typename T>
-static void write_le(std::ostream& out, T v) {
+static void write_le(std::ostream& out, T value) {
     uint8_t buf[sizeof(T)];
-    for (size_t index = 0; index < sizeof(T); ++index) buf[index] = static_cast<uint8_t>((v >> (index * 8)) & 0xFF);
+    for (size_t index = 0; index < sizeof(T); ++index) {
+        buf[index] = static_cast<uint8_t>((value >> (index * 8)) & 0xFF);
+    }
     out.write(reinterpret_cast<const char*>(buf), sizeof(T));
 }
 
-static void write_u32_le(std::ostream& out, uint32_t v) { write_le<uint32_t>(out, v); }
-static void write_u16_le(std::ostream& out, uint16_t v) { write_le<uint16_t>(out, v); }
+static void write_u32_le(std::ostream& out, uint32_t value) { write_le<uint32_t>(out, value); }
+static void write_u16_le(std::ostream& out, uint16_t value) { write_le<uint16_t>(out, value); }
 
 template<typename T>
-static T read_le(const char* p) {
+static T read_le(const char* ptr) {
     // use a 64-bit accumulator to avoid needing type_traits; safe for up to 64-bit reads
     uint64_t acc = 0;
     for (size_t index = 0; index < sizeof(T); ++index) {
-        acc |= (uint64_t(static_cast<uint8_t>(p[index])) << (index * 8));
+        acc |= (uint64_t(static_cast<uint8_t>(ptr[index])) << (index * 8));
     }
     return static_cast<T>(acc);
 }
 
-static uint16_t read_u16_le(const char* p) { return read_le<uint16_t>(p); }
-static uint32_t read_u32_le(const char* p) { return read_le<uint32_t>(p); }
+static uint16_t read_u16_le(const char* ptr) { return read_le<uint16_t>(ptr); }
+static uint32_t read_u32_le(const char* ptr) { return read_le<uint32_t>(ptr); }
 
 // ---------------------------------------------------------------------------
 // 2) Construction / lifecycle
@@ -77,11 +79,15 @@ AudioIndex AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, int
 
 AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::string &path) {
     std::ifstream in(path, std::ios::binary);
-    if (!in) throw std::runtime_error("Failed to open WAV file: " + path);
+    if (!in) {
+        throw std::runtime_error("Failed to open WAV file: " + path);
+    }
 
     // Read RIFF header
     char riff[4]; in.read(riff, 4);
-    if (std::strncmp(riff, "RIFF", 4) != 0) throw std::runtime_error("Not a RIFF file");
+    if (std::strncmp(riff, "RIFF", 4) != 0) {
+        throw std::runtime_error("Not a RIFF file");
+    }
 
     // Read file size
     char tmp4[4]; in.read(tmp4, 4);
@@ -89,7 +95,9 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
     // Read "WAVE" header
     char wave[4]; in.read(wave, 4);
     
-    if (std::strncmp(wave, "WAVE", 4) != 0) throw std::runtime_error("Not a WAVE file");
+    if (std::strncmp(wave, "WAVE", 4) != 0) {
+        throw std::runtime_error("Not a WAVE file");
+    }
 
     AudioData audioData{};
 
@@ -120,35 +128,52 @@ robust code should check every read/gcount and handle partial reads, malformed c
     // Read chunks
     while (in) {
         char id[4];
-        if (!in.read(id, 4)) break;
+        if (!in.read(id, 4)) {
+            break;
+        }
 
         // Read size as 4 bytes then interpret as little-endian to be portable
         char sizeBuf[4];
-        if (!in.read(sizeBuf, 4)) break;
+        if (!in.read(sizeBuf, 4)) {
+            break;
+        }
         uint32_t sz = read_u32_le(sizeBuf);
 
         // Guard against unreasonable sizes
-        if (sz > (1u << 30)) { /* handle error */ break; }
+        if (sz > (1u << 30)) {
+            /* handle error */
+            break;
+        }
 
         if (std::strncmp(id, "fmt ", 4) == 0) {
-            if (sz < 16) { /* handle malformed fmt chunk */ break; }
+            if (sz < 16) { /* handle malformed fmt chunk */
+                break;
+            }
             std::vector<char> buf(sz);
-            if (!in.read(buf.data(), sz)) { /* handle partial read */ break; }
+            if (!in.read(buf.data(), sz)) { /* handle partial read */
+                break;
+            }
             audioData.audio_format = read_u16_le(buf.data());
             audioData.num_channels = read_u16_le(buf.data()+2);
             audioData.sample_rate = read_u32_le(buf.data()+4);
             audioData.bit_rate = read_u16_le(buf.data()+14);
         } else if (std::strncmp(id, "data", 4) == 0) {
             audioData.samples.resize(sz);
-            if (!in.read(reinterpret_cast<char*>(audioData.samples.data()), sz)) { /* handle partial read */ break; }
+            if (!in.read(reinterpret_cast<char*>(audioData.samples.data()), sz)) { /* handle partial read */
+                break;
+            }
         } else {
             // Skip unknown chunk and account for RIFF padding (chunks are even-sized)
             in.seekg(sz + (sz & 1), std::ios::cur);
-            if (!in) break;
+            if (!in) {
+                break;
+            }
         }
     }
 
-    if (audioData.samples.empty()) throw std::runtime_error("No data chunk found in WAV");
+    if (audioData.samples.empty()) {
+        throw std::runtime_error("No data chunk found in WAV");
+    }
 
     // Compute number of frames
     size_t bytes_per_sample = audioData.bit_rate / 8;
@@ -192,8 +217,9 @@ void AudioIndex::clearLastDebugInfo() {
 boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) {
 
     // only support 8,16,32
-    if (!(audioData.bit_rate==8 || audioData.bit_rate==16 || audioData.bit_rate==32))
+    if (!(audioData.bit_rate==8 || audioData.bit_rate==16 || audioData.bit_rate==32)) {
         throw std::runtime_error("Unsupported bit depth");
+    }
 
     // Build pcm_int by concatenating samples. The canonical on-disk layout for
     // our serialized index is: [PCM_payload (MSB-first)] [16-byte big-endian header]
@@ -253,7 +279,9 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
     header_buf.push_back(static_cast<uint8_t>((nc >> 0) & 0xFF));
 
     uint64_t nf = audioData.num_frames;
-    for (int headerIndex = 7; headerIndex >= 0; --headerIndex) header_buf.push_back(static_cast<uint8_t>((nf >> (headerIndex*8)) & 0xFF));
+    for (int headerIndex = 7; headerIndex >= 0; --headerIndex) {
+        header_buf.push_back(static_cast<uint8_t>((nf >> (headerIndex*8)) & 0xFF));
+    }
 
     // Convert header_buf to cpp_int (big-endian bytes)
     cpp_int header_int = 0;
@@ -292,9 +320,13 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
     uint16_t bit_depth = static_cast<uint16_t>((uint16_t(header_buf[4]) << 8) | uint16_t(header_buf[5]));
     uint16_t num_channels = static_cast<uint16_t>((uint16_t(header_buf[6]) << 8) | uint16_t(header_buf[7]));
     uint64_t num_frames = 0;
-    for (int i = 0; i < 8; ++i) num_frames = (num_frames << 8) | header_buf[8 + i];
+    for (int i = 0; i < 8; ++i) {
+        num_frames = (num_frames << 8) | header_buf[8 + i];
+    }
 
-    if (!(bit_depth==8 || bit_depth==16 || bit_depth==32)) throw std::runtime_error("Unsupported bit depth in index");
+    if (!(bit_depth==8 || bit_depth==16 || bit_depth==32)) {
+        throw std::runtime_error("Unsupported bit depth in index");
+    }
 
     // Compute number of samples
     size_t total_samples = static_cast<size_t>(num_frames) * static_cast<size_t>(num_channels);
@@ -334,8 +366,11 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
                 // Handle signed values depending on bit depth
                 uint64_t signbit = uint64_t(1) << (bit_depth - 1);
                 int64_t sval = 0;
-                if (word & signbit) sval = static_cast<int64_t>(word - (uint64_t(1) << bit_depth));
-                else sval = static_cast<int64_t>(word);
+                if (word & signbit) {
+                    sval = static_cast<int64_t>(word - (uint64_t(1) << bit_depth));
+                } else {
+                    sval = static_cast<int64_t>(word);
+                }
                 samples.push_back(static_cast<uint64_t>(sval & ((1ULL << bit_depth) - 1)));
             }
         std::cout << std::endl;
@@ -366,7 +401,9 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
 
 void AudioIndex::writeAudioDataToFile(const AudioData& audioData, const std::string& path) {
     std::ofstream out(path, std::ios::binary);
-    if (!out) throw std::runtime_error("Failed to open output WAV: " + path);
+    if (!out) {
+        throw std::runtime_error("Failed to open output WAV: " + path);
+    }
     
     // RIFF header
     out.write("RIFF", 4);
@@ -404,14 +441,26 @@ void AudioIndex::writeAudioDataToFile(const AudioData& audioData, const std::str
 
 bool AudioIndex::operator==(const AudioIndex& other) const {
     // Compare audioData fields (audioData is the single source of truth)
-    if (audioData.audio_format != other.audioData.audio_format) return false;
-    if (audioData.num_channels != other.audioData.num_channels) return false;
-    if (audioData.sample_rate != other.audioData.sample_rate) return false;
-    if (audioData.bit_rate != other.audioData.bit_rate) return false;
-    if (audioData.num_frames != other.audioData.num_frames) return false;
+    if (audioData.audio_format != other.audioData.audio_format) {
+        return false;
+    }
+    if (audioData.num_channels != other.audioData.num_channels) {
+        return false;
+    }
+    if (audioData.sample_rate != other.audioData.sample_rate) {
+        return false;
+    }
+    if (audioData.bit_rate != other.audioData.bit_rate) {
+        return false;
+    }
+    if (audioData.num_frames != other.audioData.num_frames) {
+        return false;
+    }
 
     // Compare sample payload sizes first to short-circuit heavy comparisons
-    if (audioData.samples.size() != other.audioData.samples.size()) return false;
+    if (audioData.samples.size() != other.audioData.samples.size()) {
+        return false;
+    }
     return audioData.samples == other.audioData.samples;
 }
 
@@ -431,7 +480,9 @@ void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int&
     fs::path targetPrefix = baseDir / stem;
 
     std::ofstream out(targetPrefix.string() + ".txt");
-    if (!out) return;
+    if (!out) {
+        return;
+    }
 
     // Export bytes once (MSB-first) and produce all encodings from these bytes
     std::vector<uint8_t> bytes;

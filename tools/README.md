@@ -1,4 +1,4 @@
-# This folder contains helper scripts to build, run tests, run the example, and clean build artifacts.
+# This folder contains helper scripts to build, run tests, run the example, and clean build artifacts
 
 Files added
 

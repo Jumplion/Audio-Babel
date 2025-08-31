@@ -96,3 +96,4 @@ coverage/
 dist/
 
 # End of .gitignore
+.vscode/tasks.json

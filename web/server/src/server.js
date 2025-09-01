@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 // Body (application/json): { format: 'base64', data: string }
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
-import { writeFileSync, unlinkSync, createReadStream, existsSync, statSync } from 'fs';
+import { writeFileSync, unlinkSync, createReadStream, existsSync, statSync, accessSync, readFileSync } from 'fs';
 import { spawn } from 'child_process';
 import path from 'path';
 
@@ -19,12 +19,12 @@ app.use(json({ limit: '50mb' }));
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const frontendPublic = path.resolve(path.join(__dirname, '..', '..', 'frontend', 'public'));
-try {
-  require('fs').accessSync(frontendPublic);
-  console.log('Serving static frontend from', frontendPublic);
-} catch (e) {
-  console.log('Frontend public not found at', frontendPublic);
-}
+  try {
+    accessSync(frontendPublic);
+    console.log('Serving static frontend from', frontendPublic);
+  } catch (e) {
+    console.log('Frontend public not found at', frontendPublic);
+  }
 app.use(express.static(frontendPublic));
 
 // Serve index at root explicitly
@@ -84,6 +84,9 @@ app.post('/reconstruct', async (req, res) => {
   if (buf.length > MAX_INDEX_BYTES) {
     return res.status(413).json({ error: 'Input too large', maxBytes: MAX_INDEX_BYTES });
   }
+
+  // Preserve raw decoded payload so we can derive metadata deterministically from it
+  const rawPayload = Buffer.from(buf);
 
   // Always append a default 16-byte header to ensure a predictable header is present.
   // Default header: 44100 Hz, 16-bit, 1 channel, 0 frames
@@ -148,6 +151,33 @@ app.post('/reconstruct', async (req, res) => {
         message: String(err && err.message ? err.message : err),
       });
   }
+
+  // Helper: derive simple gibberish metadata from the raw payload bytes.
+  function deriveMetadata(payload) {
+    const b = payload || Buffer.alloc(0);
+    function token(offset, len) {
+      let s = '';
+      for (let i = 0; i < len; ++i) {
+        const v = (offset + i < b.length) ? b[offset + i] : 0;
+        const r = v % 36;
+        s += (r < 10) ? String.fromCharCode(48 + (r)) : String.fromCharCode(97 + (r - 10));
+      }
+      return s;
+    }
+    const genre = token(0, 6);
+    const artist = token(6, 8);
+    const album = token(14, 8);
+    const track = token(22, 6);
+    // produce a simple SVG cover as a data URL (deterministic color)
+    let color = 0;
+    for (let i = 0; i < 3; ++i) color = (color << 8) | (i < b.length ? b[i] : 0);
+    const hex = ((color >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><rect width='100%' height='100%' fill='#${hex}'/><text x='50%' y='50%' font-size='20' text-anchor='middle' fill='#fff' dominant-baseline='middle'>${track}</text></svg>`;
+    const coverBase64 = Buffer.from(svg, 'utf8').toString('base64');
+    return { genre, artist, album, track, coverBase64 };
+  }
+
+  const derivedMetadata = deriveMetadata(rawPayload);
 
   // Write temp input file and choose temp output path
   const tmp = tmpdir();
@@ -276,7 +306,39 @@ app.post('/reconstruct', async (req, res) => {
         });
     }
 
-    // Stream the WAV back
+    // If client requested metadata (query param or JSON accept), return JSON with metadata + base64 WAV
+    const wantsMetadata = req.query && (req.query.metadata === '1' || req.query.metadata === 'true' || (req.headers.accept && req.headers.accept.indexOf('application/json') !== -1));
+    if (wantsMetadata) {
+      try {
+  const wavBuf = readFileSync(outPath);
+        const wavB64 = wavBuf.toString('base64');
+        const meta = {
+          genre: derivedMetadata.genre,
+          artist: derivedMetadata.artist,
+          album: derivedMetadata.album,
+          track: derivedMetadata.track,
+          cover: `data:image/svg+xml;base64,${derivedMetadata.coverBase64}`,
+        };
+        try {
+          unlinkSync(inPath);
+        } catch (_) {}
+        try {
+          unlinkSync(outPath);
+        } catch (_) {}
+        return res.json({ metadata: meta, wavBase64: wavB64 });
+      } catch (err) {
+        console.error('Failed to read WAV for json response', err);
+        try {
+          unlinkSync(inPath);
+        } catch (_) {}
+        try {
+          unlinkSync(outPath);
+        } catch (_) {}
+        return res.status(500).json({ error: 'Failed to read reconstructed output', message: String(err && err.message ? err.message : err) });
+      }
+    }
+
+    // Stream the WAV back (legacy behavior)
     res.setHeader('Content-Type', 'audio/wav');
     res.setHeader('Content-Disposition', 'attachment; filename="reconstructed.wav"');
     const stream = createReadStream(outPath);

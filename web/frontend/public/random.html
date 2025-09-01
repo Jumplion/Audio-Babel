@@ -1,161 +1,202 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+
+<head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Random — Audibel</title>
     <link rel="stylesheet" href="./css/site.css" />
-  </head>
-  <body class="light">
+</head>
+
+<body class="light">
     <div class="wrap">
-      <main class="card light">
-        <h1>Random</h1>
-        <p>This is a temporary page for Random.</p>
-        <div id="controls">
-          <p>
-            <a class="btn" id="homeBtn" href="./index.html">Back to Home</a>
-          </p>
-          <p>
-            <label for="sizeSelect">Index size:</label>
-            <select id="sizeSelect">
-              <option value="65536">64 KB</option>
-              <option value="262144">256 KB</option>
-              <option value="524288">512 KB</option>
-              <option value="1048576">1 MB</option>
-              <option value="3145728">3 MB</option>
-              <option value="5242880">5 MB</option>
-            </select>
-            <button class="btn" id="regenBtn">Generate</button>
-          </p>
-          <p>
-            <small
-              >Note: server limits may cap the maximum allowed size (default
-              server max = 5 MB).</small
-            >
-          </p>
-        </div>
+        <main class="card light">
+            <h1>Random</h1>
+            <p>This is a temporary page for Random.</p>
+            <div id="controls">
+                <p>
+                    <a class="btn" id="homeBtn" href="./index.html">Back to Home</a>
+                </p>
+                <p>
+                    <label for="sizeSelect">Index size:</label>
+                    <select id="sizeSelect">
+                        <option value="65536">64 KB</option>
+                        <option value="262144">256 KB</option>
+                        <option value="524288">512 KB</option>
+                        <option value="1048576">1 MB</option>
+                        <option value="3145728">3 MB</option>
+                        <option value="5242880">5 MB</option>
+                    </select>
+                    <button class="btn" id="regenBtn">Generate</button>
+                </p>
+                <p>
+                    <small>Note: server limits may cap the maximum allowed size (default
+                        server max = 5 MB).</small>
+                </p>
+            </div>
 
-        <section id="status">
-          <p id="message">
-            Click generate to create a random index and reconstruct audio.
-          </p>
-        </section>
+            <section id="status">
+                <p id="message">
+                    Click generate to create a random index and reconstruct audio.
+                </p>
+            </section>
 
-        <section id="result" style="margin-top: 16px; display: none">
-          <h3>Index (base64)</h3>
-          <pre
-            id="indexDisplay"
-            style="
+            <section id="result" style="margin-top: 16px; display: none">
+                <h3>Index (base64)</h3>
+                <pre id="indexDisplay" style="
               white-space: break-spaces;
               overflow: auto;
               max-height: 160px;
               padding: 8px;
               background: #f6f8fa;
               border-radius: 6px;
-            "
-          ></pre>
-          <h3>Audio</h3>
-          <audio id="audioPlayer" controls style="width: 100%"></audio>
-          <p>
-            <a id="downloadLink" href="#" download="reconstructed.wav"
-              >Download WAV</a
-            >
-          </p>
-        </section>
+            "></pre>
+                <div id="metadata" style="display:none;margin-bottom:12px">
+                    <img id="coverImg" src="" alt="cover"
+                        style="width:128px;height:128px;float:left;margin-right:12px;border-radius:6px" />
+                    <div style="overflow:hidden">
+                        <div><strong>Genre:</strong> <span id="metaGenre"></span></div>
+                        <div><strong>Artist:</strong> <span id="metaArtist"></span></div>
+                        <div><strong>Album:</strong> <span id="metaAlbum"></span></div>
+                        <div><strong>Track:</strong> <span id="metaTrack"></span></div>
+                    </div>
+                    <div style="clear:both"></div>
+                </div>
+                <h3>Audio</h3>
+                <audio id="audioPlayer" controls style="width: 100%"></audio>
+                <p>
+                    <a id="downloadLink" href="#" download="reconstructed.wav">Download WAV</a>
+                </p>
+            </section>
 
-        <script>
-          (function () {
-            const regenBtn = document.getElementById("regenBtn");
-            const message = document.getElementById("message");
-            const indexDisplay = document.getElementById("indexDisplay");
-            const audioPlayer = document.getElementById("audioPlayer");
-            const result = document.getElementById("result");
-            const downloadLink = document.getElementById("downloadLink");
+            <script>
+                (function () {
+                    const regenBtn = document.getElementById("regenBtn");
+                    const message = document.getElementById("message");
+                    const indexDisplay = document.getElementById("indexDisplay");
+                    const audioPlayer = document.getElementById("audioPlayer");
+                    const result = document.getElementById("result");
+                    const downloadLink = document.getElementById("downloadLink");
 
-            function toBase64(buffer) {
-              const bytes = new Uint8Array(buffer);
-              let binary = "";
-              const chunkSize = 0x8000;
-              for (let i = 0; i < bytes.length; i += chunkSize) {
-                binary += String.fromCharCode.apply(
-                  null,
-                  bytes.subarray(i, i + chunkSize)
-                );
-              }
-              return btoa(binary);
-            }
+                    function toBase64(buffer) {
+                        const bytes = new Uint8Array(buffer);
+                        let binary = "";
+                        const chunkSize = 0x8000;
+                        for (let i = 0; i < bytes.length; i += chunkSize) {
+                            binary += String.fromCharCode.apply(
+                                null,
+                                bytes.subarray(i, i + chunkSize)
+                            );
+                        }
+                        return btoa(binary);
+                    }
 
-            async function generateAndReconstruct() {
-              try {
-                result.style.display = "none";
-                message.textContent = "Generating random index...";
+                    async function generateAndReconstruct() {
+                        try {
+                            result.style.display = "none";
+                            message.textContent = "Generating random index...";
 
-                // chosen size (clamped to a reasonable maximum)
-                const select = document.getElementById("sizeSelect");
-                let size = parseInt(select.value || "262144", 10);
-                const MAX_SIZE = 5 * 1024 * 1024; // must match server MAX_INDEX_BYTES
-                if (isNaN(size) || size <= 0) size = 262144;
-                if (size > MAX_SIZE) size = MAX_SIZE;
-                const buf = new Uint8Array(size);
-                if (window.crypto && window.crypto.getRandomValues) {
-                  // getRandomValues has a platform limit (65536 bytes). Fill in chunks.
-                  const MAX_CRYPTO_CHUNK = 65536;
-                  for (
-                    let offset = 0;
-                    offset < size;
-                    offset += MAX_CRYPTO_CHUNK
-                  ) {
-                    const end = Math.min(offset + MAX_CRYPTO_CHUNK, size);
-                    const chunk = buf.subarray(offset, end);
-                    window.crypto.getRandomValues(chunk);
-                  }
-                } else {
-                  for (let i = 0; i < size; i++)
-                    buf[i] = Math.floor(Math.random() * 256);
-                }
+                            // chosen size (clamped to a reasonable maximum)
+                            const select = document.getElementById("sizeSelect");
+                            let size = parseInt(select.value || "262144", 10);
+                            const MAX_SIZE = 5 * 1024 * 1024; // must match server MAX_INDEX_BYTES
+                            if (isNaN(size) || size <= 0) size = 262144;
+                            if (size > MAX_SIZE) size = MAX_SIZE;
+                            const buf = new Uint8Array(size);
+                            if (window.crypto && window.crypto.getRandomValues) {
+                                // getRandomValues has a platform limit (65536 bytes). Fill in chunks.
+                                const MAX_CRYPTO_CHUNK = 65536;
+                                for (
+                                    let offset = 0;
+                                    offset < size;
+                                    offset += MAX_CRYPTO_CHUNK
+                                ) {
+                                    const end = Math.min(offset + MAX_CRYPTO_CHUNK, size);
+                                    const chunk = buf.subarray(offset, end);
+                                    window.crypto.getRandomValues(chunk);
+                                }
+                            } else {
+                                for (let i = 0; i < size; i++)
+                                    buf[i] = Math.floor(Math.random() * 256);
+                            }
 
-                const b64 = toBase64(buf.buffer);
-                indexDisplay.textContent = b64;
+                            const b64 = toBase64(buf.buffer);
+                            indexDisplay.textContent = b64;
 
-                message.textContent = "Sending to server for reconstruction...";
-                const resp = await fetch("/reconstruct", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ format: "base64", data: b64 }),
-                });
+                            message.textContent = "Sending to server for reconstruction...";
+                            // Request metadata+base64 WAV
+                            const resp = await fetch("/reconstruct?metadata=1", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                                body: JSON.stringify({ format: "base64", data: b64 }),
+                            });
 
-                if (!resp.ok) {
-                  const text = await resp.text();
-                  throw new Error(`Server error ${resp.status}: ${text}`);
-                }
+                            if (!resp.ok) {
+                                const text = await resp.text();
+                                throw new Error(`Server error ${resp.status}: ${text}`);
+                            }
 
-                const blob = await resp.blob();
-                const url = URL.createObjectURL(blob);
-                audioPlayer.src = url;
-                downloadLink.href = url;
-                result.style.display = "";
-                message.textContent = "Reconstruction complete.";
-                try {
-                  audioPlayer.play().catch(() => {});
-                } catch (e) {}
-              } catch (err) {
-                message.textContent = "Error: " + String(err.message || err);
-                console.error(err);
-              }
-            }
+                            // Try to parse JSON (metadata mode). If server returns a raw WAV, fall back.
+                            const contentType = resp.headers.get('content-type') || '';
+                            if (contentType.indexOf('application/json') !== -1) {
+                                const j = await resp.json();
+                                const meta = j.metadata || {};
+                                const wavB64 = j.wavBase64;
+                                if (meta) {
+                                    document.getElementById('metaGenre').textContent = meta.genre || '';
+                                    document.getElementById('metaArtist').textContent = meta.artist || '';
+                                    document.getElementById('metaAlbum').textContent = meta.album || '';
+                                    document.getElementById('metaTrack').textContent = meta.track || '';
+                                    const coverImg = document.getElementById('coverImg');
+                                    if (meta.cover) {
+                                        coverImg.src = meta.cover;
+                                        document.getElementById('metadata').style.display = '';
+                                    } else {
+                                        coverImg.src = '';
+                                        document.getElementById('metadata').style.display = 'none';
+                                    }
+                                }
+                                if (wavB64) {
+                                    const bytes = atob(wavB64);
+                                    const ab = new Uint8Array(bytes.length);
+                                    for (let i = 0; i < bytes.length; ++i) ab[i] = bytes.charCodeAt(i);
+                                    const blob = new Blob([ab], { type: 'audio/wav' });
+                                    const url = URL.createObjectURL(blob);
+                                    audioPlayer.src = url;
+                                    downloadLink.href = url;
+                                }
+                                result.style.display = '';
+                                message.textContent = 'Reconstruction complete.';
+                                try { audioPlayer.play().catch(() => { }); } catch (e) { }
+                            } else {
+                                // Legacy: server returned a blob WAV
+                                const blob = await resp.blob();
+                                const url = URL.createObjectURL(blob);
+                                audioPlayer.src = url;
+                                downloadLink.href = url;
+                                result.style.display = '';
+                                message.textContent = 'Reconstruction complete.';
+                                try { audioPlayer.play().catch(() => { }); } catch (e) { }
+                            }
+                        } catch (err) {
+                            message.textContent = "Error: " + String(err.message || err);
+                            console.error(err);
+                        }
+                    }
 
-            regenBtn.addEventListener("click", (e) => {
-              e.preventDefault();
-              generateAndReconstruct();
-            });
+                    regenBtn.addEventListener("click", (e) => {
+                        e.preventDefault();
+                        generateAndReconstruct();
+                    });
 
-            // generate automatically on page load
-            window.addEventListener("DOMContentLoaded", () => {
-              generateAndReconstruct();
-            });
-          })();
-        </script>
-      </main>
+                    // generate automatically on page load
+                    window.addEventListener("DOMContentLoaded", () => {
+                        generateAndReconstruct();
+                    });
+                })();
+            </script>
+        </main>
     </div>
-  </body>
+</body>
+
 </html>

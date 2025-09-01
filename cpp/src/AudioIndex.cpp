@@ -363,22 +363,36 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
     }
 
     // Compute number of samples
-    size_t                total_samples = static_cast<size_t>(num_frames) * static_cast<size_t>(num_channels);
-    cpp_int               sample_mask   = (cpp_int(1) << bit_depth) - 1;
+    size_t bytes_per_sample = bit_depth / BITS_PER_BYTE;
+    size_t total_samples   = static_cast<size_t>(num_frames) * static_cast<size_t>(num_channels);
+    cpp_int  sample_mask   = (cpp_int(1) << bit_depth) - 1;
     std::vector<uint64_t> samples;
     samples.reserve(total_samples);
 
+    // Attempt to infer num_frames from the index payload when header num_frames is zero
+    std::vector<uint8_t> pcm_be_bytes;
+    if (total_samples == 0) {
+        // Export all available PCM bytes (MSB-first). If the index contains payload
+        // bytes, we can derive total_samples and num_frames from the payload length.
+        boost::multiprecision::export_bits(pcm_int, std::back_inserter(pcm_be_bytes), BITS_PER_BYTE, true);
+        if (!pcm_be_bytes.empty() && bytes_per_sample > 0) {
+            // derive total_samples from available bytes (floor division)
+            total_samples = pcm_be_bytes.size() / bytes_per_sample;
+            num_frames    = (total_samples / num_channels);
+        }
+    }
+
     // Extract samples: use export_bits to extract PCM bytes in big-endian
     if (total_samples > 0) {
-        // export_bits writes least-significant byte first by default; request MSB-first
-        std::vector<uint8_t> pcm_be_bytes;
-        pcm_be_bytes.reserve(total_samples * (bit_depth / BITS_PER_BYTE));
-        boost::multiprecision::export_bits(pcm_int, std::back_inserter(pcm_be_bytes), BITS_PER_BYTE, true);
+        if (pcm_be_bytes.empty()) {
+            // export_bits writes least-significant byte first by default; request MSB-first
+            pcm_be_bytes.reserve(total_samples * bytes_per_sample);
+            boost::multiprecision::export_bits(pcm_int, std::back_inserter(pcm_be_bytes), BITS_PER_BYTE, true);
+        }
 
         // pcm_be_bytes now contains samples in big-endian sample order
         // We need to split into samples and convert each to host-endian little-endian byte order
-        size_t bytes_per_sample = bit_depth / BITS_PER_BYTE;
-        size_t expected_bytes   = total_samples * bytes_per_sample;
+        size_t expected_bytes = total_samples * bytes_per_sample;
         if (pcm_be_bytes.size() != expected_bytes) {
             if (pcm_be_bytes.size() < expected_bytes) {
                 // export_bits may omit leading zero bytes; pad at the front (MSB side)
@@ -390,7 +404,7 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
             }
         }
 
-        // iterate samples in order and convert to unsigned sample words
+        // iterate samples in order and convert each to unsigned sample words
         for (size_t sampleIndex = 0; sampleIndex < total_samples; ++sampleIndex) {
             size_t   base = sampleIndex * bytes_per_sample;
             uint64_t word = 0;
@@ -407,7 +421,6 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
             }
             samples.push_back(static_cast<uint64_t>(sval & ((1ULL << bit_depth) - 1)));
         }
-        std::cout << std::endl;
 
         // record export stats
         lastDebug.export_pcm_bytes      = pcm_be_bytes.size();
@@ -420,7 +433,7 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
     audioData.num_channels  = static_cast<uint16_t>(num_channels);
     audioData.sample_rate   = sample_rate;
     audioData.bit_rate      = static_cast<uint16_t>(bit_depth);
-    size_t bytes_per_sample = bit_depth / BITS_PER_BYTE;
+    // reuse bytes_per_sample computed above
     audioData.samples.resize(total_samples * bytes_per_sample);
 
     for (size_t sampleIndex = 0; sampleIndex < total_samples; sampleIndex++) {

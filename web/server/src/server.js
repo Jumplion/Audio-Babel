@@ -74,6 +74,8 @@ app.post('/reconstruct', async (req, res) => {
     const defaultSampleRate = 44100;
     const defaultBitDepth = 16;
     const defaultNumChannels = 1;
+    
+    // Default to 0 frames so the decoder must infer the frame count from the payload bytes
     const defaultNumFrames = 0n;
     const hdr = Buffer.alloc(16);
     hdr.writeUInt32BE(defaultSampleRate, 0);

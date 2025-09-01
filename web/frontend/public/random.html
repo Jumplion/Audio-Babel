@@ -11,7 +11,112 @@
     <main class="card light">
       <h1>Random</h1>
       <p>This is a temporary page for Random.</p>
-      <p><a class="btn" href="./index.html">Back to Home</a></p>
+      <div id="controls">
+        <p><a class="btn" id="homeBtn" href="./index.html">Back to Home</a></p>
+        <p>
+          <label for="sizeSelect">Index size:</label>
+          <select id="sizeSelect">
+            <option value="65536">64 KB</option>
+            <option value="262144">256 KB</option>
+            <option value="524288">512 KB</option>
+            <option value="1048576">1 MB</option>
+            <option value="3145728">3 MB</option>
+            <option value="5242880">5 MB</option>
+          </select>
+          <button class="btn" id="regenBtn">Generate</button>
+        </p>
+        <p><small>Note: server limits may cap the maximum allowed size (default server max = 5 MB).</small></p>
+      </div>
+
+      <section id="status">
+        <p id="message">Click generate to create a random index and reconstruct audio.</p>
+      </section>
+
+      <section id="result" style="margin-top:16px;display:none">
+        <h3>Index (base64)</h3>
+        <pre id="indexDisplay" style="white-space:break-spaces;overflow:auto;max-height:160px;padding:8px;background:#f6f8fa;border-radius:6px"></pre>
+        <h3>Audio</h3>
+        <audio id="audioPlayer" controls style="width:100%"></audio>
+        <p><a id="downloadLink" href="#" download="reconstructed.wav">Download WAV</a></p>
+      </section>
+
+      <script>
+        (function(){
+          const regenBtn = document.getElementById('regenBtn');
+          const message = document.getElementById('message');
+          const indexDisplay = document.getElementById('indexDisplay');
+          const audioPlayer = document.getElementById('audioPlayer');
+          const result = document.getElementById('result');
+          const downloadLink = document.getElementById('downloadLink');
+
+          function toBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            const chunkSize = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+              binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
+            return btoa(binary);
+          }
+
+          async function generateAndReconstruct() {
+            try {
+              result.style.display = 'none';
+              message.textContent = 'Generating random index...';
+
+              // chosen size (clamped to a reasonable maximum)
+              const select = document.getElementById('sizeSelect');
+              let size = parseInt(select.value || '262144', 10);
+              const MAX_SIZE = 5 * 1024 * 1024; // must match server MAX_INDEX_BYTES
+              if (isNaN(size) || size <= 0) size = 262144;
+              if (size > MAX_SIZE) size = MAX_SIZE;
+              const buf = new Uint8Array(size);
+              if (window.crypto && window.crypto.getRandomValues) {
+                // getRandomValues has a platform limit (65536 bytes). Fill in chunks.
+                const MAX_CRYPTO_CHUNK = 65536;
+                for (let offset = 0; offset < size; offset += MAX_CRYPTO_CHUNK) {
+                  const end = Math.min(offset + MAX_CRYPTO_CHUNK, size);
+                  const chunk = buf.subarray(offset, end);
+                  window.crypto.getRandomValues(chunk);
+                }
+              } else {
+                for (let i = 0; i < size; i++) buf[i] = Math.floor(Math.random() * 256);
+              }
+
+              const b64 = toBase64(buf.buffer);
+              indexDisplay.textContent = b64;
+
+              message.textContent = 'Sending to server for reconstruction...';
+              const resp = await fetch('/reconstruct', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ format: 'base64', data: b64 })
+              });
+
+              if (!resp.ok) {
+                const text = await resp.text();
+                throw new Error(`Server error ${resp.status}: ${text}`);
+              }
+
+              const blob = await resp.blob();
+              const url = URL.createObjectURL(blob);
+              audioPlayer.src = url;
+              downloadLink.href = url;
+              result.style.display = '';
+              message.textContent = 'Reconstruction complete.';
+              try { audioPlayer.play().catch(()=>{}); } catch(e){}
+            } catch (err) {
+              message.textContent = 'Error: ' + String(err.message || err);
+              console.error(err);
+            }
+          }
+
+          regenBtn.addEventListener('click', (e)=>{ e.preventDefault(); generateAndReconstruct(); });
+
+          // generate automatically on page load
+          window.addEventListener('DOMContentLoaded', () => { generateAndReconstruct(); });
+        })();
+      </script>
     </main>
   </div>
 </body>

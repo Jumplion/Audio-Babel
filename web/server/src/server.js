@@ -47,8 +47,10 @@ app.get('/health', (req, res) => {
 });
 
 // Limits (tunable)
-const MAX_INDEX_BYTES = 5 * 1024 * 1024; // 5 MB max raw index input
-const MAX_WAV_BYTES = 50 * 1024 * 1024; // 50 MB max reconstructed WAV
+// Allow larger index payloads so reconstructed WAVs can be ~6 minutes long.
+// ~60 MB chosen to permit indexes that reconstruct to ~6 minutes at typical settings.
+const MAX_INDEX_BYTES = 60 * 1024 * 1024; // ~60 MB max raw index input (~6 minutes)
+const MAX_WAV_BYTES = 100 * 1024 * 1024; // 100 MB max reconstructed WAV
 const CHILD_TIMEOUT_MS = 20 * 1000; // 20s timeout for reconstruction
 
 app.post('/reconstruct', async (req, res) => {

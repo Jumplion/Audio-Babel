@@ -26,12 +26,12 @@
                         <option value="1048576">1 MB</option>
                         <option value="3145728">3 MB</option>
                         <option value="5242880">5 MB</option>
+                        <option value="62914560">60 MB</option>
                     </select>
                     <button class="btn" id="regenBtn">Generate</button>
                 </p>
                 <p>
-                    <small>Note: server limits may cap the maximum allowed size (default
-                        server max = 5 MB).</small>
+                    <small>Note: server limits may cap the maximum allowed size (server max = 60 MB).</small>
                 </p>
             </div>
 
@@ -41,42 +41,28 @@
                 </p>
             </section>
 
-            <section id="result" style="margin-top: 16px; display: none">
-                <h3>Index (base64)</h3>
-                <pre id="indexDisplay" style="
-              white-space: break-spaces;
-              overflow: auto;
-              max-height: 160px;
-              padding: 8px;
-              background: #f6f8fa;
-              border-radius: 6px;
-            "></pre>
-                <div id="metadata" style="display:none;margin-bottom:12px">
-                    <img id="coverImg" src="" alt="cover"
-                        style="width:128px;height:128px;float:left;margin-right:12px;border-radius:6px" />
-                    <div style="overflow:hidden">
-                        <div><strong>Genre:</strong> <span id="metaGenre"></span></div>
-                        <div><strong>Artist:</strong> <span id="metaArtist"></span></div>
-                        <div><strong>Album:</strong> <span id="metaAlbum"></span></div>
-                        <div><strong>Track:</strong> <span id="metaTrack"></span></div>
-                    </div>
-                    <div style="clear:both"></div>
-                </div>
-                <h3>Audio</h3>
-                <audio id="audioPlayer" controls style="width: 100%"></audio>
-                <p>
-                    <a id="downloadLink" href="#" download="reconstructed.wav">Download WAV</a>
-                </p>
-            </section>
+            <!-- Result area is loaded from a reusable component for consistency across pages -->
+            <div id="resultContainer"></div>
 
-            <script>
+            <script type="module">
+                import { loadFragment } from './js/loadFragment.js';
+
                 (function () {
                     const regenBtn = document.getElementById("regenBtn");
                     const message = document.getElementById("message");
-                    const indexDisplay = document.getElementById("indexDisplay");
-                    const audioPlayer = document.getElementById("audioPlayer");
-                    const result = document.getElementById("result");
-                    const downloadLink = document.getElementById("downloadLink");
+                    // Elements inside the result fragment will be resolved after the fragment loads
+                    let indexDisplay = null;
+                    let audioPlayer = null;
+                    let result = null;
+                    let downloadLink = null;
+
+                    async function loadResultFragment() {
+                        const frag = await loadFragment('#resultContainer', './components/result.html');
+                        indexDisplay = frag.get('#indexDisplay');
+                        audioPlayer = frag.get('#audioPlayer');
+                        result = frag.get('#result');
+                        downloadLink = frag.get('#downloadLink');
+                    }
 
                     function toBase64(buffer) {
                         const bytes = new Uint8Array(buffer);
@@ -93,13 +79,17 @@
 
                     async function generateAndReconstruct() {
                         try {
+                            // ensure result fragment is present
+                            if (!result) {
+                                await loadResultFragment();
+                            }
                             result.style.display = "none";
                             message.textContent = "Generating random index...";
 
                             // chosen size (clamped to a reasonable maximum)
                             const select = document.getElementById("sizeSelect");
                             let size = parseInt(select.value || "262144", 10);
-                            const MAX_SIZE = 5 * 1024 * 1024; // must match server MAX_INDEX_BYTES
+                            const MAX_SIZE = 60 * 1024 * 1024; // must match server MAX_INDEX_BYTES
                             if (isNaN(size) || size <= 0) size = 262144;
                             if (size > MAX_SIZE) size = MAX_SIZE;
                             const buf = new Uint8Array(size);
@@ -121,7 +111,7 @@
                             }
 
                             const b64 = toBase64(buf.buffer);
-                            indexDisplay.textContent = b64;
+                            if (indexDisplay) indexDisplay.textContent = b64;
 
                             message.textContent = "Sending to server for reconstruction...";
                             // Request metadata+base64 WAV
@@ -143,17 +133,22 @@
                                 const meta = j.metadata || {};
                                 const wavB64 = j.wavBase64;
                                 if (meta) {
-                                    document.getElementById('metaGenre').textContent = meta.genre || '';
-                                    document.getElementById('metaArtist').textContent = meta.artist || '';
-                                    document.getElementById('metaAlbum').textContent = meta.album || '';
-                                    document.getElementById('metaTrack').textContent = meta.track || '';
+                                    const g = document.getElementById('metaGenre');
+                                    const a = document.getElementById('metaArtist');
+                                    const al = document.getElementById('metaAlbum');
+                                    const t = document.getElementById('metaTrack');
+                                    if (g) g.textContent = meta.genre || '';
+                                    if (a) a.textContent = meta.artist || '';
+                                    if (al) al.textContent = meta.album || '';
+                                    if (t) t.textContent = meta.track || '';
                                     const coverImg = document.getElementById('coverImg');
-                                    if (meta.cover) {
+                                    const metadataEl = document.getElementById('metadata');
+                                    if (coverImg && meta.cover) {
                                         coverImg.src = meta.cover;
-                                        document.getElementById('metadata').style.display = '';
-                                    } else {
+                                        if (metadataEl) metadataEl.style.display = '';
+                                    } else if (coverImg && metadataEl) {
                                         coverImg.src = '';
-                                        document.getElementById('metadata').style.display = 'none';
+                                        metadataEl.style.display = 'none';
                                     }
                                 }
                                 if (wavB64) {
@@ -162,8 +157,8 @@
                                     for (let i = 0; i < bytes.length; ++i) ab[i] = bytes.charCodeAt(i);
                                     const blob = new Blob([ab], { type: 'audio/wav' });
                                     const url = URL.createObjectURL(blob);
-                                    audioPlayer.src = url;
-                                    downloadLink.href = url;
+                                    if (audioPlayer) audioPlayer.src = url;
+                                    if (downloadLink) downloadLink.href = url;
                                 }
                                 result.style.display = '';
                                 message.textContent = 'Reconstruction complete.';
@@ -172,8 +167,8 @@
                                 // Legacy: server returned a blob WAV
                                 const blob = await resp.blob();
                                 const url = URL.createObjectURL(blob);
-                                audioPlayer.src = url;
-                                downloadLink.href = url;
+                                if (audioPlayer) audioPlayer.src = url;
+                                if (downloadLink) downloadLink.href = url;
                                 result.style.display = '';
                                 message.textContent = 'Reconstruction complete.';
                                 try { audioPlayer.play().catch(() => { }); } catch (e) { }
@@ -189,8 +184,13 @@
                         generateAndReconstruct();
                     });
 
-                    // generate automatically on page load
-                    window.addEventListener("DOMContentLoaded", () => {
+                    // generate automatically on page load (ensure fragment loaded first)
+                    window.addEventListener("DOMContentLoaded", async () => {
+                        try {
+                            await loadResultFragment();
+                        } catch (e) {
+                            // loading failed; still attempt generation which will retry loading
+                        }
                         generateAndReconstruct();
                     });
                 })();

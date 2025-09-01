@@ -5,11 +5,24 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "lint:js": "eslint \"../frontend/src/**/*.js\" \"src/**/*.js\" --ext .js,.mjs || true",
+    "lint:css": "stylelint \"../frontend/public/css/**/*.css\" || true",
+    "lint:html": "htmlhint ../frontend/public || true",
+    "lint": "npm run lint:js && npm run lint:css && npm run lint:html",
+    "format": "prettier --write \"../frontend/public/**/*.{html,css,js}\" src/**/*.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "morgan": "^1.10.0"
+  }
+  ,
+  "devDependencies": {
+    "eslint": "^8.45.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-node": "^11.1.0",
+  "prettier": "^2.8.8",
+  "htmlhint": "^0.14.2"
   }
 }

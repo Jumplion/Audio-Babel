@@ -1,0 +1,12 @@
+module.exports = {
+  extends: ["stylelint-config-standard"],
+  rules: {
+    "at-rule-no-unknown": [
+      true,
+      {
+        ignoreAtRules: ["extends", "tailwind"]
+      }
+    ],
+    "indentation": 2
+  }
+};

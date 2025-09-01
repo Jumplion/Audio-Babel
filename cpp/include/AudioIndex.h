@@ -42,6 +42,17 @@ class AudioIndex {
     };
 
     // ---------------------
+    // Metadata
+    // ---------------------
+    struct Metadata {
+        std::string genre;
+        std::string artist;
+        std::string album;
+        std::string track;
+        std::vector<uint8_t> cover; // optional small image bytes
+    };
+
+    // ---------------------
     // Construction / lifecycle
     // ---------------------
     AudioIndex();
@@ -147,6 +158,9 @@ class AudioIndex {
          */
     static void writeIndexRepresentations(const boost::multiprecision::cpp_int& index, const std::string& outPrefix);
 
+    // Metadata helpers
+    static Metadata indexToMetadata(const boost::multiprecision::cpp_int& index);
+
     /**
      * Get the sample rate of the audio index.
      * @returns Sample rate in Hz
@@ -174,8 +188,9 @@ class AudioIndex {
     bool operator==(const AudioIndex& other) const;
     bool operator!=(const AudioIndex& other) const;
 
-   private:
-    AudioData audioData;
+    private:
+     AudioData audioData;
+     Metadata metadata;
 };
 
 } // namespace AudioBabel

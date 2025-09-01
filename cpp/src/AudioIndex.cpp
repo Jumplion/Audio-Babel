@@ -97,6 +97,13 @@ AudioIndex::~AudioIndex() {
 AudioIndex AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, int sampleRate, int bitDepth) {
     AudioIndex index;
     index.audioData = AudioIndex::extractAudioDataFromSamples(samples, sampleRate, bitDepth);
+    // build index integer and derive metadata
+    try {
+        cpp_int idx = AudioIndex::audioDataToIndex(index.audioData);
+        index.metadata = AudioIndex::indexToMetadata(idx);
+    } catch (...) {
+        // non-fatal: leave metadata blank on error
+    }
     return index;
 }
 
@@ -538,6 +545,55 @@ void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int&
     }
     out.put('\n');
     out.close();
+}
+
+// ---------------------------------------------------------------------------
+// 10) Metadata derivation
+// ---------------------------------------------------------------------------
+
+AudioIndex::Metadata AudioIndex::indexToMetadata(const boost::multiprecision::cpp_int& index) {
+    std::vector<uint8_t> bytes;
+    boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8, true);
+
+    auto mk = [&](size_t off, size_t len) {
+        std::string s;
+        for (size_t i = 0; i < len; ++i) {
+            uint8_t b = (off + i < bytes.size()) ? bytes[off + i] : 0;
+            char c = static_cast<char>((b % 36) < 10 ? ('0' + (b % 10)) : ('a' + ((b % 36) - 10)));
+            s.push_back(c);
+        }
+        return s;
+    };
+
+    Metadata m;
+    if (bytes.empty()) {
+        m.genre = "g0";
+        m.artist = "a0";
+        m.album = "al0";
+        m.track = "t0";
+        return m;
+    }
+
+    m.genre = mk(0, 6);
+    m.artist = mk(6, 8);
+    m.album = mk(14, 8);
+    m.track = mk(22, 6);
+
+    // generate a tiny SVG cover from first bytes
+    std::string svg = "<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>";
+    svg += "<rect width='100%' height='100%' fill='#";
+    unsigned int color = 0;
+    for (size_t i = 0; i < 3; ++i) color = (color << 8) | (i < bytes.size() ? bytes[i] : 0);
+    const char* hex = "0123456789abcdef";
+    for (int i = 5; i >= 0; --i) {
+        unsigned int nib = (color >> (i * 4)) & 0xF;
+        svg.push_back(hex[nib]);
+    }
+    svg += "'/><text x='50%' y='50%' font-size='20' text-anchor='middle' fill='#fff' dominant-baseline='middle'>";
+    svg += m.track;
+    svg += "</text></svg>";
+    m.cover.assign(svg.begin(), svg.end());
+    return m;
 }
 
 } // namespace AudioBabel

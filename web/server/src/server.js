@@ -366,6 +366,150 @@ app.post('/reconstruct', async (req, res) => {
   });
 });
 
+// POST /search_by_file
+// Accepts multipart/form-data with a single file field named 'file' (WAV)
+// Uses a CLI `extract_index_cli <inWav> <outIndex>` if available to produce raw index bytes.
+// Returns JSON: { indexBase64: string, metadata: { genre, artist, album, track, cover }, wavBase64: string }
+import multer from 'multer';
+const upload = multer({ dest: path.join(tmpdir(), 'sotb_uploads') });
+
+app.post('/search_by_file', upload.single('file'), async (req, res) => {
+  if (!req.file || !req.file.path) {
+    return res.status(400).json({ error: 'Expected multipart/form-data with a file field named "file"' });
+  }
+
+  const uploadedPath = req.file.path;
+  // Basic size check
+  try {
+    const st = statSync(uploadedPath);
+    if (st.size === 0) {
+      try { unlinkSync(uploadedPath); } catch (_) {}
+      return res.status(400).json({ error: 'Uploaded file is empty' });
+    }
+    if (st.size > MAX_WAV_BYTES) {
+      try { unlinkSync(uploadedPath); } catch (_) {}
+      return res.status(413).json({ error: 'Uploaded WAV too large', maxBytes: MAX_WAV_BYTES });
+    }
+  } catch (err) {
+    try { unlinkSync(uploadedPath); } catch (_) {}
+    return res.status(500).json({ error: 'Failed to stat uploaded file', message: String(err && err.message ? err.message : err) });
+  }
+
+  // Find extract_index_cli in the same candidate locations as reconstruct_cli
+  const repoRoot = path.resolve(__dirname, '..', '..', '..');
+  const extractCandidates = [
+    path.join(repoRoot, 'build', 'Debug', 'extract_index_cli.exe'),
+    path.join(repoRoot, 'build', 'extract_index_cli.exe'),
+    path.join(repoRoot, 'build', 'extract_index_cli'),
+    path.join(repoRoot, '..', 'build', 'extract_index_cli.exe'),
+    path.join(repoRoot, '..', 'build', 'extract_index_cli'),
+    path.join(process.cwd(), 'build', 'extract_index_cli.exe'),
+    path.join(process.cwd(), 'build', 'extract_index_cli'),
+    path.join(repoRoot, 'extract_index_cli.exe'),
+    path.join(repoRoot, 'extract_index_cli'),
+  ];
+
+  let cliPath = null;
+  for (const c of extractCandidates) {
+    try {
+      if (c && existsSync(c)) {
+        cliPath = c;
+        break;
+      }
+    } catch (e) {}
+  }
+
+  if (!cliPath) {
+    // CLI not found: return helpful 501 with instructions to build the helper CLI
+    try { unlinkSync(uploadedPath); } catch (_) {}
+    return res.status(501).json({
+      error: 'extract_index_cli not found on server',
+      message: 'Please build cpp/tools/extract_index_cli.cpp (uses AudioIndex) and place the binary on the server or in build/. See cpp/tools/README or project build instructions.'
+    });
+  }
+
+  // Create temp output path for index
+  const rnd = randomBytes(8).toString('hex');
+  const outIndex = path.join(tmpdir(), `sotb_index_out_${rnd}.bin`);
+
+  const child = spawn(cliPath, [uploadedPath, outIndex], { stdio: ['ignore', 'pipe', 'pipe'] });
+  let stderr = '';
+  child.stderr.on('data', (d) => { stderr += d.toString(); });
+
+  let timedOut = false;
+  const killTimer = setTimeout(() => {
+    timedOut = true;
+    try { child.kill('SIGKILL'); } catch (e) {}
+  }, CHILD_TIMEOUT_MS);
+
+  child.on('error', (err) => {
+    clearTimeout(killTimer);
+    try { unlinkSync(uploadedPath); } catch (_) {}
+    try { unlinkSync(outIndex); } catch (_) {}
+    return res.status(500).json({ error: 'Failed to run extract CLI', message: String(err && err.message ? err.message : err) });
+  });
+
+  child.on('close', (code, signal) => {
+    clearTimeout(killTimer);
+    if (timedOut) {
+      try { unlinkSync(uploadedPath); } catch (_) {}
+      try { unlinkSync(outIndex); } catch (_) {}
+      return res.status(504).json({ error: 'Index extraction timed out', timeoutMs: CHILD_TIMEOUT_MS });
+    }
+    if (code !== 0) {
+      try { unlinkSync(uploadedPath); } catch (_) {}
+      try { unlinkSync(outIndex); } catch (_) {}
+      return res.status(500).json({ error: 'extract_index_cli failed', code, message: stderr });
+    }
+
+    // Read produced index bytes
+    try {
+      if (!existsSync(outIndex)) throw new Error('Output index file not found');
+      const idxBuf = readFileSync(outIndex);
+      if (!idxBuf || idxBuf.length === 0) throw new Error('Index output empty');
+
+      // Derive metadata deterministically from the index bytes (server's deriveMetadata expects raw payload)
+      const derived = (function(payload) {
+        const b = payload || Buffer.alloc(0);
+        function token(offset, len) {
+          let s = '';
+          for (let i = 0; i < len; ++i) {
+            const v = (offset + i < b.length) ? b[offset + i] : 0;
+            const r = v % 36;
+            s += (r < 10) ? String.fromCharCode(48 + (r)) : String.fromCharCode(97 + (r - 10));
+          }
+          return s;
+        }
+        const genre = token(0, 6);
+        const artist = token(6, 8);
+        const album = token(14, 8);
+        const track = token(22, 6);
+        let color = 0;
+        for (let i = 0; i < 3; ++i) color = (color << 8) | (i < b.length ? b[i] : 0);
+        const hex = ((color >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><rect width='100%' height='100%' fill='#${hex}'/><text x='50%' y='50%' font-size='20' text-anchor='middle' fill='#fff' dominant-baseline='middle'>${track}</text></svg>`;
+        const coverBase64 = Buffer.from(svg, 'utf8').toString('base64');
+        return { genre, artist, album, track, coverBase64 };
+      })(idxBuf);
+
+      // Also include the uploaded WAV back to client as base64 to allow playback
+      const wavBuf = readFileSync(uploadedPath);
+      const wavB64 = wavBuf.toString('base64');
+      const meta = { genre: derived.genre, artist: derived.artist, album: derived.album, track: derived.track, cover: `data:image/svg+xml;base64,${derived.coverBase64}` };
+      const indexB64 = idxBuf.toString('base64');
+
+      try { unlinkSync(uploadedPath); } catch (_) {}
+      try { unlinkSync(outIndex); } catch (_) {}
+
+      return res.json({ indexBase64: indexB64, metadata: meta, wavBase64: wavB64 });
+    } catch (err) {
+      try { unlinkSync(uploadedPath); } catch (_) {}
+      try { unlinkSync(outIndex); } catch (_) {}
+      return res.status(500).json({ error: 'Failed to read index output', message: String(err && err.message ? err.message : err) });
+    }
+  });
+});
+
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Speaker-of-Babel server listening on port ${port}`);

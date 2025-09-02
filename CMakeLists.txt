@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(ENABLE_FFTW "Link against FFTW3 library if available" ON)
-option(ENABLE_GMP  "Link against GMP library if available" ON)
+option(ENABLE_GMP "Link against GMP library if available" ON)
 
 # Put project sources under cpp/
 set(CPP_ROOT "${CMAKE_SOURCE_DIR}/cpp")
@@ -22,15 +22,15 @@ target_include_directories(audiolib PUBLIC ${CPP_ROOT}/include)
 find_path(BOOST_MP_INCLUDE_DIR
     NAMES boost/multiprecision/cpp_int.hpp
     PATHS
-      /mingw64/include
-      /usr/include
-      /usr/local/include
-      C:/msys64/mingw64/include
-      C:/msys64/usr/include
-      C:/vcpkg/installed/x64-windows/include
-      C:/vcpkg
-      C:/Program Files/boost/include
-      C:/Program Files (x86)/boost/include
+    /mingw64/include
+    /usr/include
+    /usr/local/include
+    C:/msys64/mingw64/include
+    C:/msys64/usr/include
+    C:/vcpkg/installed/x64-windows/include
+    C:/vcpkg
+    C:/Program Files/boost/include
+    C:/Program Files (x86) /boost/include
 )
 if(BOOST_MP_INCLUDE_DIR)
     message(STATUS "Found Boost.Multiprecision headers: ${BOOST_MP_INCLUDE_DIR}")
@@ -83,6 +83,14 @@ if(EXISTS ${RECON_SRC})
     add_executable(reconstruct_cli ${RECON_SRC})
     target_link_libraries(reconstruct_cli PRIVATE audiolib)
     target_include_directories(reconstruct_cli PRIVATE ${CPP_ROOT}/include)
+endif()
+
+# Small extract CLI used by the web server (WAV -> index)
+set(EXTRACT_SRC "${CPP_ROOT}/tools/extract_index_cli.cpp")
+if(EXISTS ${EXTRACT_SRC})
+    add_executable(extract_index_cli ${EXTRACT_SRC})
+    target_link_libraries(extract_index_cli PRIVATE audiolib)
+    target_include_directories(extract_index_cli PRIVATE ${CPP_ROOT}/include)
 endif()
 
 message(STATUS "Project configured: ${PROJECT_NAME}")

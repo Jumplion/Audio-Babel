@@ -13,16 +13,16 @@
     "format": "prettier --write \"../frontend/public/**/*.{html,css,js}\" src/**/*.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "morgan": "^1.10.0"
-  }
-  ,
+    "express": "^4.18.2",
+    "morgan": "^1.10.0",
+    "multer": "^2.0.2"
+  },
   "devDependencies": {
     "eslint": "^8.45.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-node": "^11.1.0",
-  "prettier": "^2.8.8",
-  "htmlhint": "^0.14.2"
+    "htmlhint": "^0.14.2",
+    "prettier": "^2.8.8"
   }
 }

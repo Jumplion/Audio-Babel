@@ -9,6 +9,7 @@ import { randomBytes } from 'crypto';
 import { writeFileSync, unlinkSync, createReadStream, existsSync, statSync, accessSync, readFileSync } from 'fs';
 import { spawn } from 'child_process';
 import path from 'path';
+import zlib from 'zlib';
 
 const app = express();
 app.use(cors());
@@ -154,7 +155,8 @@ app.post('/reconstruct', async (req, res) => {
       });
   }
 
-  // Helper: derive simple gibberish metadata from the raw payload bytes.
+  // Helper: derive deterministic metadata from payload bytes and produce a PNG cover.
+  // The PNG is deterministically generated from the payload bytes so identical indexes produce identical covers.
   function deriveMetadata(payload) {
     const b = payload || Buffer.alloc(0);
     function token(offset, len) {
@@ -170,12 +172,77 @@ app.post('/reconstruct', async (req, res) => {
     const artist = token(6, 8);
     const album = token(14, 8);
     const track = token(22, 6);
-    // produce a simple SVG cover as a data URL (deterministic color)
-    let color = 0;
-    for (let i = 0; i < 3; ++i) color = (color << 8) | (i < b.length ? b[i] : 0);
-    const hex = ((color >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><rect width='100%' height='100%' fill='#${hex}'/><text x='50%' y='50%' font-size='20' text-anchor='middle' fill='#fff' dominant-baseline='middle'>${track}</text></svg>`;
-    const coverBase64 = Buffer.from(svg, 'utf8').toString('base64');
+
+    // Build a deterministic PNG from the payload bytes.
+    function crc32(buf) {
+      const table = crc32.table || (crc32.table = (function() {
+        const t = new Uint32Array(256);
+        for (let i = 0; i < 256; ++i) {
+          let c = i;
+          for (let k = 0; k < 8; ++k) c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+          t[i] = c >>> 0;
+        }
+        return t;
+      })());
+      let crc = 0xffffffff;
+      for (let i = 0; i < buf.length; ++i) {
+        crc = (crc >>> 8) ^ table[(crc ^ buf[i]) & 0xff];
+      }
+      return (crc ^ 0xffffffff) >>> 0;
+    }
+
+    function makePng(payloadBuf, size = 256) {
+      const width = size;
+      const height = size;
+      const bytesPerPixel = 3; // RGB
+      const rowSize = width * bytesPerPixel;
+      const raw = Buffer.alloc((rowSize + 1) * height);
+      const plen = payloadBuf.length || 1;
+      // Fill pixels deterministically from payload repeating as needed
+      for (let y = 0; y < height; ++y) {
+        const rowStart = y * (rowSize + 1);
+        raw[rowStart] = 0; // no filter
+        for (let x = 0; x < width; ++x) {
+          const p = y * width + x;
+          const base = (p * 3) % plen;
+          const r = payloadBuf.length ? payloadBuf[base % plen] : 0;
+          const g = payloadBuf.length ? payloadBuf[(base + 1) % plen] : 0;
+          const bch = payloadBuf.length ? payloadBuf[(base + 2) % plen] : 0;
+          const off = rowStart + 1 + x * 3;
+          raw[off] = r;
+          raw[off + 1] = g;
+          raw[off + 2] = bch;
+        }
+      }
+
+      const idat = zlib.deflateSync(raw);
+
+      function chunk(type, data) {
+        const typeBuf = Buffer.from(type, 'ascii');
+        const len = Buffer.alloc(4);
+        len.writeUInt32BE(data.length, 0);
+        const crcBuf = Buffer.alloc(4);
+        const crc = crc32(Buffer.concat([typeBuf, data]));
+        crcBuf.writeUInt32BE(crc, 0);
+        return Buffer.concat([len, typeBuf, data, crcBuf]);
+      }
+
+      const sig = Buffer.from([137,80,78,71,13,10,26,10]);
+      const ihdr = Buffer.alloc(13);
+      ihdr.writeUInt32BE(width, 0);
+      ihdr.writeUInt32BE(height, 4);
+      ihdr[8] = 8; // bit depth
+      ihdr[9] = 2; // color type RGB
+      ihdr[10] = 0; // compression
+      ihdr[11] = 0; // filter
+      ihdr[12] = 0; // interlace
+
+      const png = Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', idat), chunk('IEND', Buffer.alloc(0))]);
+      return png;
+    }
+
+    const pngBuf = makePng(b, 256);
+    const coverBase64 = pngBuf.toString('base64');
     return { genre, artist, album, track, coverBase64 };
   }
 
@@ -319,7 +386,7 @@ app.post('/reconstruct', async (req, res) => {
           artist: derivedMetadata.artist,
           album: derivedMetadata.album,
           track: derivedMetadata.track,
-          cover: `data:image/svg+xml;base64,${derivedMetadata.coverBase64}`,
+          cover: `data:image/png;base64,${derivedMetadata.coverBase64}`,
         };
         try {
           unlinkSync(inPath);
@@ -495,7 +562,7 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
       // Also include the uploaded WAV back to client as base64 to allow playback
       const wavBuf = readFileSync(uploadedPath);
       const wavB64 = wavBuf.toString('base64');
-      const meta = { genre: derived.genre, artist: derived.artist, album: derived.album, track: derived.track, cover: `data:image/svg+xml;base64,${derived.coverBase64}` };
+  const meta = { genre: derived.genre, artist: derived.artist, album: derived.album, track: derived.track, cover: `data:image/png;base64,${derived.coverBase64}` };
       const indexB64 = idxBuf.toString('base64');
 
       try { unlinkSync(uploadedPath); } catch (_) {}

@@ -1,46 +1,88 @@
 {
-    "version": "2.0.0",
-    "options": {
-        "cwd": "${workspaceFolder}/cpp",
-        "shell": {
-            "executable": "C:\\msys64\\usr\\bin\\bash.exe",
-            "args": [
-                "-lc"
-            ]
-        }
+  "version": "2.0.0",
+  "options": {
+    "cwd": "${workspaceFolder}/cpp",
+    "shell": {
+      "executable": "C:\\msys64\\usr\\bin\\bash.exe",
+      "args": ["-lc"]
+    }
+  },
+  "tasks": [
+    {
+      "label": "Build (PowerShell)",
+      "type": "shell",
+      "group": { "kind": "build", "isDefault": true },
+      "command": "& '${workspaceFolder}\\tools\\build.ps1' -Configuration Debug",
+      "options": {
+        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"] }
+      },
+      "presentation": { "echo": true, "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
     },
-    "tasks": [
-        {
-            "type": "shell",
-            "label": "CMake: configure and build",
-            "command": "mkdir -p build; cd build; cmake -G \"MinGW Makefiles\" ..; mingw32-make -j 4",
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "panel": "shared"
-            }
-        },
-        {
-            "type": "shell",
-            "label": "Run tests_runner",
-            "command": "cd build; ./tests_runner.exe",
-            "problemMatcher": [],
-            "group": {
-                "kind": "test",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "panel": "shared"
-            }
-        }
-    ]
+    {
+      "label": "Build (bash)",
+      "type": "shell",
+      "command": "${workspaceFolder}/tools/build.sh Debug",
+      "options": { "shell": { "executable": "bash", "args": ["-lc"] } },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Tests (PowerShell)",
+      "type": "shell",
+      "group": "test",
+      "command": "& '${workspaceFolder}\\tools\\run_tests.ps1'",
+      "options": {
+        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"] }
+      },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Example (PowerShell)",
+      "type": "shell",
+      "command": "& '${workspaceFolder}\\tools\\run_example.ps1'",
+      "options": {
+        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"] }
+      },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Clean (PowerShell)",
+      "type": "shell",
+      "command": "& '${workspaceFolder}\\tools\\clean.ps1'",
+      "options": {
+        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"] }
+      },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Clean (remove dir) (PowerShell)",
+      "type": "shell",
+      "command": "& '${workspaceFolder}\\tools\\clean.ps1' -RemoveDir",
+      "options": {
+        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"] }
+      },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "label": "CMake: configure and build",
+      "command": "mkdir -p build; cd build; cmake -G \"MinGW Makefiles\" ..; mingw32-make -j 4",
+      "problemMatcher": ["$gcc"],
+      "group": { "kind": "build", "isDefault": false },
+      "presentation": { "echo": true, "reveal": "always", "panel": "shared" }
+    },
+    {
+      "type": "shell",
+      "label": "Run tests_runner",
+      "command": "cd build; ./tests_runner.exe",
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": false },
+      "presentation": { "echo": true, "reveal": "always", "panel": "shared" }
+    }
+  ]
 }

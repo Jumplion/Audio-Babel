@@ -54,9 +54,11 @@ h1 {
   font-size: 28px;
   line-height: 1.1;
 }
+
 .home h1 {
   color: #fff;
 }
+
 .light h1 {
   color: #0b1220;
 }
@@ -71,12 +73,11 @@ p.lead {
   flex-direction: column;
   gap: 12px;
 }
+
 .option {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.02),
-    rgba(255, 255, 255, 0.01)
-  );
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.02),
+      rgba(255, 255, 255, 0.01));
   padding: 14px 18px;
   border-radius: 8px;
   color: #e6f7ff;
@@ -84,6 +85,7 @@ p.lead {
   font-weight: 600;
   border: 1px solid rgba(255, 255, 255, 0.03);
 }
+
 .option:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(2, 6, 23, 0.6);
@@ -103,4 +105,110 @@ footer {
   color: white;
   text-decoration: none;
   font-weight: 600;
+}
+
+/* Loading spinner + skeleton */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.08);
+  border-top-color: var(--btn);
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* loading UI */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #fff;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.03) 100%);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  left: -150px;
+  top: 0;
+  bottom: 0;
+  width: 150px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent);
+  animation: loadingShimmer 1s infinite;
+}
+
+@keyframes loadingShimmer {
+  from {
+    left: -150px;
+  }
+
+  to {
+    left: 100%;
+  }
+}
+
+.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.btn.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* active tab */
+.btn.tab-active {
+  background: linear-gradient(90deg, var(--btn), #66a9ff);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(11, 120, 255, 0.16);
+  transform: translateY(-2px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn.tab-active:focus {
+  outline: 3px solid rgba(11, 120, 255, 0.12);
+}
+
+*** End Patch .skeleton {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.04) 25%, rgba(0, 0, 0, 0.02) 37%, rgba(0, 0, 0, 0.04) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0
+  }
+
+  100% {
+    background-position: -200% 0
+  }
 }

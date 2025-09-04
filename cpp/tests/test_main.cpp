@@ -441,9 +441,9 @@ int main(int argc, char** argv) {
             v |= cpp_int(0x9ABCDEF01122ULL);
 
             std::string prefix = "test_index_out"; // basename only; files are written into cpp/tests/indexes/
-            AudioIndex::writeIndexRepresentations(v, prefix);
+            AudioIndex::writeIndexRepresentations(v, std::string(), prefix);
 
-            // Check base64 exist
+            // Check base64 exist (new suffix .b64.txt)
             std::ifstream b64(std::string("cpp/tests/indexes/") + prefix + ".txt");
             ok &= RUN_CHECK(runner, name, bool(b64), "b64 file exists");
             // cleanup
@@ -661,7 +661,7 @@ int main(int argc, char** argv) {
                 // Write index representations (b256)
                 try {
                     std::string stem = p.stem().string();
-                    AudioIndex::writeIndexRepresentations(idx, stem);
+                    AudioIndex::writeIndexRepresentations(idx, std::string(), stem);
                     log_now(std::string("WROTE INDEX REPRS: cpp/tests/indexes/" ) + stem);
                 } catch (const std::exception& e) {
                     log_now(std::string("WARN: failed to write index representations for: ") + p.string() + " err=" + e.what());

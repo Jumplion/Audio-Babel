@@ -156,7 +156,14 @@ class AudioIndex {
          *  - <outPrefix>.b128      : raw 7-bit digit stream (one byte per digit, MSB-first)
          *  - <outPrefix>.b256      : raw big-endian bytes (base-256)
          */
-    static void writeIndexRepresentations(const boost::multiprecision::cpp_int& index, const std::string& outPrefix);
+    // Write textual and binary representations of an index to files in `outDir`.
+    // If `outDir` is empty, files are written to the repository-relative
+    // `cpp/tests/indexes` directory. If `filename` is empty a stable short hex
+    // stem is generated from the first bytes of the index; otherwise `filename`
+    // is used as the base name (no extension).
+    static void writeIndexRepresentations(const boost::multiprecision::cpp_int& index,
+                                          const std::string& outDir = std::string(),
+                                          const std::string& filename = std::string());
 
     // Metadata helpers
     static Metadata indexToMetadata(const boost::multiprecision::cpp_int& index);

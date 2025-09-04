@@ -507,28 +507,41 @@ bool AudioIndex::operator!=(const AudioIndex& other) const {
 // 9) Index representation helpers
 // ---------------------------------------------------------------------------
 
-void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int& index, const std::string& outPrefix) {
-    // Ensure target directory exists: write under cpp/tests/indexes/<basename>
-    fs::path baseDir = fs::path("cpp") / "tests" / "indexes";
-    try {
-        fs::create_directories(baseDir);
-    } catch (...) {
+void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int& index, const std::string& outDir, const std::string& filename) {
+    // Determine directory to write into.
+    fs::path dir;
+    if (outDir.empty()) {
+        dir = fs::path("cpp") / "tests" / "indexes";
+    } else {
+        dir = fs::path(outDir);
     }
-    fs::path stem         = fs::path(outPrefix).filename();
-    fs::path targetPrefix = baseDir / stem;
 
-    std::ofstream out(targetPrefix.string() + ".txt");
-    if (!out) {
-        return;
+    try {
+        fs::create_directories(dir);
+    } catch (...) {
+        // best-effort
     }
 
     // Export bytes once (MSB-first) and produce all encodings from these bytes
     std::vector<uint8_t> bytes;
     boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8, true);
 
-    static const char b64[]    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    size_t            i        = 0;
-    uint32_t          acc      = 0;
+    // Make a short stable stem from first bytes (hex)
+    std::ostringstream stem_ss;
+    stem_ss << std::hex << std::setfill('0');
+    size_t take = std::min<size_t>(bytes.size(), 6);
+    for (size_t i = 0; i < take; ++i) stem_ss << std::setw(2) << static_cast<int>(bytes[i]);
+    std::string stem = stem_ss.str();
+
+    // choose base name: provided filename or generated stem
+    std::string name = filename.empty() ? stem : filename;
+
+    // write base64 textual representation as <dir>/<name>.b64.txt
+    std::ofstream out((dir / (name + ".txt")).string());
+    if (!out) return;
+
+    static const char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    uint32_t          acc   = 0;
     int               acc_bits = 0;
     for (uint8_t byte : bytes) {
         acc = (acc << BITS_PER_BYTE) | byte;

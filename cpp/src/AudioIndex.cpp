@@ -26,11 +26,11 @@ namespace {
     constexpr size_t   HEADER_BYTES_CONST     = 4 + 2 + 2 + 8; // 16 bytes header layout
     constexpr size_t   BITS_PER_BYTE          = 8;
     constexpr int      BASE64_BITS            = 6;          // bits per base64 digit in our table
-    constexpr uint32_t BYTE_MASK              = 0xFFu;      // mask for a single byte
-    constexpr uint32_t BASE64_MASK            = 0x3Fu;      // mask for 6-bit base64 values
+    constexpr uint32_t BYTE_MASK              = 0xFFu;      // mask for a single byte (255)
+    constexpr uint32_t BASE64_MASK            = 0x3Fu;      // mask for 6-bit base64 values (63)
     constexpr uint16_t PCM_FORMAT_CODE        = 1;          // PCM format value
     constexpr uint16_t DEFAULT_NUM_CHANNELS   = 1;          // default assumed channels for sample vectors
-    constexpr uint32_t CHUNK_SIZE_LIMIT       = (1u << 30); // sanity limit for chunk sizes
+    constexpr uint32_t CHUNK_SIZE_LIMIT       = (1u << 30); // sanity limit for chunk sizes (1,073,741,824 or 1 GiB)
     constexpr uint32_t WAV_FILE_BASE_OVERHEAD = 36;         // base size used in RIFF size field
 } // namespace
 
@@ -108,12 +108,40 @@ AudioIndex AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, int
 }
 
 AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::string& path) {
+
+    /**
+     * EXPLANATION FOR EXTRACTION ALGORITHM
+     * This function extracts audio data from a WAV file by reading its headers
+     * and data chunks. It supports only PCM format and assumes a specific chunk
+     * layout.
+     *
+     * A .wav file consists of a header and a data chunk. The header contains
+     * metadata about the audio format, while the data chunk contains the actual
+     * PCM audio samples.
+     *
+     * The header is 44 bytes long and contains the following fields:
+     * - ChunkID (4 bytes): Contains the letters "RIFF" in ASCII form.
+     * - ChunkSize (4 bytes): 36 + SubChunk2Size, or more generally: 4 + (8 + SubChunk2Size)
+     * - Format (4 bytes): Contains the letters "WAVE".
+     * - Subchunk1ID (4 bytes): Contains the letters "fmt ".
+     * - Subchunk1Size (4 bytes): 16 for PCM.
+     * - AudioFormat (2 bytes): PCM = 1.
+     * - NumChannels (2 bytes): Mono = 1, Stereo = 2. (NOTE: We Assume 1)
+     * - SampleRate (4 bytes): 8000, 44100, etc.    (NOTE: We assume 44100)
+     * - ByteRate (4 bytes): SampleRate * NumChannels * BitsPerSample/8.
+     * - BlockAlign (2 bytes): NumChannels * BitsPerSample/8.
+     * - BitsPerSample (2 bytes): 8 bits = 8, 16 bits = 16. (NOTE: We Assume 16)
+     *
+     * The data chunk contains the actual PCM audio samples.
+     */
+
+    // Open the WAV file for reading
     std::ifstream in(path, std::ios::binary);
     if (!in) {
         throw std::runtime_error("Failed to open WAV file: " + path);
     }
 
-    // Read RIFF header
+    // Read RIFF header, throw error if not found
     char riff[WAV_ID_LEN];
     in.read(riff, WAV_ID_LEN);
     if (std::strncmp(riff, "RIFF", WAV_ID_LEN) != 0) {
@@ -124,84 +152,86 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
     char tmp4[WAV_ID_LEN];
     in.read(tmp4, WAV_ID_LEN);
 
-    // Read "WAVE" header
+    // Read "WAVE" header, throw error if not found
     char wave[WAV_ID_LEN];
     in.read(wave, WAV_ID_LEN);
-
     if (std::strncmp(wave, "WAVE", WAV_ID_LEN) != 0) {
         throw std::runtime_error("Not a WAVE file");
     }
-
+    
     AudioData audioData{};
-
-    /*
-    This loop is a simple RIFF/WAV chunk parser that iterates over chunks until EOF or an error.
-    Each iteration reads a 4‑byte chunk ID (into a non‑nul-terminated char[4]) and then reads the
-    next 4 bytes into a temporary buffer sizeBuf. The code converts those four bytes to a host
-    uint32_t via read_u32_le — this explicitly interprets the on‑disk size as little‑endian, which
-    is why the size is first read into bytes and then converted rather than read directly into a
-    uint32_t.
-
-    After converting the chunk size the code performs a sanity check (rejecting sizes larger than
-    1<<30) to avoid unreasonable allocations. It then dispatches on the chunk ID using std::strncmp
-    with a length of 4, which is appropriate here because id is not nul‑terminated and the
-    comparison only needs to match exactly four bytes.
-
-    For the "fmt " chunk the code requires at least 16 bytes (the canonical minimum for PCM fmt) and
-    reads the entire chunk into a temporary buffer. It then extracts fields using the provided
-    little‑endian helpers: audio_format at offset 0, num_channels at offset 2, sample_rate at offset
-    4, and bits_per_sample at offset 14. ote that these offsets correspond to the standard 16‑byte
-    PCM fmt layout (AudioFormat, NumChannels, SampleRate, ByteRate, BlockAlign, BitsPerSample). If
-    the fmt chunk is shorter than 16 bytes or the chunk is a non‑PCM/extended fmt, those fixed
-    offsets can be invalid or insufficient — additional validation and handling for extensible fmt
-    structures would be required.
-
-    For the "data" chunk the code resizes audioData.samples to the chunk size and reads raw sample
-    bytes into that buffer. Unknown chunks are skipped by advancing the stream by sz bytes plus one
-    extra byte when sz is odd (sz + (sz & 1)), which correctly handles RIFF’s even‑byte padding
-    rule. Throughout the loop the code uses placeholder comments for error handling; robust code
-    should check every read/gcount and handle partial reads, malformed chunks, non‑PCM formats, and
-    excessive sizes (to prevent OOM or denial‑of‑service).
-    */
-    // Read chunks
     while (in) {
+        /**
+         * Each iteration reads a 4 bytes into a char[4] and then reads the next 4 bytes into a
+         * temporary buffer sizeBuf. The code converts those four bytes to a uint32_t.
+         * This explicitly interprets the on‑disk size as LITTLE-ENDIAN
+         *     - (see: Endianness [https://en.wikipedia.org/wiki/Endianness]) -
+         * which is why the size is read then converted, rather than read directly into a uint32_t.
+         */
+        // Read chunk ID
         char id[WAV_ID_LEN];
         if (!in.read(id, WAV_ID_LEN)) {
             break;
         }
 
-        // Read size as 4 bytes then interpret as little-endian to be portable
         char sizeBuf[WAV_ID_LEN];
         if (!in.read(sizeBuf, WAV_ID_LEN)) {
             break;
         }
 
+        // Interpret chunk size, guard against unreasonable chunk sizes (> 1 GiB or 1,073,741,824 bytes)
         uint32_t chunkSize = read_u32_le(sizeBuf);
-
-        // Guard against unreasonable sizes
         if (chunkSize > CHUNK_SIZE_LIMIT) {
             break;
         }
 
+        /**
+         * Process "fmt " chunk. Requires at least 16 bytes (minimum for PCM fmt).
+         *     (NOTE: the space at the end is intentional)
+         *     Reads the entire chunk into a temporary buffer, then extracts
+         *     fields using the provided little‑endian helpers:
+         *     - audio_format at offset 0
+         *     - num_channels at offset 2
+         *     - sample_rate at offset 4
+         *     - bits_per_sample at offset 14
+         *         NOTE: These offsets correspond to the standard 16‑byte PCM fmt layout:
+         *             AudioFormat, NumChannels, SampleRate, ByteRate, BlockAlign, BitsPerSample
+         */
         if (std::strncmp(id, "fmt ", WAV_ID_LEN) == 0) {
             if (chunkSize < FMT_CHUNK_MIN_SIZE) {
                 break;
             }
+
             std::vector<char> buf(chunkSize);
             if (!in.read(buf.data(), chunkSize)) {
                 break;
             }
+
             audioData.audio_format = read_u16_le(buf.data());
             audioData.num_channels = read_u16_le(buf.data() + 2);
             audioData.sample_rate  = read_u32_le(buf.data() + 4);
             audioData.bit_rate     = read_u16_le(buf.data() + 14);
-        } else if (std::strncmp(id, "data", WAV_ID_LEN) == 0) {
+        } 
+
+        /**
+         *  Process "data" chunk (the samples)
+         *  Resizes audioData.samples to the chunk size and 
+         *  reads raw sample bytes into that buffer.
+         */
+        else if (std::strncmp(id, "data", WAV_ID_LEN) == 0) {
             audioData.samples.resize(chunkSize);
             if (!in.read(reinterpret_cast<char*>(audioData.samples.data()), chunkSize)) {
+                // Failed to read audio samples
                 break;
             }
-        } else {
-            // Skip unknown chunk and account for RIFF padding (chunks are even-sized)
+        }  
+
+        /**
+         * We have an unknown chunk. 
+         * Skip this chunk and account for RIFF padding (chunks are even-sized) by
+         * advancing the stream by sz bytes plus one extra byte when sz is odd (sz + (sz & 1)),
+         */
+        else {
             in.seekg(chunkSize + (chunkSize & 1), std::ios::cur);
             if (!in) {
                 break;
@@ -209,11 +239,13 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
         }
     }
 
+    // Validate that we found a data chunk and populated samples
     if (audioData.samples.empty()) {
         throw std::runtime_error("No data chunk found in WAV");
     }
 
     // Compute number of frames
+    // Number of Frames = Total Samples / ((Bit Rate / 8) * Number of Channels)
     size_t bytes_per_sample = audioData.bit_rate / BITS_PER_BYTE;
     audioData.num_frames    = audioData.samples.size() / (bytes_per_sample * audioData.num_channels);
     return audioData;
@@ -229,15 +261,19 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromSamples(const std::vector<
     // Convert int32 samples to bytes (little-endian)
     size_t bytes_per_sample = bitDepth / BITS_PER_BYTE;
     audioData.samples.resize(samples.size() * bytes_per_sample);
+
+    // Loop through samples. 
     for (size_t sampleIndex = 0; sampleIndex < samples.size(); ++sampleIndex) {
         int32_t sample = samples[sampleIndex];
+
+        // Convert this sample to 
         for (size_t byteIndex = 0; byteIndex < bytes_per_sample; ++byteIndex) {
             audioData.samples[(sampleIndex * bytes_per_sample) + byteIndex] =
                 static_cast<uint8_t>((sample >> (byteIndex * BITS_PER_BYTE)) & BYTE_MASK);
         }
     }
 
-    // compute number of frames
+    // Compute number of frames
     audioData.num_frames = samples.size() / audioData.num_channels;
     return audioData;
 }
@@ -295,9 +331,8 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
     lastDebug.audioDataToIndexMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(t1_import - t0_import).count());
 
     // Build explicit header bytes (big-endian): u32 sample_rate, u16 bit_depth, u16 num_channels,
-    // u64 num_frames The header is placed into the least-significant HEADER_BYTES_CONST bytes so
-    // consumers may extract it by masking the low bits. This explicit layout
-    // avoids fragile bitwidth assumptions and makes deserialization robust.
+    // u64 num_frames. The header is placed into the least-significant HEADER_BYTES_CONST bytes so
+    // consumers may extract it by masking the low bits.
     const size_t         HEADER_BYTES = HEADER_BYTES_CONST;
     std::vector<uint8_t> header_buf;
     header_buf.reserve(HEADER_BYTES);
@@ -495,8 +530,8 @@ void AudioIndex::writeAudioDataToFile(const AudioData& audioData, const std::str
 
 bool AudioIndex::operator==(const AudioIndex& other) const {
     return audioData.audio_format == other.audioData.audio_format && audioData.num_channels == other.audioData.num_channels &&
-           audioData.sample_rate == other.audioData.sample_rate && audioData.bit_rate == other.audioData.bit_rate &&
-           audioData.num_frames == other.audioData.num_frames && audioData.samples == other.audioData.samples;
+            audioData.sample_rate == other.audioData.sample_rate && audioData.bit_rate == other.audioData.bit_rate &&
+            audioData.num_frames == other.audioData.num_frames && audioData.samples == other.audioData.samples;
 }
 
 bool AudioIndex::operator!=(const AudioIndex& other) const {

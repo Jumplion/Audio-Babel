@@ -146,24 +146,20 @@ class AudioIndex {
     static void writeAudioDataToFile(const AudioData& audioData, const std::string& path);
 
     /**
-         * Write multiple textual and binary representations of a big-integer index
-         * to files prefixed with outPrefix. The following files are produced:
-         *  - <outPrefix>.bin.txt   : binary (0/1) textual representation (MSB-first)
-         *  - <outPrefix>.dec.txt   : decimal textual representation
-         *  - <outPrefix>.hex.txt   : hexadecimal textual representation (lowercase)
-         *  - <outPrefix>.b32.txt   : base32 (RFC4648) textual representation
-         *  - <outPrefix>.b64.txt   : base64 (RFC4648) textual representation
-         *  - <outPrefix>.b128      : raw 7-bit digit stream (one byte per digit, MSB-first)
-         *  - <outPrefix>.b256      : raw big-endian bytes (base-256)
-         */
-    // Write textual and binary representations of an index to files in `outDir`.
-    // If `outDir` is empty, files are written to the repository-relative
-    // `cpp/tests/indexes` directory. If `filename` is empty a stable short hex
-    // stem is generated from the first bytes of the index; otherwise `filename`
-    // is used as the base name (no extension).
+     * Write multiple textual representations of a big-integer index
+     * to files prefixed with outPrefix. The following files are produced:
+     *  - <outPrefix>.txt   : base64 (RFC4648) textual representation
+     * If `outDir` is empty, files are written to the repository-relative
+     * `cpp/tests/indexes` directory. If `filename` is empty a stable short hex
+     * stem is generated from the first bytes of the index; otherwise `filename`
+     * is used as the base name (no extension).
+     * @param index Big integer index to write representations for
+     * @param outDir Output directory for the representations
+     * @param filename Base filename for the representations
+    */
     static void writeIndexRepresentations(const boost::multiprecision::cpp_int& index,
-                                          const std::string& outDir = std::string(),
-                                          const std::string& filename = std::string());
+                                            const std::string& outDir = std::string(),
+                                            const std::string& filename = std::string());
 
     // Metadata helpers
     static Metadata indexToMetadata(const boost::multiprecision::cpp_int& index);
@@ -196,8 +192,8 @@ class AudioIndex {
     bool operator!=(const AudioIndex& other) const;
 
     private:
-     AudioData audioData;
-     Metadata metadata;
+        AudioData audioData;
+        Metadata metadata;
 };
 
 } // namespace AudioBabel

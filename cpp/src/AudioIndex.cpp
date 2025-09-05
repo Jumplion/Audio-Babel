@@ -26,12 +26,15 @@ namespace {
     constexpr size_t   HEADER_BYTES_CONST     = 4 + 2 + 2 + 8; // 16 bytes header layout
     constexpr size_t   BITS_PER_BYTE          = 8;
     constexpr int      BASE64_BITS            = 6;          // bits per base64 digit in our table
-    constexpr uint32_t BYTE_MASK              = 0xFFu;      // mask for a single byte (255)
-    constexpr uint32_t BASE64_MASK            = 0x3Fu;      // mask for 6-bit base64 values (63)
+    constexpr uint32_t BYTE_MASK              = 0xFFU;      // mask for a single byte (255)
+    constexpr uint32_t BASE64_MASK            = 0x3FU;      // mask for 6-bit base64 values (63)
     constexpr uint16_t PCM_FORMAT_CODE        = 1;          // PCM format value
     constexpr uint16_t DEFAULT_NUM_CHANNELS   = 1;          // default assumed channels for sample vectors
-    constexpr uint32_t CHUNK_SIZE_LIMIT       = (1u << 30); // sanity limit for chunk sizes (1,073,741,824 or 1 GiB)
+    constexpr uint32_t CHUNK_SIZE_LIMIT       = (1U << 30); // sanity limit for chunk sizes (1,073,741,824 or 1 GiB)
     constexpr uint32_t WAV_FILE_BASE_OVERHEAD = 36;         // base size used in RIFF size field
+
+    constexpr std::array<int, 3> PCM_BITS_PER_SAMPLE = { 8, 16, 32 }; // bits per sample for each channel layout
+
 } // namespace
 
 // ---------------------------------------------------------------------------
@@ -40,11 +43,11 @@ namespace {
 
 template <typename T>
 static void write_le(std::ostream& out, T value) {
-    uint8_t buf[sizeof(T)];
+    std::array<uint8_t, sizeof(T)> buf{};
     for (size_t index = 0; index < sizeof(T); ++index) {
         buf[index] = static_cast<uint8_t>((value >> (index * BITS_PER_BYTE)) & BYTE_MASK);
     }
-    out.write(reinterpret_cast<const char*>(buf), sizeof(T));
+    out.write(reinterpret_cast<const char*>(buf.data()), sizeof(T));
 }
 
 static void write_u32_le(std::ostream& out, uint32_t value) {
@@ -136,31 +139,31 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
      */
 
     // Open the WAV file for reading
-    std::ifstream in(path, std::ios::binary);
-    if (!in) {
+    std::ifstream fileInput(path, std::ios::binary);
+    if (!fileInput) {
         throw std::runtime_error("Failed to open WAV file: " + path);
     }
 
     // Read RIFF header, throw error if not found
-    char riff[WAV_ID_LEN];
-    in.read(riff, WAV_ID_LEN);
-    if (std::strncmp(riff, "RIFF", WAV_ID_LEN) != 0) {
+    std::array<char, WAV_ID_LEN> riff;
+    fileInput.read(riff.data(), WAV_ID_LEN);
+    if (std::strncmp(riff.data(), "RIFF", WAV_ID_LEN) != 0) {
         throw std::runtime_error("Not a RIFF file");
     }
 
     // Read file size
-    char tmp4[WAV_ID_LEN];
-    in.read(tmp4, WAV_ID_LEN);
+    std::array<char, WAV_ID_LEN> tmp4;
+    fileInput.read(tmp4.data(), WAV_ID_LEN);
 
     // Read "WAVE" header, throw error if not found
-    char wave[WAV_ID_LEN];
-    in.read(wave, WAV_ID_LEN);
-    if (std::strncmp(wave, "WAVE", WAV_ID_LEN) != 0) {
+    std::array<char, WAV_ID_LEN> wave;
+    fileInput.read(wave.data(), WAV_ID_LEN);
+    if (std::strncmp(wave.data(), "WAVE", WAV_ID_LEN) != 0) {
         throw std::runtime_error("Not a WAVE file");
     }
     
     AudioData audioData{};
-    while (in) {
+    while (fileInput) {
         /**
          * Each iteration reads a 4 bytes into a char[4] and then reads the next 4 bytes into a
          * temporary buffer sizeBuf. The code converts those four bytes to a uint32_t.
@@ -169,18 +172,18 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
          * which is why the size is read then converted, rather than read directly into a uint32_t.
          */
         // Read chunk ID
-        char id[WAV_ID_LEN];
-        if (!in.read(id, WAV_ID_LEN)) {
+        std::array<char, WAV_ID_LEN> id;
+        if (!fileInput.read(id.data(), WAV_ID_LEN)) {
             break;
         }
 
-        char sizeBuf[WAV_ID_LEN];
-        if (!in.read(sizeBuf, WAV_ID_LEN)) {
+        std::array<char, WAV_ID_LEN> sizeBuf;
+        if (!fileInput.read(sizeBuf.data(), WAV_ID_LEN)) {
             break;
         }
 
         // Interpret chunk size, guard against unreasonable chunk sizes (> 1 GiB or 1,073,741,824 bytes)
-        uint32_t chunkSize = read_u32_le(sizeBuf);
+        uint32_t chunkSize = read_u32_le(sizeBuf.data());
         if (chunkSize > CHUNK_SIZE_LIMIT) {
             break;
         }
@@ -197,13 +200,13 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
          *         NOTE: These offsets correspond to the standard 16‑byte PCM fmt layout:
          *             AudioFormat, NumChannels, SampleRate, ByteRate, BlockAlign, BitsPerSample
          */
-        if (std::strncmp(id, "fmt ", WAV_ID_LEN) == 0) {
+        if (std::strncmp(id.data(), "fmt ", WAV_ID_LEN) == 0) {
             if (chunkSize < FMT_CHUNK_MIN_SIZE) {
                 break;
             }
 
             std::vector<char> buf(chunkSize);
-            if (!in.read(buf.data(), chunkSize)) {
+            if (!fileInput.read(buf.data(), chunkSize)) {
                 break;
             }
 
@@ -218,9 +221,9 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
          *  Resizes audioData.samples to the chunk size and 
          *  reads raw sample bytes into that buffer.
          */
-        else if (std::strncmp(id, "data", WAV_ID_LEN) == 0) {
+        else if (std::strncmp(id.data(), "data", WAV_ID_LEN) == 0) {
             audioData.samples.resize(chunkSize);
-            if (!in.read(reinterpret_cast<char*>(audioData.samples.data()), chunkSize)) {
+            if (!fileInput.read(reinterpret_cast<char*>(audioData.samples.data()), chunkSize)) {
                 // Failed to read audio samples
                 break;
             }
@@ -232,8 +235,8 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
          * advancing the stream by sz bytes plus one extra byte when sz is odd (sz + (sz & 1)),
          */
         else {
-            in.seekg(chunkSize + (chunkSize & 1), std::ios::cur);
-            if (!in) {
+            fileInput.seekg(chunkSize + (chunkSize & 1), std::ios::cur);
+            if (!fileInput) {
                 break;
             }
         }
@@ -289,9 +292,13 @@ void AudioIndex::clearLastDebugInfo() {
     lastDebug = DebugInfo();
 }
 
+bool isBitDepthSupported(int bitDepth) {
+    return PCM_BITS_PER_SAMPLE.end() != std::find(PCM_BITS_PER_SAMPLE.begin(), PCM_BITS_PER_SAMPLE.end(), bitDepth);
+}
+
 boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) {
     // only support 8,16,32
-    if (!(audioData.bit_rate == 8 || audioData.bit_rate == 16 || audioData.bit_rate == 32)) {
+    if (!isBitDepthSupported(audioData.bit_rate)) {
         throw std::runtime_error("Unsupported bit depth");
     }
 
@@ -332,17 +339,17 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
 
     // Build explicit header bytes (big-endian): u32 sample_rate, u16 bit_depth, u16 num_channels,
     // u64 num_frames. The header is placed into the least-significant HEADER_BYTES_CONST bytes so
-    // consumers may extract it by masking the low bits.
+    // we can extract it by masking the low bits.
     const size_t         HEADER_BYTES = HEADER_BYTES_CONST;
     std::vector<uint8_t> header_buf;
     header_buf.reserve(HEADER_BYTES);
 
     uint32_t sRate = audioData.sample_rate;
-    header_buf.push_back(static_cast<uint8_t>((sRate >> (3 * BITS_PER_BYTE)) & BYTE_MASK));
-    header_buf.push_back(static_cast<uint8_t>((sRate >> (2 * BITS_PER_BYTE)) & BYTE_MASK));
-    header_buf.push_back(static_cast<uint8_t>((sRate >> (1 * BITS_PER_BYTE)) & BYTE_MASK));
-    header_buf.push_back(static_cast<uint8_t>((sRate >> (0 * BITS_PER_BYTE)) & BYTE_MASK));
+    for (int i = 3; i >= 0; i--) {
+        header_buf.push_back(static_cast<uint8_t>((sRate >> (i * BITS_PER_BYTE)) & BYTE_MASK));
+    }
 
+    // Don't loop these ones
     uint16_t bitRate = audioData.bit_rate;
     header_buf.push_back(static_cast<uint8_t>((bitRate >> 8) & BYTE_MASK));
     header_buf.push_back(static_cast<uint8_t>((bitRate >> 8) & BYTE_MASK));
@@ -381,7 +388,7 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
     cpp_int header_int = index & mask;
     cpp_int pcm_int    = index >> HEADER_BITS;
 
-    // Convert header_int to bytes (big-endian)
+    // Convert header to bytes (big-endian)
     std::vector<uint8_t> header_buf(HEADER_BYTES);
     cpp_int              tmp = header_int;
     for (int headerIndex = static_cast<int>(HEADER_BYTES) - 1; headerIndex >= 0; --headerIndex) {
@@ -400,7 +407,8 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
         num_frames = (num_frames << BITS_PER_BYTE) | header_buf[8 + i];
     }
 
-    if (!(bit_depth == 8 || bit_depth == 16 || bit_depth == 32)) {
+    // only support 8,16,32
+    if (!isBitDepthSupported(bit_depth)) {
         throw std::runtime_error("Unsupported bit depth in index");
     }
 
@@ -603,29 +611,29 @@ AudioIndex::Metadata AudioIndex::indexToMetadata(const boost::multiprecision::cp
     std::vector<uint8_t> bytes;
     boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8, true);
 
-    auto mk = [&](size_t off, size_t len) {
-        std::string s;
+    auto generateMetaName = [&](size_t off, size_t len) {
+        std::string name;
         for (size_t i = 0; i < len; ++i) {
-            uint8_t b = (off + i < bytes.size()) ? bytes[off + i] : 0;
-            char c = static_cast<char>((b % 36) < 10 ? ('0' + (b % 10)) : ('a' + ((b % 36) - 10)));
-            s.push_back(c);
+            uint8_t base = (off + i < bytes.size()) ? bytes[off + i] : 0;
+            char c = static_cast<char>((base % 36) < 10 ? ('0' + (base % 10)) : ('a' + ((base % 36) - 10)));
+            name.push_back(c);
         }
-        return s;
+        return name;
     };
 
-    Metadata m;
+    Metadata meta;
     if (bytes.empty()) {
-        m.genre = "g0";
-        m.artist = "a0";
-        m.album = "al0";
-        m.track = "t0";
-        return m;
+        meta.genre = "g0";
+        meta.artist = "a0";
+        meta.album = "al0";
+        meta.track = "t0";
+        return meta;
     }
 
-    m.genre = mk(0, 6);
-    m.artist = mk(6, 8);
-    m.album = mk(14, 8);
-    m.track = mk(22, 6);
+    meta.genre = generateMetaName(0, 6);
+    meta.artist = generateMetaName(6, 8);
+    meta.album = generateMetaName(14, 8);
+    meta.track = generateMetaName(22, 6);
 
     // generate a tiny SVG cover from first bytes
     std::string svg = "<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>";
@@ -638,10 +646,10 @@ AudioIndex::Metadata AudioIndex::indexToMetadata(const boost::multiprecision::cp
         svg.push_back(hex[nib]);
     }
     svg += "'/><text x='50%' y='50%' font-size='20' text-anchor='middle' fill='#fff' dominant-baseline='middle'>";
-    svg += m.track;
+    svg += meta.track;
     svg += "</text></svg>";
-    m.cover.assign(svg.begin(), svg.end());
-    return m;
+    meta.cover.assign(svg.begin(), svg.end());
+    return meta;
 }
 
 } // namespace AudioBabel

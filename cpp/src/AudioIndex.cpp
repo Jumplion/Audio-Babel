@@ -35,7 +35,7 @@ namespace {
     constexpr uint32_t CHUNK_SIZE_LIMIT       = (1U << 30); // sanity limit for chunk sizes (1,073,741,824 or 1 GiB)
     constexpr uint32_t WAV_FILE_BASE_OVERHEAD = 36;         // base size used in RIFF size field
 
-    constexpr std::array<uint16_t, 3> PCM_BITS_PER_SAMPLE = { 8, 16, 32 }; // bits per sample for each channel layout
+    constexpr std::array<uint16_t, 3> PCM_BITS_PER_SAMPLE = {8, 16, 32}; // bits per sample for each channel layout
 
 } // namespace
 
@@ -89,8 +89,8 @@ AudioIndex& AudioIndex::operator=(const AudioIndex& other) {
 
 bool AudioIndex::operator==(const AudioIndex& other) const {
     return audioData.audio_format == other.audioData.audio_format && audioData.num_channels == other.audioData.num_channels &&
-            audioData.sample_rate == other.audioData.sample_rate && audioData.bit_rate == other.audioData.bit_rate &&
-            audioData.num_frames == other.audioData.num_frames && audioData.samples == other.audioData.samples;
+           audioData.sample_rate == other.audioData.sample_rate && audioData.bit_rate == other.audioData.bit_rate &&
+           audioData.num_frames == other.audioData.num_frames && audioData.samples == other.audioData.samples;
 }
 
 bool AudioIndex::operator!=(const AudioIndex& other) const {
@@ -106,7 +106,7 @@ AudioIndex AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, int
     index.audioData = AudioIndex::extractAudioDataFromSamples(samples, sampleRate, bitDepth);
     // build index integer and derive metadata
     try {
-        cpp_int idx = AudioIndex::audioDataToIndex(index.audioData);
+        cpp_int idx    = AudioIndex::audioDataToIndex(index.audioData);
         index.metadata = AudioIndex::indexToMetadata(idx);
     } catch (...) {
         // non-fatal: leave metadata blank on error
@@ -115,7 +115,6 @@ AudioIndex AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, int
 }
 
 AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::string& path) {
-
     /**
      * EXPLANATION FOR EXTRACTION ALGORITHM
      * This function extracts audio data from a WAV file by reading its headers
@@ -165,7 +164,7 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
     if (std::strncmp(wave.data(), "WAVE", WAV_ID_LEN) != 0) {
         throw std::runtime_error("Not a WAVE file");
     }
-    
+
     AudioData audioData{};
     while (fileInput) {
         /**
@@ -218,7 +217,7 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
             audioData.num_channels = read_u16_le(buf.data() + 2);
             audioData.sample_rate  = read_u32_le(buf.data() + 4);
             audioData.bit_rate     = read_u16_le(buf.data() + 14);
-        } 
+        }
 
         /**
          *  Process "data" chunk (the samples)
@@ -274,11 +273,11 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromSamples(const std::vector<
     size_t bytes_per_sample = bitDepth / BITS_PER_BYTE;
     audioData.samples.resize(samples.size() * bytes_per_sample);
 
-    // Loop through samples. 
+    // Loop through samples.
     for (size_t sampleIndex = 0; sampleIndex < samples.size(); ++sampleIndex) {
         int32_t sample = samples[sampleIndex];
 
-        // Convert this sample to 
+        // Convert this sample to
         for (size_t byteIndex = 0; byteIndex < bytes_per_sample; ++byteIndex) {
             audioData.samples[(sampleIndex * bytes_per_sample) + byteIndex] =
                 static_cast<uint8_t>((sample >> (byteIndex * BITS_PER_BYTE)) & BYTE_MASK);
@@ -309,7 +308,6 @@ bool isBitDepthSupported(uint16_t bitDepth) {
 }
 
 boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) {
-
     if (!isBitDepthSupported(audioData.bit_rate)) {
         throw std::runtime_error("Unsupported bit depth");
     }
@@ -352,7 +350,7 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
     auto t1_import               = std::chrono::steady_clock::now();
     lastDebug.audioDataToIndexMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(t1_import - t0_import).count());
 
-    // Build explicit header bytes (big-endian): 
+    // Build explicit header bytes (big-endian):
     //      u32 sample_rate, u16 bit_depth, u16 num_channels, u64 num_frames
     // The header is appended at the end (into the least-significant HEADER_BYTES_CONST bytes) so
     // we can extract it by masking the low bits.
@@ -392,7 +390,7 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
 }
 
 AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) {
-    const size_t HEADER_BITS  = HEADER_BYTES_CONST * BITS_PER_BYTE;
+    const size_t HEADER_BITS = HEADER_BYTES_CONST * BITS_PER_BYTE;
 
     // Extract header_int from the last HEADER_BITS of the index
     cpp_int mask       = (cpp_int(1) << HEADER_BITS) - 1;
@@ -423,9 +421,9 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
     }
 
     // Compute number of samples
-    size_t bytes_per_sample = bit_depth / BITS_PER_BYTE;
-    size_t total_samples   = static_cast<size_t>(num_frames) * static_cast<size_t>(num_channels);
-    cpp_int  sample_mask   = (cpp_int(1) << bit_depth) - 1;
+    size_t                bytes_per_sample = bit_depth / BITS_PER_BYTE;
+    size_t                total_samples    = static_cast<size_t>(num_frames) * static_cast<size_t>(num_channels);
+    cpp_int               sample_mask      = (cpp_int(1) << bit_depth) - 1;
     std::vector<uint64_t> samples;
     samples.reserve(total_samples);
 
@@ -489,10 +487,10 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
 
     // pack bytes
     AudioData audioData{};
-    audioData.audio_format  = 1;
-    audioData.num_channels  = static_cast<uint16_t>(num_channels);
-    audioData.sample_rate   = sample_rate;
-    audioData.bit_rate      = static_cast<uint16_t>(bit_depth);
+    audioData.audio_format = 1;
+    audioData.num_channels = static_cast<uint16_t>(num_channels);
+    audioData.sample_rate  = sample_rate;
+    audioData.bit_rate     = static_cast<uint16_t>(bit_depth);
     // reuse bytes_per_sample computed above
     audioData.samples.resize(total_samples * bytes_per_sample);
 
@@ -581,10 +579,11 @@ void AudioIndex::writeIndexToFile(const boost::multiprecision::cpp_int& index, c
 
     // write base64 textual representation as <dir>/<name>.b64.txt
     std::ofstream out((dir / (name + ".txt")).string());
-    if (!out) return;
+    if (!out)
+        return;
 
-    static const char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    uint32_t          acc   = 0;
+    static const char b64[]    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    uint32_t          acc      = 0;
     int               acc_bits = 0;
     for (uint8_t byte : bytes) {
         acc = (acc << BITS_PER_BYTE) | byte;
@@ -617,7 +616,7 @@ AudioIndex::Metadata AudioIndex::indexToMetadata(const boost::multiprecision::cp
         std::string name;
         for (size_t i = 0; i < len; ++i) {
             uint8_t base = (off + i < bytes.size()) ? bytes[off + i] : 0;
-            char c = static_cast<char>((base % 36) < 10 ? ('0' + (base % 10)) : ('a' + ((base % 36) - 10)));
+            char    c    = static_cast<char>((base % 36) < 10 ? ('0' + (base % 10)) : ('a' + ((base % 36) - 10)));
             name.push_back(c);
         }
         return name;
@@ -625,23 +624,24 @@ AudioIndex::Metadata AudioIndex::indexToMetadata(const boost::multiprecision::cp
 
     Metadata meta;
     if (bytes.empty()) {
-        meta.genre = "g0";
+        meta.genre  = "g0";
         meta.artist = "a0";
-        meta.album = "al0";
-        meta.track = "t0";
+        meta.album  = "al0";
+        meta.track  = "t0";
         return meta;
     }
 
-    meta.genre = generateMetaName(0, 6);
+    meta.genre  = generateMetaName(0, 6);
     meta.artist = generateMetaName(6, 8);
-    meta.album = generateMetaName(14, 8);
-    meta.track = generateMetaName(22, 6);
+    meta.album  = generateMetaName(14, 8);
+    meta.track  = generateMetaName(22, 6);
 
     // generate a tiny SVG cover from first bytes
     std::string svg = "<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>";
     svg += "<rect width='100%' height='100%' fill='#";
     unsigned int color = 0;
-    for (size_t i = 0; i < 3; ++i) color = (color << 8) | (i < bytes.size() ? bytes[i] : 0);
+    for (size_t i = 0; i < 3; ++i)
+        color = (color << 8) | (i < bytes.size() ? bytes[i] : 0);
     const char* hex = "0123456789abcdef";
     for (int i = 5; i >= 0; --i) {
         unsigned int nib = (color >> (i * 4)) & 0xF;

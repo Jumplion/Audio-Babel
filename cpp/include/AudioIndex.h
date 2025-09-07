@@ -25,7 +25,7 @@ namespace AudioBabel {
 class AudioFingerprint; // Forward declaration (defined in AudioFingerprint.h)
 
 class AudioIndex {
-public:
+   public:
     // ---------------------
     // Public data container
     // ---------------------
@@ -45,19 +45,19 @@ public:
     // Metadata
     // ---------------------
     struct Metadata {
-        std::string genre;
-        std::string artist;
-        std::string album;
-        std::string track;
+        std::string          genre;
+        std::string          artist;
+        std::string          album;
+        std::string          track;
         std::vector<uint8_t> cover; // optional small image bytes
     };
 
     // ---------------------
     // Construction / lifecycle
     // ---------------------
-    AudioIndex& operator=(const AudioIndex& other);
-    bool operator==(const AudioIndex& other) const;
-    bool operator!=(const AudioIndex& other) const;
+    auto operator=(const AudioIndex& other) -> AudioIndex&;
+    auto operator==(const AudioIndex& other) const -> bool;
+    auto operator!=(const AudioIndex& other) const -> bool;
 
     // ---------------------
     // Factory helpers
@@ -71,7 +71,7 @@ public:
      * @param bitDepth bit depth (typically 16 or 32)
      * @returns AudioIndex instance
      */
-    static AudioIndex fromAudioSamples(const std::vector<int32_t>& samples, int sampleRate = 44100, int bitDepth = 16);
+    static auto fromAudioSamples(const std::vector<int32_t>& samples, int sampleRate = 44100, int bitDepth = 16) -> AudioIndex;
 
     /**
      * Read a WAV file into an AudioData structure. The implementation expects
@@ -80,7 +80,7 @@ public:
      * @param path File path to the .wav file
      * @returns AudioData instance
      */
-    static AudioData extractAudioDataFromAudioFile(const std::string& path);
+    static auto extractAudioDataFromAudioFile(const std::string& path) -> AudioData;
 
     /**
      * Create AudioData from a vector of signed integer samples (host int32
@@ -91,7 +91,7 @@ public:
      * @param bitDepth Bit depth (typically 16 or 32)
      * @returns AudioData instance
      */
-    static AudioData extractAudioDataFromSamples(const std::vector<int32_t>& samples, int sampleRate = 44100, int bitDepth = 16);
+    static auto extractAudioDataFromSamples(const std::vector<int32_t>& samples, int sampleRate = 44100, int bitDepth = 16) -> AudioData;
 
     // ---------------------
     // Serialization / Deserialization
@@ -105,7 +105,7 @@ public:
      * @param audioData Audio data to convert
      * @returns Unique index as a big integer
      */
-    static boost::multiprecision::cpp_int audioDataToIndex(const AudioData& audioData);
+    static auto audioDataToIndex(const AudioData& audioData) -> boost::multiprecision::cpp_int;
 
     /**
      * Reconstruct AudioData from an index produced by audioDataToIndex. The
@@ -115,7 +115,7 @@ public:
      * @param index Unique index to convert
      * @returns Audio data reconstructed from the index
      */
-    static AudioData indexToAudioData(const boost::multiprecision::cpp_int& index);
+    static auto indexToAudioData(const boost::multiprecision::cpp_int& index) -> AudioData;
 
     // ---------------------
     // Debug / diagnostics
@@ -131,8 +131,8 @@ public:
 
     // Retrieve the last debug info populated by the most recent serialization
     // or deserialization call on this translation unit.
-    static DebugInfo getLastDebugInfo();
-    static void      clearLastDebugInfo();
+    static auto getLastDebugInfo() -> DebugInfo;
+    static void clearLastDebugInfo();
 
     // ---------------------
     // File I/O
@@ -157,17 +157,17 @@ public:
      * @param filename Base filename for the representations
     */
     static void writeIndexToFile(const boost::multiprecision::cpp_int& index,
-                                            const std::string& outDir = std::string(),
-                                            const std::string& filename = std::string());
+                                 const std::string&                    outDir   = std::string(),
+                                 const std::string&                    filename = std::string());
 
     // Metadata helpers
-    static Metadata indexToMetadata(const boost::multiprecision::cpp_int& index);
+    static auto indexToMetadata(const boost::multiprecision::cpp_int& index) -> Metadata;
 
     /**
      * Get the sample rate of the audio index.
      * @returns Sample rate in Hz
      */
-    int getSampleRate() const {
+    [[nodiscard]] auto getSampleRate() const -> int {
         return static_cast<int>(audioData.sample_rate);
     }
 
@@ -175,7 +175,7 @@ public:
      * Get the duration of the audio index.
      * @returns Duration in seconds
      */
-    double getDuration() const {
+    [[nodiscard]] auto getDuration() const -> double {
         return (audioData.sample_rate > 0) ? (static_cast<double>(audioData.num_frames) / static_cast<double>(audioData.sample_rate)) : 0.0;
     }
 
@@ -183,14 +183,13 @@ public:
      * Get the bit depth of the audio index.
      * @returns Bit depth in bits
      */
-    int getBitDepth() const {
+    [[nodiscard]] auto getBitDepth() const -> int {
         return static_cast<int>(audioData.bit_rate);
     }
 
-
-    private:
-        AudioData audioData;
-        Metadata metadata;
+   private:
+    AudioData audioData;
+    Metadata  metadata;
 };
 
 } // namespace AudioBabel

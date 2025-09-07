@@ -36,6 +36,37 @@ static void log_now(const std::string& msg, bool printToConsole = false) {
     }
 }
 
+// Helper to create a temporary filepath in the OS temp directory.
+static std::string make_temp_path(const std::string &basename) {
+    try {
+        auto p = std::filesystem::temp_directory_path();
+        // create a small, reasonably-unique suffix to avoid collisions in parallel runs
+        auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+        auto tid_hash = std::hash<std::thread::id>{}(std::this_thread::get_id());
+        std::ostringstream ss;
+        ss << basename << "_" << now << "_" << tid_hash;
+        p /= ss.str();
+        return p.string();
+    } catch (...) {
+        // fallback to current directory
+        auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+        auto tid_hash = std::hash<std::thread::id>{}(std::this_thread::get_id());
+        std::ostringstream ss;
+        ss << basename << "_" << now << "_" << tid_hash;
+        return ss.str();
+    }
+}
+
+// RAII temporary file: removes the file on destruction (best-effort)
+struct TempFile {
+    std::filesystem::path p;
+    TempFile(const std::string &s) : p(s) {}
+    ~TempFile() {
+        try { if (!p.empty() && std::filesystem::exists(p)) std::filesystem::remove(p); } catch(...) {}
+    }
+    std::string path() const { return p.string(); }
+};
+
 // ---------------------------------------------------------------------------
 // Test harness for Speaker-of-Babel (cpp/tests/test_main.cpp)
 //
@@ -221,11 +252,11 @@ int main(int argc, char** argv) {
         const std::string name = "AudioIndex: exportAudioDataToWav and read back";
         std::vector<int32_t> samples = {0, 1000, -1000, 2000, -2000};
         auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 22050, 16);
-        std::string tmpPath = "./temp_test.wav";
+    TempFile tmp(make_temp_path("temp_test.wav"));
         bool ok = true;
         try {
-            AudioIndex::exportAudioDataToWav(audioData, tmpPath);
-            auto audioData2 = AudioIndex::extractAudioDataFromAudioFile(tmpPath);
+            AudioIndex::exportAudioDataToWav(audioData, tmp.path());
+            auto audioData2 = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
             ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
             ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
             ok &= RUN_CHECK(runner, name, audioData2.num_channels == audioData.num_channels, "num_channels match");
@@ -235,8 +266,7 @@ int main(int argc, char** argv) {
             runner.failMsg(name, std::string("exception: ") + e.what());
             ok = false;
         }
-        // best-effort cleanup
-        try { std::remove(tmpPath.c_str()); } catch(...) {}
+    // file cleanup handled by TempFile destructor
         return ok;
     });
 
@@ -439,6 +469,202 @@ int main(int argc, char** argv) {
         return ok;
     });
 
+    // New tests: header layout and sample byte-order
+    runner.add("AudioIndex: header layout big-endian", [&runner]() -> bool {
+        const std::string name = "AudioIndex: header layout big-endian";
+        using boost::multiprecision::export_bits;
+        bool ok = true;
+        try {
+            AudioIndex::AudioData audioData{};
+            audioData.sample_rate = 44100;
+            audioData.bit_rate = 16;
+            audioData.num_channels = 1;
+            audioData.audio_format = 1;
+            audioData.num_frames = 3;
+            // create minimal samples (3 frames, 16-bit -> 6 bytes)
+            audioData.samples.resize(audioData.num_frames * (audioData.bit_rate/8));
+            for (size_t i = 0; i < audioData.samples.size(); ++i) audioData.samples[i] = static_cast<uint8_t>(i + 1);
+
+            auto idx = AudioIndex::audioDataToIndex(audioData);
+
+            std::vector<uint8_t> bytes;
+            boost::multiprecision::export_bits(idx, std::back_inserter(bytes), 8, true);
+
+            const size_t HEADER_LEN = 16; // 4 + 2 + 2 + 8
+            ok &= RUN_CHECK(runner, name, bytes.size() >= HEADER_LEN, "exported bytes contain header");
+            if (bytes.size() >= HEADER_LEN) {
+                // Build expected header in big-endian order
+                std::vector<uint8_t> expected;
+                uint32_t sr = audioData.sample_rate;
+                expected.push_back(static_cast<uint8_t>((sr >> 24) & 0xFF));
+                expected.push_back(static_cast<uint8_t>((sr >> 16) & 0xFF));
+                expected.push_back(static_cast<uint8_t>((sr >> 8) & 0xFF));
+                expected.push_back(static_cast<uint8_t>((sr >> 0) & 0xFF));
+                uint16_t br = audioData.bit_rate;
+                expected.push_back(static_cast<uint8_t>((br >> 8) & 0xFF));
+                expected.push_back(static_cast<uint8_t>((br >> 0) & 0xFF));
+                uint16_t nc = audioData.num_channels;
+                expected.push_back(static_cast<uint8_t>((nc >> 8) & 0xFF));
+                expected.push_back(static_cast<uint8_t>((nc >> 0) & 0xFF));
+                uint64_t nf = audioData.num_frames;
+                for (int i = 7; i >= 0; --i) expected.push_back(static_cast<uint8_t>((nf >> (i*8)) & 0xFF));
+
+                auto it = bytes.end() - HEADER_LEN;
+                bool match = true;
+                for (size_t i = 0; i < HEADER_LEN; ++i) if (*(it + i) != expected[i]) { match = false; break; }
+                ok &= RUN_CHECK(runner, name, match, "header bytes match expected big-endian layout");
+            }
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("AudioIndex: extractAudioDataFromSamples byte-order", [&runner]() -> bool {
+        const std::string name = "AudioIndex: extractAudioDataFromSamples byte-order";
+        bool ok = true;
+        // 16-bit sample ordering
+        try {
+            std::vector<int32_t> s16 = { 0x1234 };
+            auto ad16 = AudioIndex::extractAudioDataFromSamples(s16, 44100, 16);
+            ok &= RUN_CHECK(runner, name, ad16.samples.size() == 2, "16-bit sample produced 2 bytes");
+            ok &= RUN_CHECK(runner, name, ad16.samples[0] == static_cast<uint8_t>(0x34), "16-bit LSB first byte");
+            ok &= RUN_CHECK(runner, name, ad16.samples[1] == static_cast<uint8_t>(0x12), "16-bit MSB second byte");
+
+            // 32-bit sample ordering
+            std::vector<int32_t> s32 = { 0x0A0B0C0D };
+            auto ad32 = AudioIndex::extractAudioDataFromSamples(s32, 48000, 32);
+            ok &= RUN_CHECK(runner, name, ad32.samples.size() == 4, "32-bit sample produced 4 bytes");
+            ok &= RUN_CHECK(runner, name, ad32.samples[0] == static_cast<uint8_t>(0x0D), "32-bit LSB first byte");
+            ok &= RUN_CHECK(runner, name, ad32.samples[1] == static_cast<uint8_t>(0x0C), "32-bit byte 1");
+            ok &= RUN_CHECK(runner, name, ad32.samples[2] == static_cast<uint8_t>(0x0B), "32-bit byte 2");
+            ok &= RUN_CHECK(runner, name, ad32.samples[3] == static_cast<uint8_t>(0x0A), "32-bit MSB last byte");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("AudioIndex: indexToMetadata deterministic and valid", [&runner]() -> bool {
+        const std::string name = "AudioIndex: indexToMetadata deterministic and valid";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+        try {
+            // Build a sample byte vector (non-empty) and construct a cpp_int (MSB-first)
+            std::vector<uint8_t> bytes = { 0x10, 0x20, 0x30, 0x41, 0x55, 0x66, 0x77, 0x88,
+                                           0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0x01, 0x02,
+                                           0x03, 0x04, 0x05, 0x06 };
+            cpp_int idx = 0;
+            for (uint8_t b : bytes) { idx <<= 8; idx |= cpp_int(uint32_t(b)); }
+
+            auto m1 = AudioIndex::indexToMetadata(idx);
+            auto m2 = AudioIndex::indexToMetadata(idx);
+
+            ok &= RUN_CHECK(runner, name, m1.genre == m2.genre, "genre deterministic");
+            ok &= RUN_CHECK(runner, name, m1.artist == m2.artist, "artist deterministic");
+            ok &= RUN_CHECK(runner, name, m1.album == m2.album, "album deterministic");
+            ok &= RUN_CHECK(runner, name, m1.track == m2.track, "track deterministic");
+
+            // Expected lengths from implementation
+            ok &= RUN_CHECK(runner, name, m1.genre.size() == 6, "genre length == 6");
+            ok &= RUN_CHECK(runner, name, m1.artist.size() == 8, "artist length == 8");
+            ok &= RUN_CHECK(runner, name, m1.album.size() == 8, "album length == 8");
+            ok &= RUN_CHECK(runner, name, m1.track.size() == 6, "track length == 6");
+
+            // Validate characters are 0-9 or a-z as generated by indexToMetadata
+            auto valid_chars = [&](const std::string &s) {
+                for (char c : s) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z'))) return false;
+                return true;
+            };
+
+            ok &= RUN_CHECK(runner, name, valid_chars(m1.genre), "genre chars valid");
+            ok &= RUN_CHECK(runner, name, valid_chars(m1.artist), "artist chars valid");
+            ok &= RUN_CHECK(runner, name, valid_chars(m1.album), "album chars valid");
+            ok &= RUN_CHECK(runner, name, valid_chars(m1.track), "track chars valid");
+
+            // Cover: should contain SVG markup
+            ok &= RUN_CHECK(runner, name, m1.cover.size() > 0, "cover non-empty");
+            std::string cover_str(m1.cover.begin(), m1.cover.end());
+            ok &= RUN_CHECK(runner, name, cover_str.find("<svg") != std::string::npos, "cover contains svg");
+
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("AudioIndex: exportAudioDataToWav header correctness", [&runner]() -> bool {
+        const std::string name = "AudioIndex: exportAudioDataToWav header correctness";
+        bool ok = true;
+        try {
+            AudioIndex::AudioData audioData{};
+            audioData.sample_rate = 22050;
+            audioData.bit_rate = 16;
+            audioData.num_channels = 1;
+            audioData.audio_format = 1;
+            audioData.num_frames = 3;
+            size_t data_bytes = audioData.num_frames * audioData.num_channels * (audioData.bit_rate/8);
+            audioData.samples.resize(data_bytes);
+            for (size_t i = 0; i < data_bytes; ++i) audioData.samples[i] = static_cast<uint8_t>(i + 1);
+
+            TempFile tmp(make_temp_path("temp_export_header_test.wav"));
+            AudioIndex::exportAudioDataToWav(audioData, tmp.path());
+
+            std::ifstream in(tmp.path(), std::ios::binary);
+            if (!in) {
+                runner.failMsg(name, "failed to open written WAV file");
+                return false;
+            }
+            std::vector<uint8_t> hdr(44);
+            in.read(reinterpret_cast<char*>(hdr.data()), static_cast<std::streamsize>(hdr.size()));
+            if (!in) {
+                runner.failMsg(name, "failed to read WAV header bytes");
+                return false;
+            }
+
+            ok &= RUN_CHECK(runner, name, hdr[0] == 'R' && hdr[1] == 'I' && hdr[2] == 'F' && hdr[3] == 'F', "RIFF tag");
+            uint32_t file_size = static_cast<uint32_t>(hdr[4]) | (static_cast<uint32_t>(hdr[5]) << 8) |
+                                 (static_cast<uint32_t>(hdr[6]) << 16) | (static_cast<uint32_t>(hdr[7]) << 24);
+            uint32_t expected_file_size = 36u + static_cast<uint32_t>(audioData.samples.size());
+            ok &= RUN_CHECK(runner, name, file_size == expected_file_size, "file size matches expected (36 + data bytes)");
+
+            ok &= RUN_CHECK(runner, name, hdr[8] == 'W' && hdr[9] == 'A' && hdr[10] == 'V' && hdr[11] == 'E', "WAVE tag");
+            ok &= RUN_CHECK(runner, name, hdr[12] == 'f' && hdr[13] == 'm' && hdr[14] == 't' && hdr[15] == ' ', "fmt chunk id");
+
+            uint32_t fmt_size = static_cast<uint32_t>(hdr[16]) | (static_cast<uint32_t>(hdr[17]) << 8) |
+                                (static_cast<uint32_t>(hdr[18]) << 16) | (static_cast<uint32_t>(hdr[19]) << 24);
+            ok &= RUN_CHECK(runner, name, fmt_size == 16u, "fmt chunk size == 16");
+
+            uint16_t audio_format = static_cast<uint16_t>(hdr[20]) | (static_cast<uint16_t>(hdr[21]) << 8);
+            ok &= RUN_CHECK(runner, name, audio_format == audioData.audio_format, "audio format matches (PCM=1)");
+
+            uint16_t num_channels = static_cast<uint16_t>(hdr[22]) | (static_cast<uint16_t>(hdr[23]) << 8);
+            ok &= RUN_CHECK(runner, name, num_channels == audioData.num_channels, "num channels matches");
+
+            uint32_t sample_rate = static_cast<uint32_t>(hdr[24]) | (static_cast<uint32_t>(hdr[25]) << 8) |
+                                   (static_cast<uint32_t>(hdr[26]) << 16) | (static_cast<uint32_t>(hdr[27]) << 24);
+            ok &= RUN_CHECK(runner, name, sample_rate == audioData.sample_rate, "sample rate matches");
+
+            uint16_t bits_per_sample = static_cast<uint16_t>(hdr[34]) | (static_cast<uint16_t>(hdr[35]) << 8);
+            ok &= RUN_CHECK(runner, name, bits_per_sample == audioData.bit_rate, "bits per sample matches bit_rate");
+
+            ok &= RUN_CHECK(runner, name, hdr[36] == 'd' && hdr[37] == 'a' && hdr[38] == 't' && hdr[39] == 'a', "data chunk id");
+            uint32_t data_size = static_cast<uint32_t>(hdr[40]) | (static_cast<uint32_t>(hdr[41]) << 8) |
+                                 (static_cast<uint32_t>(hdr[42]) << 16) | (static_cast<uint32_t>(hdr[43]) << 24);
+            ok &= RUN_CHECK(runner, name, data_size == static_cast<uint32_t>(audioData.samples.size()), "data chunk size matches samples size");
+
+            // cleanup handled by TempFile destructor
+
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
     runner.add("AudioIndex: serialization textual roundtrip", [&runner]() -> bool {
         const std::string name = "AudioIndex: serialization textual roundtrip";
         using boost::multiprecision::cpp_int;
@@ -498,6 +724,339 @@ int main(int argc, char** argv) {
             ok = false;
         }
         return ok;
+    });
+
+    // WAV edge-case tests: fmt chunk with extra bytes, odd-sized unknown chunk, and truncated file
+    runner.add("AudioIndex: wav fmt chunk with extra bytes", [&runner]() -> bool {
+        const std::string name = "AudioIndex: wav fmt chunk with extra bytes";
+        bool ok = true;
+    TempFile tmp(make_temp_path("temp_fmt_extra.wav"));
+        try {
+            std::ofstream out(tmp.path(), std::ios::binary);
+            if (!out) { runner.failMsg(name, "failed to create temp wav"); return false; }
+
+            // Parameters
+            uint16_t audio_format = 1;
+            uint16_t num_channels = 1;
+            uint32_t sample_rate = 44100;
+            uint16_t bits_per_sample = 16;
+            uint32_t byte_rate = sample_rate * num_channels * (bits_per_sample/8);
+            uint16_t block_align = static_cast<uint16_t>(num_channels * (bits_per_sample/8));
+
+            // payload
+            std::vector<uint8_t> data = { 0x11, 0x22, 0x33, 0x44 };
+            uint32_t data_size = static_cast<uint32_t>(data.size());
+
+            uint32_t fmt_size = 18; // 2 extra bytes beyond canonical 16
+
+            // Compute RIFF size = 4 (WAVE) + (8 + fmt_size) + (8 + data_size)
+            uint32_t riff_size = 4 + (8 + fmt_size) + (8 + data_size);
+
+            // write RIFF header
+            out.write("RIFF", 4);
+            out.put(static_cast<char>(riff_size & 0xFF));
+            out.put(static_cast<char>((riff_size >> 8) & 0xFF));
+            out.put(static_cast<char>((riff_size >> 16) & 0xFF));
+            out.put(static_cast<char>((riff_size >> 24) & 0xFF));
+            out.write("WAVE", 4);
+
+            // fmt chunk
+            out.write("fmt ", 4);
+            out.put(static_cast<char>(fmt_size & 0xFF));
+            out.put(static_cast<char>((fmt_size >> 8) & 0xFF));
+            out.put(static_cast<char>((fmt_size >> 16) & 0xFF));
+            out.put(static_cast<char>((fmt_size >> 24) & 0xFF));
+
+            // 16 canonical bytes
+            out.put(static_cast<char>(audio_format & 0xFF));
+            out.put(static_cast<char>((audio_format >> 8) & 0xFF));
+            out.put(static_cast<char>(num_channels & 0xFF));
+            out.put(static_cast<char>((num_channels >> 8) & 0xFF));
+            out.put(static_cast<char>(sample_rate & 0xFF));
+            out.put(static_cast<char>((sample_rate >> 8) & 0xFF));
+            out.put(static_cast<char>((sample_rate >> 16) & 0xFF));
+            out.put(static_cast<char>((sample_rate >> 24) & 0xFF));
+            out.put(static_cast<char>(byte_rate & 0xFF));
+            out.put(static_cast<char>((byte_rate >> 8) & 0xFF));
+            out.put(static_cast<char>((byte_rate >> 16) & 0xFF));
+            out.put(static_cast<char>((byte_rate >> 24) & 0xFF));
+            out.put(static_cast<char>(block_align & 0xFF));
+            out.put(static_cast<char>((block_align >> 8) & 0xFF));
+            out.put(static_cast<char>(bits_per_sample & 0xFF));
+            out.put(static_cast<char>((bits_per_sample >> 8) & 0xFF));
+
+            // extra two bytes
+            out.put(static_cast<char>(0x55));
+            out.put(static_cast<char>(0x66));
+
+            // data chunk
+            out.write("data", 4);
+            out.put(static_cast<char>(data_size & 0xFF));
+            out.put(static_cast<char>((data_size >> 8) & 0xFF));
+            out.put(static_cast<char>((data_size >> 16) & 0xFF));
+            out.put(static_cast<char>((data_size >> 24) & 0xFF));
+            out.write(reinterpret_cast<const char*>(data.data()), data.size());
+            out.close();
+
+            // call extractor
+            auto ad = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
+            ok &= RUN_CHECK(runner, name, ad.sample_rate == sample_rate, "sample rate matches");
+            ok &= RUN_CHECK(runner, name, ad.bit_rate == bits_per_sample, "bit depth matches");
+            ok &= RUN_CHECK(runner, name, ad.num_channels == num_channels, "num channels matches");
+            ok &= RUN_CHECK(runner, name, ad.samples.size() == data_size, "data size matches");
+
+        } catch (const std::exception &e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+    // cleanup handled by TempFile destructor
+        return ok;
+    });
+
+    runner.add("AudioIndex: wav odd-sized unknown chunk with padding", [&runner]() -> bool {
+        const std::string name = "AudioIndex: wav odd-sized unknown chunk with padding";
+        bool ok = true;
+    TempFile tmp(make_temp_path("temp_odd_junk.wav"));
+        try {
+            std::ofstream out(tmp.path(), std::ios::binary);
+            if (!out) { runner.failMsg(name, "failed to create temp wav"); return false; }
+
+            uint16_t audio_format = 1;
+            uint16_t num_channels = 1;
+            uint32_t sample_rate = 22050;
+            uint16_t bits_per_sample = 16;
+            uint32_t byte_rate = sample_rate * num_channels * (bits_per_sample/8);
+            uint16_t block_align = static_cast<uint16_t>(num_channels * (bits_per_sample/8));
+
+            std::vector<uint8_t> data = { 0xAA, 0xBB, 0xCC, 0xDD };
+            uint32_t data_size = static_cast<uint32_t>(data.size());
+
+            uint32_t fmt_size = 16;
+            // unknown chunk size odd (3)
+            uint32_t junk_size = 3;
+
+            uint32_t riff_size = 4 + (8 + fmt_size) + (8 + junk_size + 1) + (8 + data_size); // include pad byte for junk
+
+            out.write("RIFF", 4);
+            out.put(static_cast<char>(riff_size & 0xFF));
+            out.put(static_cast<char>((riff_size >> 8) & 0xFF));
+            out.put(static_cast<char>((riff_size >> 16) & 0xFF));
+            out.put(static_cast<char>((riff_size >> 24) & 0xFF));
+            out.write("WAVE", 4);
+
+            // fmt chunk
+            out.write("fmt ", 4);
+            out.put(static_cast<char>(fmt_size & 0xFF)); out.put(static_cast<char>((fmt_size >> 8) & 0xFF));
+            out.put(static_cast<char>((fmt_size >> 16) & 0xFF)); out.put(static_cast<char>((fmt_size >> 24) & 0xFF));
+            out.put(static_cast<char>(audio_format & 0xFF)); out.put(static_cast<char>((audio_format >> 8) & 0xFF));
+            out.put(static_cast<char>(num_channels & 0xFF)); out.put(static_cast<char>((num_channels >> 8) & 0xFF));
+            out.put(static_cast<char>(sample_rate & 0xFF)); out.put(static_cast<char>((sample_rate >> 8) & 0xFF));
+            out.put(static_cast<char>((sample_rate >> 16) & 0xFF)); out.put(static_cast<char>((sample_rate >> 24) & 0xFF));
+            out.put(static_cast<char>(byte_rate & 0xFF)); out.put(static_cast<char>((byte_rate >> 8) & 0xFF));
+            out.put(static_cast<char>((byte_rate >> 16) & 0xFF)); out.put(static_cast<char>((byte_rate >> 24) & 0xFF));
+            out.put(static_cast<char>(block_align & 0xFF)); out.put(static_cast<char>((block_align >> 8) & 0xFF));
+            out.put(static_cast<char>(bits_per_sample & 0xFF)); out.put(static_cast<char>((bits_per_sample >> 8) & 0xFF));
+
+            // JUNK chunk (odd length)
+            out.write("JUNK", 4);
+            out.put(static_cast<char>(junk_size & 0xFF)); out.put(static_cast<char>((junk_size >> 8) & 0xFF));
+            out.put(static_cast<char>((junk_size >> 16) & 0xFF)); out.put(static_cast<char>((junk_size >> 24) & 0xFF));
+            // 3 bytes of junk
+            out.put(static_cast<char>(0x01)); out.put(static_cast<char>(0x02)); out.put(static_cast<char>(0x03));
+            // pad byte because chunk size is odd
+            out.put(static_cast<char>(0x00));
+
+            // data chunk
+            out.write("data", 4);
+            out.put(static_cast<char>(data_size & 0xFF)); out.put(static_cast<char>((data_size >> 8) & 0xFF));
+            out.put(static_cast<char>((data_size >> 16) & 0xFF)); out.put(static_cast<char>((data_size >> 24) & 0xFF));
+            out.write(reinterpret_cast<const char*>(data.data()), data.size());
+            out.close();
+
+            auto ad = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
+            ok &= RUN_CHECK(runner, name, ad.sample_rate == sample_rate, "sample rate matches");
+            ok &= RUN_CHECK(runner, name, ad.bit_rate == bits_per_sample, "bit depth matches");
+            ok &= RUN_CHECK(runner, name, ad.num_channels == num_channels, "num channels matches");
+            ok &= RUN_CHECK(runner, name, ad.samples.size() == data_size, "data size matches");
+
+        } catch (const std::exception &e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+    // cleanup handled by TempFile destructor
+        return ok;
+    });
+
+    runner.add("AudioIndex: wav truncated file throws", [&runner]() -> bool {
+        const std::string name = "AudioIndex: wav truncated file throws";
+        bool threw = false;
+        TempFile tmp(make_temp_path("temp_truncated.wav"));
+        try {
+            std::ofstream out(tmp.path(), std::ios::binary);
+            if (!out) { runner.failMsg(name, "failed to create temp wav"); return false; }
+            // write a deliberately truncated RIFF header (incomplete WAVE)
+            out.write("RIFF", 4);
+            out.put(static_cast<char>(0)); out.put(static_cast<char>(0)); out.put(static_cast<char>(0)); out.put(static_cast<char>(0));
+            out.write("WA", 2); // incomplete 'WAVE'
+            out.close();
+
+            try {
+                auto ad = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
+            } catch (const std::exception &e) {
+                threw = true;
+            }
+        } catch (...) {
+            threw = true;
+        }
+        // cleanup handled by TempFile destructor
+        return RUN_CHECK(runner, name, threw, "truncated wav should cause extractor to throw or fail");
+    });
+
+    // Additional negative WAV tests
+    runner.add("AudioIndex: wav unsupported bitsPerSample throws", [&runner]() -> bool {
+        const std::string name = "AudioIndex: wav unsupported bitsPerSample throws";
+        bool threw = false;
+        TempFile tmp(make_temp_path("temp_unsupported_bps.wav"));
+        try {
+            std::ofstream out(tmp.path(), std::ios::binary);
+            if (!out) { runner.failMsg(name, "failed to create temp wav"); return false; }
+
+            uint16_t audio_format = 1;
+            uint16_t num_channels = 1;
+            uint32_t sample_rate = 44100;
+            // unsupported bits per sample (7)
+            uint16_t bits_per_sample = 7;
+            uint32_t byte_rate = sample_rate * num_channels * (bits_per_sample/8);
+            uint16_t block_align = static_cast<uint16_t>(num_channels * (bits_per_sample/8));
+
+            std::vector<uint8_t> data = { 0x01, 0x02 };
+            uint32_t data_size = static_cast<uint32_t>(data.size());
+
+            // riff size
+            uint32_t fmt_size = 16;
+            uint32_t riff_size = 4 + (8 + fmt_size) + (8 + data_size);
+
+            out.write("RIFF", 4);
+            out.put(static_cast<char>(riff_size & 0xFF)); out.put(static_cast<char>((riff_size >> 8) & 0xFF));
+            out.put(static_cast<char>((riff_size >> 16) & 0xFF)); out.put(static_cast<char>((riff_size >> 24) & 0xFF));
+            out.write("WAVE", 4);
+
+            out.write("fmt ", 4);
+            out.put(static_cast<char>(fmt_size & 0xFF)); out.put(static_cast<char>((fmt_size >> 8) & 0xFF));
+            out.put(static_cast<char>((fmt_size >> 16) & 0xFF)); out.put(static_cast<char>((fmt_size >> 24) & 0xFF));
+
+            out.put(static_cast<char>(audio_format & 0xFF)); out.put(static_cast<char>((audio_format >> 8) & 0xFF));
+            out.put(static_cast<char>(num_channels & 0xFF)); out.put(static_cast<char>((num_channels >> 8) & 0xFF));
+            out.put(static_cast<char>(sample_rate & 0xFF)); out.put(static_cast<char>((sample_rate >> 8) & 0xFF));
+            out.put(static_cast<char>((sample_rate >> 16) & 0xFF)); out.put(static_cast<char>((sample_rate >> 24) & 0xFF));
+            out.put(static_cast<char>(byte_rate & 0xFF)); out.put(static_cast<char>((byte_rate >> 8) & 0xFF));
+            out.put(static_cast<char>((byte_rate >> 16) & 0xFF)); out.put(static_cast<char>((byte_rate >> 24) & 0xFF));
+            out.put(static_cast<char>(block_align & 0xFF)); out.put(static_cast<char>((block_align >> 8) & 0xFF));
+            out.put(static_cast<char>(bits_per_sample & 0xFF)); out.put(static_cast<char>((bits_per_sample >> 8) & 0xFF));
+
+            out.write("data", 4);
+            out.put(static_cast<char>(data_size & 0xFF)); out.put(static_cast<char>((data_size >> 8) & 0xFF));
+            out.put(static_cast<char>((data_size >> 16) & 0xFF)); out.put(static_cast<char>((data_size >> 24) & 0xFF));
+            out.write(reinterpret_cast<const char*>(data.data()), data.size());
+            out.close();
+
+            try {
+                auto ad = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
+            } catch (const std::exception &e) {
+                threw = true;
+            }
+        } catch (...) {
+            threw = true;
+        }
+    // cleanup handled by TempFile destructor
+        return RUN_CHECK(runner, name, threw, "unsupported bitsPerSample should cause extractor to throw or fail");
+    });
+
+    runner.add("AudioIndex: wav fmt chunk too small throws", [&runner]() -> bool {
+        const std::string name = "AudioIndex: wav fmt chunk too small throws";
+        bool threw = false;
+    TempFile tmp(make_temp_path("temp_fmt_small.wav"));
+        try {
+            std::ofstream out(tmp.path(), std::ios::binary);
+            if (!out) { runner.failMsg(name, "failed to create temp wav"); return false; }
+
+            // write RIFF and a fmt chunk with size 10 (<16), no data chunk
+            out.write("RIFF", 4);
+            out.put(static_cast<char>(0)); out.put(static_cast<char>(0)); out.put(static_cast<char>(0)); out.put(static_cast<char>(0));
+            out.write("WAVE", 4);
+            out.write("fmt ", 4);
+            uint32_t small = 10;
+            out.put(static_cast<char>(small & 0xFF)); out.put(static_cast<char>((small >> 8) & 0xFF));
+            out.put(static_cast<char>((small >> 16) & 0xFF)); out.put(static_cast<char>((small >> 24) & 0xFF));
+            // write 10 arbitrary bytes to satisfy the small chunk
+            for (int i = 0; i < 10; ++i) out.put(static_cast<char>(i));
+            out.close();
+
+            try {
+                auto ad = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
+            } catch (const std::exception &e) {
+                threw = true;
+            }
+        } catch (...) { threw = true; }
+    // cleanup handled by TempFile destructor
+        return RUN_CHECK(runner, name, threw, "fmt chunk too small should cause extractor to fail/throw because no data chunk will be found");
+    });
+
+    runner.add("AudioIndex: wav data chunk declared larger than actual throws", [&runner]() -> bool {
+        const std::string name = "AudioIndex: wav data chunk declared larger than actual throws";
+        bool threw = false;
+        TempFile tmp(make_temp_path("temp_data_mismatch.wav"));
+        try {
+            std::ofstream out(tmp.path(), std::ios::binary);
+            if (!out) { runner.failMsg(name, "failed to create temp wav"); return false; }
+
+            uint16_t audio_format = 1;
+            uint16_t num_channels = 1;
+            uint32_t sample_rate = 8000;
+            uint16_t bits_per_sample = 16;
+            uint32_t byte_rate = sample_rate * num_channels * (bits_per_sample/8);
+            uint16_t block_align = static_cast<uint16_t>(num_channels * (bits_per_sample/8));
+
+            std::vector<uint8_t> data = { 0xDE, 0xAD, 0xBE, 0xEF };
+            uint32_t declared_size = 10; // declare larger than actual
+            uint32_t actual_size = static_cast<uint32_t>(data.size());
+
+            uint32_t fmt_size = 16;
+            uint32_t riff_size = 4 + (8 + fmt_size) + (8 + declared_size);
+
+            out.write("RIFF", 4);
+            out.put(static_cast<char>(riff_size & 0xFF)); out.put(static_cast<char>((riff_size >> 8) & 0xFF));
+            out.put(static_cast<char>((riff_size >> 16) & 0xFF)); out.put(static_cast<char>((riff_size >> 24) & 0xFF));
+            out.write("WAVE", 4);
+
+            out.write("fmt ", 4);
+            out.put(static_cast<char>(fmt_size & 0xFF)); out.put(static_cast<char>((fmt_size >> 8) & 0xFF));
+            out.put(static_cast<char>((fmt_size >> 16) & 0xFF)); out.put(static_cast<char>((fmt_size >> 24) & 0xFF));
+            out.put(static_cast<char>(audio_format & 0xFF)); out.put(static_cast<char>((audio_format >> 8) & 0xFF));
+            out.put(static_cast<char>(num_channels & 0xFF)); out.put(static_cast<char>((num_channels >> 8) & 0xFF));
+            out.put(static_cast<char>(sample_rate & 0xFF)); out.put(static_cast<char>((sample_rate >> 8) & 0xFF));
+            out.put(static_cast<char>((sample_rate >> 16) & 0xFF)); out.put(static_cast<char>((sample_rate >> 24) & 0xFF));
+            out.put(static_cast<char>(byte_rate & 0xFF)); out.put(static_cast<char>((byte_rate >> 8) & 0xFF));
+            out.put(static_cast<char>((byte_rate >> 16) & 0xFF)); out.put(static_cast<char>((byte_rate >> 24) & 0xFF));
+            out.put(static_cast<char>(block_align & 0xFF)); out.put(static_cast<char>((block_align >> 8) & 0xFF));
+            out.put(static_cast<char>(bits_per_sample & 0xFF)); out.put(static_cast<char>((bits_per_sample >> 8) & 0xFF));
+
+            out.write("data", 4);
+            out.put(static_cast<char>(declared_size & 0xFF)); out.put(static_cast<char>((declared_size >> 8) & 0xFF));
+            out.put(static_cast<char>((declared_size >> 16) & 0xFF)); out.put(static_cast<char>((declared_size >> 24) & 0xFF));
+            // write only actual_size bytes
+            out.write(reinterpret_cast<const char*>(data.data()), actual_size);
+            out.close();
+
+            try {
+                auto ad = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
+            } catch (const std::exception &e) {
+                threw = true;
+            }
+
+        } catch (...) { threw = true; }
+        // cleanup handled by TempFile destructor
+        return RUN_CHECK(runner, name, threw, "declared data chunk larger than actual should cause extractor to fail/throw");
     });
 
     // ------------------ Integration: round-trip Test Audio files ------------------

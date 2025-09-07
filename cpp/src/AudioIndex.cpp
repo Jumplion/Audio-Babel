@@ -510,16 +510,14 @@ void AudioIndex::exportAudioDataToWav(const AudioData& audioData, const std::str
         throw std::runtime_error("Failed to open output WAV: " + path);
     }
 
-    int byteChunk = 4;
-
     // RIFF header
-    out.write("RIFF", byteChunk);
+    out.write("RIFF", 4);
     uint32_t file_size = WAV_FILE_BASE_OVERHEAD + static_cast<uint32_t>(audioData.samples.size());
     write_u32_le(out, file_size);
-    out.write("WAVE", byteChunk);
+    out.write("WAVE", 4);
 
     // fmt chunk
-    out.write("fmt ", byteChunk);
+    out.write("fmt ", 4);
     uint32_t fmt_size = static_cast<uint32_t>(FMT_CHUNK_MIN_SIZE);
     write_u32_le(out, fmt_size);
 
@@ -536,7 +534,7 @@ void AudioIndex::exportAudioDataToWav(const AudioData& audioData, const std::str
     write_u16_le(out, audioData.bit_rate);
 
     // data chunk
-    out.write("data", byteChunk);
+    out.write("data", 4);
     uint32_t data_size = static_cast<uint32_t>(audioData.samples.size());
     write_u32_le(out, data_size);
     out.write(reinterpret_cast<const char*>(audioData.samples.data()), audioData.samples.size());

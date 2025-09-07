@@ -35,7 +35,7 @@ namespace {
     constexpr uint32_t CHUNK_SIZE_LIMIT       = (1U << 30); // sanity limit for chunk sizes (1,073,741,824 or 1 GiB)
     constexpr uint32_t WAV_FILE_BASE_OVERHEAD = 36;         // base size used in RIFF size field
 
-    constexpr std::array<int, 3> PCM_BITS_PER_SAMPLE = { 8, 16, 32 }; // bits per sample for each channel layout
+    constexpr std::array<uint16_t, 3> PCM_BITS_PER_SAMPLE = { 8, 16, 32 }; // bits per sample for each channel layout
 
 } // namespace
 
@@ -299,7 +299,8 @@ void AudioIndex::clearLastDebugInfo() {
 /**
  * We currently only support Bit Rates/Bit Depths of 8, 16, and 32
  */
-bool isBitDepthSupported(int bitDepth) {
+bool isBitDepthSupported(uint16_t bitDepth) {
+    // std::cout << "Checking if bit depth " << bitDepth << " is supported." << std::endl;
     return PCM_BITS_PER_SAMPLE.end() != std::find(PCM_BITS_PER_SAMPLE.begin(), PCM_BITS_PER_SAMPLE.end(), bitDepth);
 }
 
@@ -309,12 +310,14 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
         throw std::runtime_error("Unsupported bit depth");
     }
 
-    // Build pcm_int (our index) by concatenating samples and appending the header.
-    // The byte layout is assumed as follows:
-    //      Index = [PCM_payload (Samples)] [16-byte Header]
-    
-    // To construct the PCM portion efficiently we assemble a MSB-first byte
-    // buffer and call boost::multiprecision::import_bits with the MSB flag set.
+    /**
+     * Build pcm_int (our index) by concatenating samples and appending the header.
+     * The byte layout is assumed as follows:
+     *      Index = [PCM_payload (Samples)] [16-byte Header]
+     *
+     * To construct the PCM portion efficiently we assemble a MSB-first byte
+     * buffer and call boost::multiprecision::import_bits with the MSB flag set.
+    */
     size_t  bytes_per_sample = audioData.bit_rate / BITS_PER_BYTE;
     size_t  total_samples    = audioData.num_frames * audioData.num_channels;
     cpp_int pcm_int          = 0;
@@ -357,14 +360,12 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
         header_buf.push_back(static_cast<uint8_t>((sRate >> (i * BITS_PER_BYTE)) & BYTE_MASK));
     }
 
-    // Don't loop these ones
+    // Don't loop these ones (write as two big-endian bytes each)
     uint16_t bitRate = audioData.bit_rate;
-    header_buf.push_back(static_cast<uint8_t>((bitRate >> 8) & BYTE_MASK));
     header_buf.push_back(static_cast<uint8_t>((bitRate >> 8) & BYTE_MASK));
     header_buf.push_back(static_cast<uint8_t>((bitRate >> 0) & BYTE_MASK));
 
     uint16_t numChannels = audioData.num_channels;
-    header_buf.push_back(static_cast<uint8_t>((numChannels >> 8) & BYTE_MASK));
     header_buf.push_back(static_cast<uint8_t>((numChannels >> 8) & BYTE_MASK));
     header_buf.push_back(static_cast<uint8_t>((numChannels >> 0) & BYTE_MASK));
 

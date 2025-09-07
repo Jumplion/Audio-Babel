@@ -1,8 +1,9 @@
-#include "AudioIndex.h"
-#include <iostream>
 #include <fstream>
-#include <vector>
+#include <iostream>
 #include <string>
+#include <vector>
+
+#include "AudioIndex.h"
 
 using namespace AudioBabel;
 
@@ -16,7 +17,7 @@ int main(int argc, char** argv) {
         std::cerr << "Usage: reconstruct_cli <index.bin> <output.wav>\n";
         return 2;
     }
-    const std::string inPath = argv[1];
+    const std::string inPath  = argv[1];
     const std::string outPath = argv[2];
 
     std::ifstream in(inPath, std::ios::binary);

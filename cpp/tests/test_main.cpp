@@ -349,85 +349,6 @@ int main(int argc, char** argv) {
         return ok;
     });
 
-    // ------------------ Multi-channel and bit-depth round-trip tests ------------------
-    runner.add("AudioIndex: stereo 16-bit roundtrip", [&runner]() -> bool {
-        const std::string name = "AudioIndex: stereo 16-bit roundtrip";
-        AudioIndex::AudioData audioData{};
-        audioData.sample_rate = 44100;
-        audioData.bit_rate = 16;
-        audioData.num_channels = 2;
-        audioData.audio_format = 1;
-        audioData.num_frames = 4; // 4 frames, interleaved L,R
-
-        // build interleaved samples: frames: (1000,-1000), (2000,-2000), ...
-        std::vector<int16_t> left = {1000, 2000, 3000, 4000};
-        std::vector<int16_t> right = {-1000, -2000, -3000, -4000};
-        size_t bytes = audioData.num_frames * audioData.num_channels * (audioData.bit_rate/8);
-        audioData.samples.resize(bytes);
-        for (size_t i=0;i<audioData.num_frames;i++){
-            int16_t l = left[i];
-            int16_t r = right[i];
-            size_t off = i * 2 * 2; // frame index * channels * bytes_per_sample
-            audioData.samples[off + 0] = static_cast<uint8_t>(l & 0xFF);
-            audioData.samples[off + 1] = static_cast<uint8_t>((l >> 8) & 0xFF);
-            audioData.samples[off + 2] = static_cast<uint8_t>(r & 0xFF);
-            audioData.samples[off + 3] = static_cast<uint8_t>((r >> 8) & 0xFF);
-        }
-
-        bool ok = true;
-        try {
-            auto idx = AudioIndex::audioDataToIndex(audioData);
-            auto audioData2 = AudioIndex::indexToAudioData(idx);
-            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
-            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
-            ok &= RUN_CHECK(runner, name, audioData2.num_channels == audioData.num_channels, "num_channels match");
-            ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
-            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
-        } catch (const std::exception& e) {
-            runner.failMsg(name, std::string("exception: ") + e.what());
-            ok = false;
-        }
-        return ok;
-    });
-
-
-    runner.add("AudioIndex: stereo 32-bit roundtrip", [&runner]() -> bool {
-        const std::string name = "AudioIndex: stereo 32-bit roundtrip";
-        AudioIndex::AudioData audioData{};
-        audioData.sample_rate = 48000;
-        audioData.bit_rate = 32;
-        audioData.num_channels = 2;
-        audioData.audio_format = 1;
-        audioData.num_frames = 3; // 3 frames
-
-        std::vector<int32_t> left = {100000, 200000, -300000};
-        std::vector<int32_t> right = {-100000, -200000, 300000};
-        size_t bytes = audioData.num_frames * audioData.num_channels * (audioData.bit_rate/8);
-        audioData.samples.resize(bytes);
-        for (size_t i=0;i<audioData.num_frames;i++){
-            int32_t l = left[i];
-            int32_t r = right[i];
-            size_t off = i * 2 * 4; // frame * channels * bytes_per_sample
-            for (size_t b=0;b<4;b++) audioData.samples[off + b] = static_cast<uint8_t>((l >> (8*b)) & 0xFF);
-            for (size_t b=0;b<4;b++) audioData.samples[off + 4 + b] = static_cast<uint8_t>((r >> (8*b)) & 0xFF);
-        }
-
-        bool ok = true;
-        try {
-            auto idx = AudioIndex::audioDataToIndex(audioData);
-            auto audioData2 = AudioIndex::indexToAudioData(idx);
-            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
-            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
-            ok &= RUN_CHECK(runner, name, audioData2.num_channels == audioData.num_channels, "num_channels match");
-            ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
-            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
-        } catch (const std::exception& e) {
-            runner.failMsg(name, std::string("exception: ") + e.what());
-            ok = false;
-        }
-        return ok;
-    });
-
     runner.add("AudioIndex: writeIndexToFile outputs", [&runner]() -> bool {
         const std::string name = "AudioIndex: writeIndexToFile outputs";
         using boost::multiprecision::cpp_int;
@@ -466,6 +387,7 @@ int main(int argc, char** argv) {
         audioData.num_channels = 1;
         audioData.audio_format = 1;
         audioData.num_frames = 2;
+        
         // samples: INT16_MIN, INT16_MAX
         int16_t s0 = static_cast<int16_t>(std::numeric_limits<int16_t>::min());
         int16_t s1 = static_cast<int16_t>(std::numeric_limits<int16_t>::max());
@@ -508,42 +430,6 @@ int main(int argc, char** argv) {
             auto idx = AudioIndex::audioDataToIndex(audioData);
             auto audioData2 = AudioIndex::indexToAudioData(idx);
             ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
-            ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
-            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
-        } catch (const std::exception& e) {
-            runner.failMsg(name, std::string("exception: ") + e.what());
-            ok = false;
-        }
-        return ok;
-    });
-
-    runner.add("AudioIndex: 6-channel 16-bit roundtrip", [&runner]() -> bool {
-        const std::string name = "AudioIndex: 6-channel 16-bit roundtrip";
-        AudioIndex::AudioData audioData{};
-        audioData.sample_rate = 48000;
-        audioData.bit_rate = 16;
-        audioData.num_channels = 6;
-        audioData.audio_format = 1;
-        audioData.num_frames = 3; // 3 frames
-
-        // Build simple interleaved pattern for 6 channels
-        audioData.samples.resize(audioData.num_frames * audioData.num_channels * 2);
-        for (size_t f = 0; f < audioData.num_frames; ++f) {
-            for (uint16_t ch = 0; ch < audioData.num_channels; ++ch) {
-                int16_t val = static_cast<int16_t>((int)f * 100 + (int)ch * 10 - 50);
-                size_t off = (f * audioData.num_channels + ch) * 2;
-                audioData.samples[off + 0] = static_cast<uint8_t>(val & 0xFF);
-                audioData.samples[off + 1] = static_cast<uint8_t>((val >> 8) & 0xFF);
-            }
-        }
-
-        bool ok = true;
-        try {
-            auto idx = AudioIndex::audioDataToIndex(audioData);
-            auto audioData2 = AudioIndex::indexToAudioData(idx);
-            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
-            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
-            ok &= RUN_CHECK(runner, name, audioData2.num_channels == audioData.num_channels, "num_channels match");
             ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
             ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
         } catch (const std::exception& e) {

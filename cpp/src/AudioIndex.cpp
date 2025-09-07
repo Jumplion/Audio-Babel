@@ -226,12 +226,17 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
          *  reads raw sample bytes into that buffer.
          */
         else if (std::strncmp(id.data(), "data", WAV_ID_LEN) == 0) {
+            // Reserve space for the declared data chunk then attempt to read it.
             audioData.samples.resize(chunkSize);
-            if (!fileInput.read(reinterpret_cast<char*>(audioData.samples.data()), chunkSize)) {
-                // Failed to read audio samples
-                break;
+            fileInput.read(reinterpret_cast<char*>(audioData.samples.data()), static_cast<std::streamsize>(chunkSize));
+
+            // If we didn't get the full declared chunk, this indicates the file is truncated
+            // (declared size > actual bytes available). Treat this as a fatal error.
+            std::streamsize bytesRead = fileInput.gcount();
+            if (static_cast<uint32_t>(bytesRead) != chunkSize) {
+                throw std::runtime_error("Declared data chunk larger than actual bytes available");
             }
-        }  
+        }
 
         /**
          * We have an unknown chunk. 
@@ -300,7 +305,6 @@ void AudioIndex::clearLastDebugInfo() {
  * We currently only support Bit Rates/Bit Depths of 8, 16, and 32
  */
 bool isBitDepthSupported(uint16_t bitDepth) {
-    // std::cout << "Checking if bit depth " << bitDepth << " is supported." << std::endl;
     return PCM_BITS_PER_SAMPLE.end() != std::find(PCM_BITS_PER_SAMPLE.begin(), PCM_BITS_PER_SAMPLE.end(), bitDepth);
 }
 

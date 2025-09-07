@@ -217,14 +217,14 @@ int main(int argc, char** argv) {
         return ok;
     });
 
-    runner.add("AudioIndex: writeAudioDataToFile and read back", [&runner]() -> bool {
-        const std::string name = "AudioIndex: writeAudioDataToFile and read back";
+    runner.add("AudioIndex: exportAudioDataToWav and read back", [&runner]() -> bool {
+        const std::string name = "AudioIndex: exportAudioDataToWav and read back";
         std::vector<int32_t> samples = {0, 1000, -1000, 2000, -2000};
         auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 22050, 16);
         std::string tmpPath = "./temp_test.wav";
         bool ok = true;
         try {
-            AudioIndex::writeAudioDataToFile(audioData, tmpPath);
+            AudioIndex::exportAudioDataToWav(audioData, tmpPath);
             auto audioData2 = AudioIndex::extractAudioDataFromAudioFile(tmpPath);
             ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
             ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
@@ -428,8 +428,8 @@ int main(int argc, char** argv) {
         return ok;
     });
 
-    runner.add("AudioIndex: writeIndexRepresentations outputs", [&runner]() -> bool {
-        const std::string name = "AudioIndex: writeIndexRepresentations outputs";
+    runner.add("AudioIndex: writeIndexToFile outputs", [&runner]() -> bool {
+        const std::string name = "AudioIndex: writeIndexToFile outputs";
         using boost::multiprecision::cpp_int;
         bool ok = true;
         try {
@@ -441,7 +441,7 @@ int main(int argc, char** argv) {
             v |= cpp_int(0x9ABCDEF01122ULL);
 
             std::string prefix = "test_index_out"; // basename only; files are written into cpp/tests/indexes/
-            AudioIndex::writeIndexRepresentations(v, std::string(), prefix);
+            AudioIndex::writeIndexToFile(v, std::string(), prefix);
 
             // Check base64 exist (new suffix .b64.txt)
             std::ifstream b64(std::string("cpp/tests/indexes/") + prefix + ".txt");
@@ -661,7 +661,7 @@ int main(int argc, char** argv) {
                 // Write index representations (b256)
                 try {
                     std::string stem = p.stem().string();
-                    AudioIndex::writeIndexRepresentations(idx, std::string(), stem);
+                    AudioIndex::writeIndexToFile(idx, std::string(), stem);
                     log_now(std::string("WROTE INDEX REPRS: cpp/tests/indexes/" ) + stem);
                 } catch (const std::exception& e) {
                     log_now(std::string("WARN: failed to write index representations for: ") + p.string() + " err=" + e.what());
@@ -721,7 +721,7 @@ int main(int argc, char** argv) {
                 fs::path outPath = outDir / (p.stem().string() + std::string("_recon.wav"));
                 try {
                     log_now("Writing Reconstructed Audio Data to: " + outPath.string());
-                    AudioIndex::writeAudioDataToFile(reconstructedData, outPath.string());
+                    AudioIndex::exportAudioDataToWav(reconstructedData, outPath.string());
                 } catch (const std::exception& e) {
                     runner.failMsg(name, std::string("failed to write recon for: ") + p.string());
                     ok = false;

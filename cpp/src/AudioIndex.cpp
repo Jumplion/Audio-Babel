@@ -26,6 +26,8 @@ namespace {
     constexpr size_t   HEADER_BYTES_CONST     = 4 + 2 + 2 + 8; // 16 bytes header layout
     constexpr size_t   BITS_PER_BYTE          = 8;
     constexpr int      BASE64_BITS            = 6;          // bits per base64 digit in our table
+    constexpr int      BYTE_MASK_INT          = 0xFF;       // mask for a single byte (integer) (255)
+    constexpr int      BASE64_MASK_INT        = 0x3F;       // mask for base64 integer values (63)
     constexpr uint32_t BYTE_MASK              = 0xFFU;      // mask for a single byte (255)
     constexpr uint32_t BASE64_MASK            = 0x3FU;      // mask for 6-bit base64 values (63)
     constexpr uint16_t PCM_FORMAT_CODE        = 1;          // PCM format value
@@ -75,12 +77,8 @@ static uint32_t read_u32_le(const char* ptr) {
 }
 
 // ---------------------------------------------------------------------------
-// 2) Construction / lifecycle
+// 2) Operators
 // ---------------------------------------------------------------------------
-
-AudioIndex::AudioIndex() : audioData{} {}
-
-AudioIndex::AudioIndex(const AudioIndex& other) : audioData(other.audioData) {}
 
 AudioIndex& AudioIndex::operator=(const AudioIndex& other) {
     if (this != &other) {
@@ -89,8 +87,14 @@ AudioIndex& AudioIndex::operator=(const AudioIndex& other) {
     return *this;
 }
 
-AudioIndex::~AudioIndex() {
-    audioData.samples.clear();
+bool AudioIndex::operator==(const AudioIndex& other) const {
+    return audioData.audio_format == other.audioData.audio_format && audioData.num_channels == other.audioData.num_channels &&
+            audioData.sample_rate == other.audioData.sample_rate && audioData.bit_rate == other.audioData.bit_rate &&
+            audioData.num_frames == other.audioData.num_frames && audioData.samples == other.audioData.samples;
+}
+
+bool AudioIndex::operator!=(const AudioIndex& other) const {
+    return !(*this == other);
 }
 
 // ---------------------------------------------------------------------------
@@ -292,19 +296,23 @@ void AudioIndex::clearLastDebugInfo() {
     lastDebug = DebugInfo();
 }
 
+/**
+ * We currently only support Bit Rates/Bit Depths of 8, 16, and 32
+ */
 bool isBitDepthSupported(int bitDepth) {
     return PCM_BITS_PER_SAMPLE.end() != std::find(PCM_BITS_PER_SAMPLE.begin(), PCM_BITS_PER_SAMPLE.end(), bitDepth);
 }
 
 boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) {
-    // only support 8,16,32
+
     if (!isBitDepthSupported(audioData.bit_rate)) {
         throw std::runtime_error("Unsupported bit depth");
     }
 
-    // Build pcm_int by concatenating samples. The canonical on-disk layout for
-    // our serialized index is: [PCM_payload (MSB-first)] [16-byte big-endian header]
-    // where the header occupies the least-significant bytes of the integer.
+    // Build pcm_int (our index) by concatenating samples and appending the header.
+    // The byte layout is assumed as follows:
+    //      Index = [PCM_payload (Samples)] [16-byte Header]
+    
     // To construct the PCM portion efficiently we assemble a MSB-first byte
     // buffer and call boost::multiprecision::import_bits with the MSB flag set.
     size_t  bytes_per_sample = audioData.bit_rate / BITS_PER_BYTE;
@@ -337,12 +345,12 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
     auto t1_import               = std::chrono::steady_clock::now();
     lastDebug.audioDataToIndexMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(t1_import - t0_import).count());
 
-    // Build explicit header bytes (big-endian): u32 sample_rate, u16 bit_depth, u16 num_channels,
-    // u64 num_frames. The header is placed into the least-significant HEADER_BYTES_CONST bytes so
+    // Build explicit header bytes (big-endian): 
+    //      u32 sample_rate, u16 bit_depth, u16 num_channels, u64 num_frames
+    // The header is appended at the end (into the least-significant HEADER_BYTES_CONST bytes) so
     // we can extract it by masking the low bits.
-    const size_t         HEADER_BYTES = HEADER_BYTES_CONST;
     std::vector<uint8_t> header_buf;
-    header_buf.reserve(HEADER_BYTES);
+    header_buf.reserve(HEADER_BYTES_CONST);
 
     uint32_t sRate = audioData.sample_rate;
     for (int i = 3; i >= 0; i--) {
@@ -373,25 +381,23 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
     }
 
     // Combine: shift pcm_int left by header_bits and OR header_int
-    size_t  header_bits = HEADER_BYTES * BITS_PER_BYTE;
+    size_t  header_bits = HEADER_BYTES_CONST * BITS_PER_BYTE;
     cpp_int idx         = (pcm_int << header_bits) | header_int;
     return idx;
 }
 
 AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) {
-    // Header layout must match audioDataToIndex: HEADER_BYTES = 16
-    const size_t HEADER_BYTES = HEADER_BYTES_CONST;
-    const size_t HEADER_BITS  = HEADER_BYTES * BITS_PER_BYTE;
+    const size_t HEADER_BITS  = HEADER_BYTES_CONST * BITS_PER_BYTE;
 
-    // Extract header_int as the lower HEADER_BITS bits
+    // Extract header_int from the last HEADER_BITS of the index
     cpp_int mask       = (cpp_int(1) << HEADER_BITS) - 1;
     cpp_int header_int = index & mask;
     cpp_int pcm_int    = index >> HEADER_BITS;
 
     // Convert header to bytes (big-endian)
-    std::vector<uint8_t> header_buf(HEADER_BYTES);
+    std::vector<uint8_t> header_buf(HEADER_BYTES_CONST);
     cpp_int              tmp = header_int;
-    for (int headerIndex = static_cast<int>(HEADER_BYTES) - 1; headerIndex >= 0; --headerIndex) {
+    for (int headerIndex = static_cast<int>(HEADER_BYTES_CONST) - 1; headerIndex >= 0; --headerIndex) {
         uint8_t byte            = static_cast<uint8_t>(static_cast<uint64_t>(tmp & BYTE_MASK));
         header_buf[headerIndex] = byte;
         tmp >>= BITS_PER_BYTE;
@@ -407,7 +413,6 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
         num_frames = (num_frames << BITS_PER_BYTE) | header_buf[8 + i];
     }
 
-    // only support 8,16,32
     if (!isBitDepthSupported(bit_depth)) {
         throw std::runtime_error("Unsupported bit depth in index");
     }
@@ -496,20 +501,22 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
     return audioData;
 }
 
-void AudioIndex::writeAudioDataToFile(const AudioData& audioData, const std::string& path) {
+void AudioIndex::exportAudioDataToWav(const AudioData& audioData, const std::string& path) {
     std::ofstream out(path, std::ios::binary);
     if (!out) {
         throw std::runtime_error("Failed to open output WAV: " + path);
     }
 
+    int byteChunk = 4;
+
     // RIFF header
-    out.write("RIFF", 4);
+    out.write("RIFF", byteChunk);
     uint32_t file_size = WAV_FILE_BASE_OVERHEAD + static_cast<uint32_t>(audioData.samples.size());
     write_u32_le(out, file_size);
-    out.write("WAVE", 4);
+    out.write("WAVE", byteChunk);
 
     // fmt chunk
-    out.write("fmt ", 4);
+    out.write("fmt ", byteChunk);
     uint32_t fmt_size = static_cast<uint32_t>(FMT_CHUNK_MIN_SIZE);
     write_u32_le(out, fmt_size);
 
@@ -526,31 +533,17 @@ void AudioIndex::writeAudioDataToFile(const AudioData& audioData, const std::str
     write_u16_le(out, audioData.bit_rate);
 
     // data chunk
-    out.write("data", 4);
+    out.write("data", byteChunk);
     uint32_t data_size = static_cast<uint32_t>(audioData.samples.size());
     write_u32_le(out, data_size);
     out.write(reinterpret_cast<const char*>(audioData.samples.data()), audioData.samples.size());
 }
 
 // ---------------------------------------------------------------------------
-// 8) Comparison operators
-// ---------------------------------------------------------------------------
-
-bool AudioIndex::operator==(const AudioIndex& other) const {
-    return audioData.audio_format == other.audioData.audio_format && audioData.num_channels == other.audioData.num_channels &&
-            audioData.sample_rate == other.audioData.sample_rate && audioData.bit_rate == other.audioData.bit_rate &&
-            audioData.num_frames == other.audioData.num_frames && audioData.samples == other.audioData.samples;
-}
-
-bool AudioIndex::operator!=(const AudioIndex& other) const {
-    return !(*this == other);
-}
-
-// ---------------------------------------------------------------------------
 // 9) Index representation helpers
 // ---------------------------------------------------------------------------
 
-void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int& index, const std::string& outDir, const std::string& filename) {
+void AudioIndex::writeIndexToFile(const boost::multiprecision::cpp_int& index, const std::string& outDir, const std::string& filename) {
     // Determine directory to write into.
     fs::path dir;
     if (outDir.empty()) {
@@ -573,7 +566,9 @@ void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int&
     std::ostringstream stem_ss;
     stem_ss << std::hex << std::setfill('0');
     size_t take = std::min<size_t>(bytes.size(), 6);
-    for (size_t i = 0; i < take; ++i) stem_ss << std::setw(2) << static_cast<int>(bytes[i]);
+    for (size_t i = 0; i < take; ++i) {
+        stem_ss << std::setw(2) << static_cast<int>(bytes[i]);
+    }
     std::string stem = stem_ss.str();
 
     // choose base name: provided filename or generated stem
@@ -591,12 +586,12 @@ void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int&
         acc_bits += static_cast<int>(BITS_PER_BYTE);
         while (acc_bits >= BASE64_BITS) {
             acc_bits -= BASE64_BITS;
-            uint8_t idx = static_cast<uint8_t>((acc >> acc_bits) & 0x3F);
+            uint8_t idx = static_cast<uint8_t>((acc >> acc_bits) & BASE64_MASK_INT);
             out.put(b64[idx]);
         }
     }
     if (acc_bits > 0) {
-        uint8_t idx = static_cast<uint8_t>((acc << (BASE64_BITS - acc_bits)) & 0x3F);
+        uint8_t idx = static_cast<uint8_t>((acc << (BASE64_BITS - acc_bits)) & BASE64_MASK_INT);
         out.put(b64[idx]);
     }
     out.put('\n');
@@ -606,6 +601,8 @@ void AudioIndex::writeIndexRepresentations(const boost::multiprecision::cpp_int&
 // ---------------------------------------------------------------------------
 // 10) Metadata derivation
 // ---------------------------------------------------------------------------
+
+//TODO: Find a better way to do this?
 
 AudioIndex::Metadata AudioIndex::indexToMetadata(const boost::multiprecision::cpp_int& index) {
     std::vector<uint8_t> bytes;

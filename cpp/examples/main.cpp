@@ -79,7 +79,7 @@ int main() {
                 // prefer to write auxiliary files in the same directory as the output
                 std::string dir = outp.has_parent_path() ? outp.parent_path().string() : std::string();
                 std::string stem = outp.replace_extension().filename().string();
-                AudioIndex::writeIndexRepresentations(idx, dir, stem);
+                AudioIndex::writeIndexToFile(idx, dir, stem);
                 std::cerr << "Also wrote other representations into directory: " << (dir.empty() ? "cpp/tests/indexes" : dir) << " with stem " << stem << "\n";
             } catch (...) {
                 // best-effort only
@@ -125,7 +125,7 @@ int main() {
 
             std::cerr << "Reconstructing WAV from index...\n";
             AudioIndex::AudioData data = AudioIndex::indexToAudioData(idx);
-            AudioIndex::writeAudioDataToFile(data, output);
+            AudioIndex::exportAudioDataToWav(data, output);
             std::cerr << "Wrote WAV to: " << output << "\n";
             return 0;
         }

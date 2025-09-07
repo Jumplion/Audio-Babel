@@ -25,7 +25,7 @@ namespace AudioBabel {
 class AudioFingerprint; // Forward declaration (defined in AudioFingerprint.h)
 
 class AudioIndex {
-   public:
+public:
     // ---------------------
     // Public data container
     // ---------------------
@@ -55,10 +55,9 @@ class AudioIndex {
     // ---------------------
     // Construction / lifecycle
     // ---------------------
-    AudioIndex();
-    AudioIndex(const AudioIndex& other);
     AudioIndex& operator=(const AudioIndex& other);
-    ~AudioIndex();
+    bool operator==(const AudioIndex& other) const;
+    bool operator!=(const AudioIndex& other) const;
 
     // ---------------------
     // Factory helpers
@@ -77,7 +76,7 @@ class AudioIndex {
     /**
      * Read a WAV file into an AudioData structure. The implementation expects
      * a standard RIFF/WAVE PCM file and populates sample bytes as little-endian
-     * per-sample values (ready for writeAudioDataToFile).
+     * per-sample values (ready for exportAudioDataToWav).
      * @param path File path to the .wav file
      * @returns AudioData instance
      */
@@ -143,7 +142,7 @@ class AudioIndex {
      * @param audioData Audio data to write
      * @param path File path to write to
      */
-    static void writeAudioDataToFile(const AudioData& audioData, const std::string& path);
+    static void exportAudioDataToWav(const AudioData& audioData, const std::string& path);
 
     /**
      * Write multiple textual representations of a big-integer index
@@ -157,7 +156,7 @@ class AudioIndex {
      * @param outDir Output directory for the representations
      * @param filename Base filename for the representations
     */
-    static void writeIndexRepresentations(const boost::multiprecision::cpp_int& index,
+    static void writeIndexToFile(const boost::multiprecision::cpp_int& index,
                                             const std::string& outDir = std::string(),
                                             const std::string& filename = std::string());
 
@@ -188,8 +187,6 @@ class AudioIndex {
         return static_cast<int>(audioData.bit_rate);
     }
 
-    bool operator==(const AudioIndex& other) const;
-    bool operator!=(const AudioIndex& other) const;
 
     private:
         AudioData audioData;

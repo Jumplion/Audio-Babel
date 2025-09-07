@@ -7,6 +7,9 @@ Usage:
     # analyze specific files
     .\tools\run-clang-tidy.ps1 -Files "cpp\\src\\AudioIndex.cpp"
 
+    # apply compile error fixes
+    .\tools\run-clang-tidy.ps1 -FixErrors
+
 Output is written to tools/clang-tidy-output.txt
 #>
 Param(

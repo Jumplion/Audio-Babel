@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
 
     try {
         AudioIndex::AudioData ad = AudioIndex::indexToAudioData(idx);
-        AudioIndex::writeAudioDataToFile(ad, outPath);
+        AudioIndex::exportAudioDataToWav(ad, outPath);
     } catch (const std::exception& e) {
         std::cerr << "Reconstruction failed: " << e.what() << "\n";
         return 5;

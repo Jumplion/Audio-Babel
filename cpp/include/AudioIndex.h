@@ -7,22 +7,14 @@
 #include <string>
 #include <vector>
 
-// Using boost::multiprecision::cpp_int for large integer audio indexes.
-// Note: this header previously included GMP directly; we now use Boost.Multiprecision
-// to represent/parse large decimal-index tokens in a portable way.
-
 namespace AudioBabel {
 
 /*
  * AudioIndex.h
  * ------------
  * Public API for the AudioIndex type. The class represents a deterministic
- * hierarchical index (genre / artist / album / track) encoded using GMP's
- * big integers and paired with a serialized fingerprint blob used for
- * reconstruction and similarity search.
+ * index encoded using GMP's big integers used for reconstruction.
  */
-
-class AudioFingerprint; // Forward declaration (defined in AudioFingerprint.h)
 
 class AudioIndex {
    public:

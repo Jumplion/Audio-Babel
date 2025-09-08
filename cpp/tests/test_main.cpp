@@ -25,20 +25,21 @@ using namespace AudioBabel;
 static std::ofstream g_log;
 
 static void log_now(const std::string& msg, bool printToConsole = false) {
-    if (!g_log)
+    if (!g_log) {
         return;
+    }
     auto        now = std::chrono::system_clock::now();
     std::time_t tt  = std::chrono::system_clock::to_time_t(now);
-    g_log << "[" << std::put_time(std::localtime(&tt), "%F %T") << "] " << msg << std::endl;
+    g_log << "[" << std::put_time(std::localtime(&tt), "%F %T") << "] " << msg << '\n';
     g_log.flush();
 
     if (printToConsole) {
-        std::cout << "[" << std::put_time(std::localtime(&tt), "%F %T") << "] " << msg << std::endl;
+        std::cout << "[" << std::put_time(std::localtime(&tt), "%F %T") << "] " << msg << '\n';
     }
 }
 
 // Helper to create a temporary filepath in the OS temp directory.
-static std::string make_temp_path(const std::string& basename) {
+static auto make_temp_path(const std::string& basename) -> std::string {
     try {
         auto p = std::filesystem::temp_directory_path();
         // create a small, reasonably-unique suffix to avoid collisions in parallel runs
@@ -61,15 +62,16 @@ static std::string make_temp_path(const std::string& basename) {
 // RAII temporary file: removes the file on destruction (best-effort)
 struct TempFile {
     std::filesystem::path p;
-    TempFile(const std::string& s) : p(s) {}
+    explicit TempFile(const std::string& s) : p(s) {}
     ~TempFile() {
         try {
-            if (!p.empty() && std::filesystem::exists(p))
+            if (!p.empty() && std::filesystem::exists(p)) {
                 std::filesystem::remove(p);
+            }
         } catch (...) {
         }
     }
-    std::string path() const {
+    [[nodiscard]] auto path() const -> std::string {
         return p.string();
     }
 };
@@ -106,16 +108,16 @@ struct TestRunner {
      * @param fn   Callable returning true on success, false on failure.
      */
 
-    static bool approxEqual(double a, double b, double tol = 1e-6) {
+    static auto approxEqual(double a, double b, double tol = 1e-6) -> bool {
         return std::fabs(a - b) <= tol;
     }
 
-    static bool vecNotEmpty(const std::vector<int32_t>& v) {
+    static auto vecNotEmpty(const std::vector<int32_t>& v) -> bool {
         return !v.empty();
     }
 
     void failMsg(const std::string& test, const std::string& msg) {
-        std::cout << "  ✗ " << test << " — " << msg << std::endl;
+        std::cout << "  ✗ " << test << " — " << msg << '\n';
         ++failed;
     }
 
@@ -125,7 +127,7 @@ struct TestRunner {
      */
 
     void passMsg(const std::string& test) {
-        std::cout << "  ✓ " << test << std::endl;
+        std::cout << "  ✓ " << test << '\n';
         ++passed;
     }
 
@@ -134,17 +136,17 @@ struct TestRunner {
      * a short success line and increments the pass counter.
      */
 
-    bool runOne(const std::string& name) {
+    auto runOne(const std::string& name) -> bool {
         auto it = tests.find(name);
         if (it == tests.end()) {
-            std::cout << "Test not found: " << name << std::endl;
+            std::cout << "Test not found: " << name << '\n';
             return false;
         }
         // No spinner: run the test and measure duration. Print one line with
         // the elapsed time and the final result. To avoid double-counting
         // assertion failures (which call runner.failMsg), capture the
         // failure count before/after running the test.
-        size_t      failed_before = static_cast<size_t>(failed);
+        auto        failed_before = static_cast<size_t>(failed);
         bool        ok            = false;
         std::string exceptionMsg;
         auto        t0 = std::chrono::steady_clock::now();
@@ -180,19 +182,20 @@ struct TestRunner {
 
     void runAll(const std::string& filter = "") {
         for (auto& kv : tests) {
-            if (!filter.empty() && kv.first.find(filter) == std::string::npos)
+            if (!filter.empty() && kv.first.find(filter) == std::string::npos) {
                 continue;
+            }
             // Log the start of the test
             log_now(std::string("============== RUNNING TEST: [") + kv.first + "] ==============");
-            std::cout << "============== RUNNING TEST: [" << kv.first << "] ==============" << std::endl;
+            std::cout << "============== RUNNING TEST: [" << kv.first << "] ==============" << '\n';
             runOne(kv.first);
         }
-        std::cout << "\nSummary: " << passed << " passed, " << failed << " failed" << std::endl;
+        std::cout << "\nSummary: " << passed << " passed, " << failed << " failed" << '\n';
     }
 };
 
 // Helpers for assertions used inside tests
-static bool CHECK(bool cond, TestRunner& runner, const std::string& test, const std::string& msg = "") {
+static auto CHECK(bool cond, TestRunner& runner, const std::string& test, const std::string& msg = "") -> bool {
     if (!cond) {
         runner.failMsg(test, msg.empty() ? "check failed" : msg);
         return false;
@@ -201,16 +204,17 @@ static bool CHECK(bool cond, TestRunner& runner, const std::string& test, const 
 }
 
 // Shared helper: run CHECK and print per-assertion status for a named test
-static bool RUN_CHECK(TestRunner& runner, const std::string& testName, bool cond, const std::string& msg) {
+static auto RUN_CHECK(TestRunner& runner, const std::string& testName, bool cond, const std::string& msg) -> bool {
     bool ok = CHECK(cond, runner, testName, msg);
-    if (ok)
-        std::cout << "  [OK]   " << msg << std::endl;
-    else
-        std::cout << "  [FAIL] " << msg << std::endl;
+    if (ok) {
+        std::cout << "  [OK]   " << msg << '\n';
+    } else {
+        std::cout << "  [FAIL] " << msg << '\n';
+    }
     return ok;
 }
 
-int main(int argc, char** argv) {
+auto main(int argc, char** argv) -> int {
     TestRunner runner;
     // Register split AudioIndex unit tests
 
@@ -218,8 +222,10 @@ int main(int argc, char** argv) {
     runner.add("AudioIndex: extractAudioDataFromSamples", [&runner]() -> bool {
         const std::string    name = "AudioIndex: extractAudioDataFromSamples";
         std::vector<int32_t> samples;
-        for (int i = 0; i < 10; ++i)
+        samples.reserve(10);
+        for (int i = 0; i < 10; ++i) {
             samples.push_back((i % 2 == 0) ? 1000 : -1000);
+        }
         auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 8000, 16);
 
         bool ok = true;
@@ -227,7 +233,8 @@ int main(int argc, char** argv) {
         ok &= RUN_CHECK(runner, name, audioData.bit_rate == 16, "bit_rate");
         ok &= RUN_CHECK(runner, name, audioData.num_channels == 1, "num_channels");
         ok &= RUN_CHECK(runner, name, audioData.num_frames == samples.size(), "num_frames");
-        ok &= RUN_CHECK(runner, name, audioData.samples.size() == samples.size() * (size_t) (audioData.bit_rate / 8), "samples byte length");
+        ok &=
+            RUN_CHECK(runner, name, audioData.samples.size() == samples.size() * static_cast<size_t>(audioData.bit_rate / 8), "samples byte length");
         return ok;
     });
 
@@ -251,8 +258,9 @@ int main(int argc, char** argv) {
     runner.add("AudioIndex: fromAudioSamples and getters", [&runner]() -> bool {
         const std::string    name = "AudioIndex: fromAudioSamples and getters";
         std::vector<int32_t> samples(44100); // 1 second of silence at 44.1k
-        for (size_t i = 0; i < samples.size(); ++i)
-            samples[i] = 0;
+        for (int& sample : samples) {
+            sample = 0;
+        }
         auto ai = AudioIndex::fromAudioSamples(samples, 44100, 16);
 
         bool ok = true;
@@ -342,13 +350,14 @@ int main(int argc, char** argv) {
         header_buf.push_back(static_cast<uint8_t>((nc >> 8) & 0xFF));
         header_buf.push_back(static_cast<uint8_t>((nc >> 0) & 0xFF));
         uint64_t nf = 1;
-        for (int i = 7; i >= 0; --i)
+        for (int i = 7; i >= 0; --i) {
             header_buf.push_back(static_cast<uint8_t>((nf >> (i * 8)) & 0xFF));
+        }
 
         cpp_int header_int = 0;
         for (uint8_t b : header_buf) {
             header_int <<= 8;
-            header_int |= cpp_int(uint32_t(b));
+            header_int |= cpp_int(static_cast<uint32_t>(b));
         }
         // pcm_int = 0
         cpp_int idx = header_int;
@@ -442,8 +451,8 @@ int main(int argc, char** argv) {
         audioData.num_frames   = 2;
 
         // samples: INT16_MIN, INT16_MAX
-        int16_t s0 = static_cast<int16_t>(std::numeric_limits<int16_t>::min());
-        int16_t s1 = static_cast<int16_t>(std::numeric_limits<int16_t>::max());
+        auto s0 = static_cast<int16_t>(std::numeric_limits<int16_t>::min());
+        auto s1 = static_cast<int16_t>(std::numeric_limits<int16_t>::max());
         audioData.samples.resize(2 * 2);
         audioData.samples[0] = static_cast<uint8_t>(s0 & 0xFF);
         audioData.samples[1] = static_cast<uint8_t>((s0 >> 8) & 0xFF);
@@ -475,10 +484,12 @@ int main(int argc, char** argv) {
         int32_t s0             = std::numeric_limits<int32_t>::min();
         int32_t s1             = std::numeric_limits<int32_t>::max();
         audioData.samples.resize(2 * 4);
-        for (size_t b = 0; b < 4; ++b)
+        for (size_t b = 0; b < 4; ++b) {
             audioData.samples[b] = static_cast<uint8_t>((s0 >> (8 * b)) & 0xFF);
-        for (size_t b = 0; b < 4; ++b)
+        }
+        for (size_t b = 0; b < 4; ++b) {
             audioData.samples[4 + b] = static_cast<uint8_t>((s1 >> (8 * b)) & 0xFF);
+        }
 
         bool ok = true;
         try {
@@ -508,8 +519,9 @@ int main(int argc, char** argv) {
             audioData.num_frames   = 3;
             // create minimal samples (3 frames, 16-bit -> 6 bytes)
             audioData.samples.resize(audioData.num_frames * (audioData.bit_rate / 8));
-            for (size_t i = 0; i < audioData.samples.size(); ++i)
+            for (size_t i = 0; i < audioData.samples.size(); ++i) {
                 audioData.samples[i] = static_cast<uint8_t>(i + 1);
+            }
 
             auto idx = AudioIndex::audioDataToIndex(audioData);
 
@@ -533,16 +545,18 @@ int main(int argc, char** argv) {
                 expected.push_back(static_cast<uint8_t>((nc >> 8) & 0xFF));
                 expected.push_back(static_cast<uint8_t>((nc >> 0) & 0xFF));
                 uint64_t nf = audioData.num_frames;
-                for (int i = 7; i >= 0; --i)
+                for (int i = 7; i >= 0; --i) {
                     expected.push_back(static_cast<uint8_t>((nf >> (i * 8)) & 0xFF));
+                }
 
                 auto it    = bytes.end() - HEADER_LEN;
                 bool match = true;
-                for (size_t i = 0; i < HEADER_LEN; ++i)
+                for (size_t i = 0; i < HEADER_LEN; ++i) {
                     if (*(it + i) != expected[i]) {
                         match = false;
                         break;
                     }
+                }
                 ok &= RUN_CHECK(runner, name, match, "header bytes match expected big-endian layout");
             }
         } catch (const std::exception& e) {
@@ -589,7 +603,7 @@ int main(int argc, char** argv) {
             cpp_int              idx   = 0;
             for (uint8_t b : bytes) {
                 idx <<= 8;
-                idx |= cpp_int(uint32_t(b));
+                idx |= cpp_int(static_cast<uint32_t>(b));
             }
 
             auto m1 = AudioIndex::indexToMetadata(idx);
@@ -608,9 +622,11 @@ int main(int argc, char** argv) {
 
             // Validate characters are 0-9 or a-z as generated by indexToMetadata
             auto valid_chars = [&](const std::string& s) {
-                for (char c : s)
-                    if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z')))
+                for (char c : s) {
+                    if ((c < '0' || c > '9') && (c < 'a' || c > 'z')) {
                         return false;
+                    }
+                }
                 return true;
             };
 
@@ -620,7 +636,7 @@ int main(int argc, char** argv) {
             ok &= RUN_CHECK(runner, name, valid_chars(m1.track), "track chars valid");
 
             // Cover: should contain SVG markup
-            ok &= RUN_CHECK(runner, name, m1.cover.size() > 0, "cover non-empty");
+            ok &= RUN_CHECK(runner, name, !m1.cover.empty(), "cover non-empty");
             std::string cover_str(m1.cover.begin(), m1.cover.end());
             ok &= RUN_CHECK(runner, name, cover_str.find("<svg") != std::string::npos, "cover contains svg");
 
@@ -643,8 +659,9 @@ int main(int argc, char** argv) {
             audioData.num_frames   = 3;
             size_t data_bytes      = audioData.num_frames * audioData.num_channels * (audioData.bit_rate / 8);
             audioData.samples.resize(data_bytes);
-            for (size_t i = 0; i < data_bytes; ++i)
+            for (size_t i = 0; i < data_bytes; ++i) {
                 audioData.samples[i] = static_cast<uint8_t>(i + 1);
+            }
 
             TempFile tmp(make_temp_path("temp_export_header_test.wav"));
             AudioIndex::exportAudioDataToWav(audioData, tmp.path());
@@ -664,7 +681,7 @@ int main(int argc, char** argv) {
             ok &= RUN_CHECK(runner, name, hdr[0] == 'R' && hdr[1] == 'I' && hdr[2] == 'F' && hdr[3] == 'F', "RIFF tag");
             uint32_t file_size = static_cast<uint32_t>(hdr[4]) | (static_cast<uint32_t>(hdr[5]) << 8) | (static_cast<uint32_t>(hdr[6]) << 16) |
                                  (static_cast<uint32_t>(hdr[7]) << 24);
-            uint32_t expected_file_size = 36u + static_cast<uint32_t>(audioData.samples.size());
+            uint32_t expected_file_size = 36U + static_cast<uint32_t>(audioData.samples.size());
             ok &= RUN_CHECK(runner, name, file_size == expected_file_size, "file size matches expected (36 + data bytes)");
 
             ok &= RUN_CHECK(runner, name, hdr[8] == 'W' && hdr[9] == 'A' && hdr[10] == 'V' && hdr[11] == 'E', "WAVE tag");
@@ -672,7 +689,7 @@ int main(int argc, char** argv) {
 
             uint32_t fmt_size = static_cast<uint32_t>(hdr[16]) | (static_cast<uint32_t>(hdr[17]) << 8) | (static_cast<uint32_t>(hdr[18]) << 16) |
                                 (static_cast<uint32_t>(hdr[19]) << 24);
-            ok &= RUN_CHECK(runner, name, fmt_size == 16u, "fmt chunk size == 16");
+            ok &= RUN_CHECK(runner, name, fmt_size == 16U, "fmt chunk size == 16");
 
             uint16_t audio_format = static_cast<uint16_t>(hdr[20]) | (static_cast<uint16_t>(hdr[21]) << 8);
             ok &= RUN_CHECK(runner, name, audio_format == audioData.audio_format, "audio format matches (PCM=1)");
@@ -707,10 +724,10 @@ int main(int argc, char** argv) {
         AudioIndex::AudioData audioData = AudioIndex::extractAudioDataFromSamples(std::vector<int32_t>{0, 12345, -12345}, 44100, 16);
         bool                  ok        = true;
         try {
-            cpp_int     idx = AudioIndex::audioDataToIndex(audioData);
-            std::string s   = idx.convert_to<std::string>();
-            cpp_int     idx2(s);
-            auto        audioData2 = AudioIndex::indexToAudioData(idx2);
+            cpp_int idx = AudioIndex::audioDataToIndex(audioData);
+            auto    s   = idx.convert_to<std::string>();
+            cpp_int idx2(s);
+            auto    audioData2 = AudioIndex::indexToAudioData(idx2);
             ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
             ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
             ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
@@ -736,8 +753,8 @@ int main(int argc, char** argv) {
         audioData.samples.resize(bytes);
         // samples: 1,2,3,4 -> little-endian bytes (LSB first), big-endian MSB will be zero
         for (size_t i = 0; i < audioData.num_frames; ++i) {
-            int16_t v                  = static_cast<int16_t>(i + 1);
-            size_t  off                = i * 2;
+            auto   v                   = static_cast<int16_t>(i + 1);
+            size_t off                 = i * 2;
             audioData.samples[off + 0] = static_cast<uint8_t>(v & 0xFF);
             audioData.samples[off + 1] = static_cast<uint8_t>((v >> 8) & 0xFF);
         }
@@ -780,11 +797,11 @@ int main(int argc, char** argv) {
             uint32_t sample_rate     = 44100;
             uint16_t bits_per_sample = 16;
             uint32_t byte_rate       = sample_rate * num_channels * (bits_per_sample / 8);
-            uint16_t block_align     = static_cast<uint16_t>(num_channels * (bits_per_sample / 8));
+            auto     block_align     = static_cast<uint16_t>(num_channels * (bits_per_sample / 8));
 
             // payload
             std::vector<uint8_t> data      = {0x11, 0x22, 0x33, 0x44};
-            uint32_t             data_size = static_cast<uint32_t>(data.size());
+            auto                 data_size = static_cast<uint32_t>(data.size());
 
             uint32_t fmt_size = 18; // 2 extra bytes beyond canonical 16
 
@@ -868,10 +885,10 @@ int main(int argc, char** argv) {
             uint32_t sample_rate     = 22050;
             uint16_t bits_per_sample = 16;
             uint32_t byte_rate       = sample_rate * num_channels * (bits_per_sample / 8);
-            uint16_t block_align     = static_cast<uint16_t>(num_channels * (bits_per_sample / 8));
+            auto     block_align     = static_cast<uint16_t>(num_channels * (bits_per_sample / 8));
 
             std::vector<uint8_t> data      = {0xAA, 0xBB, 0xCC, 0xDD};
-            uint32_t             data_size = static_cast<uint32_t>(data.size());
+            auto                 data_size = static_cast<uint32_t>(data.size());
 
             uint32_t fmt_size = 16;
             // unknown chunk size odd (3)
@@ -994,10 +1011,10 @@ int main(int argc, char** argv) {
             // unsupported bits per sample (7)
             uint16_t bits_per_sample = 7;
             uint32_t byte_rate       = sample_rate * num_channels * (bits_per_sample / 8);
-            uint16_t block_align     = static_cast<uint16_t>(num_channels * (bits_per_sample / 8));
+            auto     block_align     = static_cast<uint16_t>(num_channels * (bits_per_sample / 8));
 
             std::vector<uint8_t> data      = {0x01, 0x02};
-            uint32_t             data_size = static_cast<uint32_t>(data.size());
+            auto                 data_size = static_cast<uint32_t>(data.size());
 
             // riff size
             uint32_t fmt_size  = 16;
@@ -1078,8 +1095,9 @@ int main(int argc, char** argv) {
             out.put(static_cast<char>((small >> 16) & 0xFF));
             out.put(static_cast<char>((small >> 24) & 0xFF));
             // write 10 arbitrary bytes to satisfy the small chunk
-            for (int i = 0; i < 10; ++i)
+            for (int i = 0; i < 10; ++i) {
                 out.put(static_cast<char>(i));
+            }
             out.close();
 
             try {
@@ -1110,11 +1128,11 @@ int main(int argc, char** argv) {
             uint32_t sample_rate     = 8000;
             uint16_t bits_per_sample = 16;
             uint32_t byte_rate       = sample_rate * num_channels * (bits_per_sample / 8);
-            uint16_t block_align     = static_cast<uint16_t>(num_channels * (bits_per_sample / 8));
+            auto     block_align     = static_cast<uint16_t>(num_channels * (bits_per_sample / 8));
 
             std::vector<uint8_t> data          = {0xDE, 0xAD, 0xBE, 0xEF};
             uint32_t             declared_size = 10; // declare larger than actual
-            uint32_t             actual_size   = static_cast<uint32_t>(data.size());
+            auto                 actual_size   = static_cast<uint32_t>(data.size());
 
             uint32_t fmt_size  = 16;
             uint32_t riff_size = 4 + (8 + fmt_size) + (8 + declared_size);
@@ -1179,14 +1197,16 @@ int main(int argc, char** argv) {
             fs::path cur = fs::current_path();
             for (int i = 0; i < 6; ++i) {
                 fs::path cand = cur / "cpp" / "tests" / "Test Audio";
-                if (fs::exists(cand) && fs::is_directory(cand))
+                if (fs::exists(cand) && fs::is_directory(cand)) {
                     return cand;
-                if (cur.has_parent_path())
+                }
+                if (cur.has_parent_path()) {
                     cur = cur.parent_path();
-                else
+                } else {
                     break;
+                }
             }
-            return fs::path();
+            return {};
         };
 
         fs::path inDir  = locate_in_dir();
@@ -1197,15 +1217,18 @@ int main(int argc, char** argv) {
                 std::cout << "  [SKIP] " << name << " — tests/Test Audio directory not found\n";
                 return true; // skip if test data not present
             }
-            if (!fs::exists(outDir))
+            if (!fs::exists(outDir)) {
                 fs::create_directories(outDir);
+            }
 
-            for (auto& ent : fs::directory_iterator(inDir)) {
-                if (!ent.is_regular_file())
+            for (const auto& ent : fs::directory_iterator(inDir)) {
+                if (!ent.is_regular_file()) {
                     continue;
-                auto p = ent.path();
-                if (p.extension() != ".wav" && p.extension() != ".WAV")
+                }
+                const auto& p = ent.path();
+                if (p.extension() != ".wav" && p.extension() != ".WAV") {
                     continue;
+                }
                 std::vector<int32_t> samples;
                 int                  sr = 0;
 
@@ -1269,9 +1292,11 @@ int main(int argc, char** argv) {
                 } else if (reconstructedData.samples != originalData.samples) {
                     // compute a simple diff summary (count differing bytes)
                     size_t diffs = 0;
-                    for (size_t i = 0; i < originalData.samples.size(); ++i)
-                        if (originalData.samples[i] != reconstructedData.samples[i])
+                    for (size_t i = 0; i < originalData.samples.size(); ++i) {
+                        if (originalData.samples[i] != reconstructedData.samples[i]) {
                             ++diffs;
+                        }
+                    }
                     std::ostringstream ss;
                     ss << "sample payload differs (" << diffs << " bytes) for: " << p.string();
                     runner.failMsg(name, ss.str());
@@ -1311,13 +1336,15 @@ int main(int argc, char** argv) {
     }
 
     std::string filter;
-    if (argc > 1)
+    if (argc > 1) {
         filter = argv[1];
+    }
 
     runner.runAll(filter);
 
     log_now(std::string("TEST RUN END: ") + std::to_string(runner.passed) + " passed, " + std::to_string(runner.failed) + " failed");
-    if (g_log)
+    if (g_log) {
         g_log.close();
+    }
     return (runner.failed == 0) ? 0 : 1;
 }

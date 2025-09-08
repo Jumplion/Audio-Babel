@@ -12,7 +12,7 @@ using namespace AudioBabel;
 // Reads raw index bytes from input.bin, imports them into a cpp_int, then
 // calls indexToAudioData and writes WAV to output.wav.
 
-int main(int argc, char** argv) {
+auto main(int argc, char** argv) -> int {
     if (argc != 3) {
         std::cerr << "Usage: reconstruct_cli <index.bin> <output.wav>\n";
         return 2;

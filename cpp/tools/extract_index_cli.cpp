@@ -12,9 +12,9 @@ using namespace std;
 using boost::multiprecision::cpp_int;
 using namespace AudioBabel;
 
-int main(int argc, char** argv) {
+auto main(int argc, char** argv) -> int {
     if (argc < 3) {
-        cerr << "Usage: extract_index_cli <input_wav> <out_index.bin>" << endl;
+        cerr << "Usage: extract_index_cli <input_wav> <out_index.bin>" << '\n';
         return 2;
     }
     string inPath  = argv[1];
@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
         // bytes (as stored in AudioData.samples) followed by the 16-byte header
         ofstream out(outPath, ios::binary);
         if (!out) {
-            cerr << "Failed to open output file" << endl;
+            cerr << "Failed to open output file" << '\n';
             return 3;
         }
 
@@ -38,16 +38,16 @@ int main(int argc, char** argv) {
 
         // 16-byte big-endian header: sampleRate (u32), bitDepth (u16), numChannels (u16), numFrames (u64)
         auto write_be = [&](uint64_t val, size_t bytes) {
-            for (int i = int(bytes) - 1; i >= 0; --i) {
-                unsigned char c = static_cast<unsigned char>((val >> (8 * i)) & 0xFF);
+            for (int i = static_cast<int>(bytes) - 1; i >= 0; --i) {
+                auto c = static_cast<unsigned char>((val >> (8 * i)) & 0xFF);
                 out.put(static_cast<char>(c));
             }
         };
 
-        uint32_t sr     = static_cast<uint32_t>(audioData.sample_rate);
-        uint16_t bd     = static_cast<uint16_t>(audioData.bit_rate);
-        uint16_t ch     = static_cast<uint16_t>(audioData.num_channels);
-        uint64_t frames = static_cast<uint64_t>(audioData.num_frames);
+        auto sr     = audioData.sample_rate;
+        auto bd     = audioData.bit_rate;
+        auto ch     = audioData.num_channels;
+        auto frames = static_cast<uint64_t>(audioData.num_frames);
 
         write_be(sr, 4);
         write_be(bd, 2);
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
         out.close();
         return 0;
     } catch (const std::exception& ex) {
-        cerr << "Exception: " << ex.what() << endl;
+        cerr << "Exception: " << ex.what() << '\n';
         return 1;
     }
 }

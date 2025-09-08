@@ -4,9 +4,6 @@ project(SpeakerOfBabel LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(ENABLE_FFTW "Link against FFTW3 library if available" ON)
-option(ENABLE_GMP "Link against GMP library if available" ON)
-
 # Put project sources under cpp/
 set(CPP_ROOT "${CMAKE_SOURCE_DIR}/cpp")
 include_directories(${CPP_ROOT}/include)
@@ -19,46 +16,15 @@ add_library(audiolib STATIC ${AUDIO_SOURCES})
 target_include_directories(audiolib PUBLIC ${CPP_ROOT}/include)
 
 # Find Boost.Multiprecision header (header-only)
-find_path(BOOST_MP_INCLUDE_DIR
+find_path(DBOOST_MP_INCLUDE_DIR
     NAMES boost/multiprecision/cpp_int.hpp
-    PATHS
-    /mingw64/include
-    /usr/include
-    /usr/local/include
-    C:/msys64/mingw64/include
-    C:/msys64/usr/include
-    C:/vcpkg/installed/x64-windows/include
-    C:/vcpkg
-    C:/Program Files/boost/include
-    C:/Program Files (x86) /boost/include
+    PATHS C:/vcpkg/installed/x64-mingw-dynamic/include
 )
-if(BOOST_MP_INCLUDE_DIR)
-    message(STATUS "Found Boost.Multiprecision headers: ${BOOST_MP_INCLUDE_DIR}")
-    target_include_directories(audiolib PUBLIC ${BOOST_MP_INCLUDE_DIR})
+if(DBOOST_MP_INCLUDE_DIR)
+    message(STATUS "Found Boost.Multiprecision headers: ${DBOOST_MP_INCLUDE_DIR}")
+    target_include_directories(audiolib PUBLIC ${DBOOST_MP_INCLUDE_DIR})
 else()
     message(WARNING "Boost.Multiprecision header not found. If Boost is installed on another drive (e.g. C:/msys64/mingw64/include), pass -DBOOST_MP_INCLUDE_DIR=path/to/boost/include to cmake or install the mingw-w64 boost package.")
-endif()
-
-# Find FFTW3 (simple find by library name)
-if(ENABLE_FFTW)
-    find_library(FFTW3_LIB NAMES fftw3 PATHS /mingw64/lib /usr/lib /usr/local/lib NO_DEFAULT_PATH)
-    if(FFTW3_LIB)
-        message(STATUS "Found FFTW3: ${FFTW3_LIB}")
-        target_link_libraries(audiolib PUBLIC ${FFTW3_LIB})
-    else()
-        message(STATUS "FFTW3 not found; continuing without it")
-    endif()
-endif()
-
-# Find GMP (optional)
-if(ENABLE_GMP)
-    find_library(GMP_LIB NAMES gmp mpir PATHS /mingw64/lib /usr/lib /usr/local/lib NO_DEFAULT_PATH)
-    if(GMP_LIB)
-        message(STATUS "Found GMP: ${GMP_LIB}")
-        target_link_libraries(audiolib PUBLIC ${GMP_LIB})
-    else()
-        message(STATUS "GMP not found; continuing without it")
-    endif()
 endif()
 
 # Example executable

@@ -60,19 +60,19 @@ static void write_u16_le(std::ostream& out, uint16_t value) {
 }
 
 template <typename T>
-static T read_le(const char* ptr) {
+static auto read_le(const char* ptr) -> T {
     // use a 64-bit accumulator to avoid needing type_traits; safe for up to 64-bit reads
     uint64_t acc = 0;
     for (size_t index = 0; index < sizeof(T); ++index) {
-        acc |= (uint64_t(static_cast<uint8_t>(ptr[index])) << (index * BITS_PER_BYTE));
+        acc |= (static_cast<uint64_t>(static_cast<uint8_t>(ptr[index])) << (index * BITS_PER_BYTE));
     }
     return static_cast<T>(acc);
 }
 
-static uint16_t read_u16_le(const char* ptr) {
+static auto read_u16_le(const char* ptr) -> uint16_t {
     return read_le<uint16_t>(ptr);
 }
-static uint32_t read_u32_le(const char* ptr) {
+static auto read_u32_le(const char* ptr) -> uint32_t {
     return read_le<uint32_t>(ptr);
 }
 
@@ -80,20 +80,20 @@ static uint32_t read_u32_le(const char* ptr) {
 // 2) Operators
 // ---------------------------------------------------------------------------
 
-AudioIndex& AudioIndex::operator=(const AudioIndex& other) {
+auto AudioIndex::operator=(const AudioIndex& other) -> AudioIndex& {
     if (this != &other) {
         audioData = other.audioData;
     }
     return *this;
 }
 
-bool AudioIndex::operator==(const AudioIndex& other) const {
+auto AudioIndex::operator==(const AudioIndex& other) const -> bool {
     return audioData.audio_format == other.audioData.audio_format && audioData.num_channels == other.audioData.num_channels &&
            audioData.sample_rate == other.audioData.sample_rate && audioData.bit_rate == other.audioData.bit_rate &&
            audioData.num_frames == other.audioData.num_frames && audioData.samples == other.audioData.samples;
 }
 
-bool AudioIndex::operator!=(const AudioIndex& other) const {
+auto AudioIndex::operator!=(const AudioIndex& other) const -> bool {
     return !(*this == other);
 }
 
@@ -101,7 +101,7 @@ bool AudioIndex::operator!=(const AudioIndex& other) const {
 // 3) Factory functions
 // ---------------------------------------------------------------------------
 
-AudioIndex AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, int sampleRate, int bitDepth) {
+auto AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, int sampleRate, int bitDepth) -> AudioIndex {
     AudioIndex index;
     index.audioData = AudioIndex::extractAudioDataFromSamples(samples, sampleRate, bitDepth);
     // build index integer and derive metadata
@@ -114,7 +114,7 @@ AudioIndex AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, int
     return index;
 }
 
-AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::string& path) {
+auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> AudioIndex::AudioData {
     /**
      * EXPLANATION FOR EXTRACTION ALGORITHM
      * This function extracts audio data from a WAV file by reading its headers
@@ -148,18 +148,18 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
     }
 
     // Read RIFF header, throw error if not found
-    std::array<char, WAV_ID_LEN> riff;
+    std::array<char, WAV_ID_LEN> riff{};
     fileInput.read(riff.data(), WAV_ID_LEN);
     if (std::strncmp(riff.data(), "RIFF", WAV_ID_LEN) != 0) {
         throw std::runtime_error("Not a RIFF file");
     }
 
     // Read file size
-    std::array<char, WAV_ID_LEN> tmp4;
+    std::array<char, WAV_ID_LEN> tmp4{};
     fileInput.read(tmp4.data(), WAV_ID_LEN);
 
     // Read "WAVE" header, throw error if not found
-    std::array<char, WAV_ID_LEN> wave;
+    std::array<char, WAV_ID_LEN> wave{};
     fileInput.read(wave.data(), WAV_ID_LEN);
     if (std::strncmp(wave.data(), "WAVE", WAV_ID_LEN) != 0) {
         throw std::runtime_error("Not a WAVE file");
@@ -175,12 +175,12 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
          * which is why the size is read then converted, rather than read directly into a uint32_t.
          */
         // Read chunk ID
-        std::array<char, WAV_ID_LEN> id;
+        std::array<char, WAV_ID_LEN> id{};
         if (!fileInput.read(id.data(), WAV_ID_LEN)) {
             break;
         }
 
-        std::array<char, WAV_ID_LEN> sizeBuf;
+        std::array<char, WAV_ID_LEN> sizeBuf{};
         if (!fileInput.read(sizeBuf.data(), WAV_ID_LEN)) {
             break;
         }
@@ -262,7 +262,7 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromAudioFile(const std::strin
     return audioData;
 }
 
-AudioIndex::AudioData AudioIndex::extractAudioDataFromSamples(const std::vector<int32_t>& samples, int sampleRate, int bitDepth) {
+auto AudioIndex::extractAudioDataFromSamples(const std::vector<int32_t>& samples, int sampleRate, int bitDepth) -> AudioIndex::AudioData {
     AudioData audioData{};
     audioData.sample_rate  = static_cast<uint32_t>(sampleRate);
     audioData.bit_rate     = static_cast<uint16_t>(bitDepth);
@@ -292,7 +292,7 @@ AudioIndex::AudioData AudioIndex::extractAudioDataFromSamples(const std::vector<
 // Debug storage for import/export statistics
 static AudioIndex::DebugInfo lastDebug;
 
-AudioIndex::DebugInfo AudioIndex::getLastDebugInfo() {
+auto AudioIndex::getLastDebugInfo() -> AudioIndex::DebugInfo {
     return lastDebug;
 }
 
@@ -303,11 +303,11 @@ void AudioIndex::clearLastDebugInfo() {
 /**
  * We currently only support Bit Rates/Bit Depths of 8, 16, and 32
  */
-bool isBitDepthSupported(uint16_t bitDepth) {
+auto isBitDepthSupported(uint16_t bitDepth) -> bool {
     return PCM_BITS_PER_SAMPLE.end() != std::find(PCM_BITS_PER_SAMPLE.begin(), PCM_BITS_PER_SAMPLE.end(), bitDepth);
 }
 
-boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) {
+auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boost::multiprecision::cpp_int {
     if (!isBitDepthSupported(audioData.bit_rate)) {
         throw std::runtime_error("Unsupported bit depth");
     }
@@ -380,7 +380,7 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
     cpp_int header_int = 0;
     for (uint8_t headerByte : header_buf) {
         header_int <<= 8;
-        header_int |= cpp_int(uint32_t(headerByte));
+        header_int |= cpp_int(static_cast<uint32_t>(headerByte));
     }
 
     // Combine: shift pcm_int left by header_bits and OR header_int
@@ -389,7 +389,7 @@ boost::multiprecision::cpp_int AudioIndex::audioDataToIndex(const AudioIndex::Au
     return idx;
 }
 
-AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) {
+auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -> AudioIndex::AudioData {
     const size_t HEADER_BITS = HEADER_BYTES_CONST * BITS_PER_BYTE;
 
     // Extract header_int from the last HEADER_BITS of the index
@@ -407,10 +407,10 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
     }
 
     // Parse fields from header_buf (big-endian)
-    uint32_t sample_rate =
-        (uint32_t(header_buf[0]) << 24) | (uint32_t(header_buf[1]) << 16) | (uint32_t(header_buf[2]) << 8) | uint32_t(header_buf[3]);
-    uint16_t bit_depth    = static_cast<uint16_t>((uint16_t(header_buf[4]) << 8) | uint16_t(header_buf[5]));
-    uint16_t num_channels = static_cast<uint16_t>((uint16_t(header_buf[6]) << 8) | uint16_t(header_buf[7]));
+    uint32_t sample_rate = (static_cast<uint32_t>(header_buf[0]) << 24) | (static_cast<uint32_t>(header_buf[1]) << 16) |
+                           (static_cast<uint32_t>(header_buf[2]) << 8) | static_cast<uint32_t>(header_buf[3]);
+    auto     bit_depth    = static_cast<uint16_t>((static_cast<uint16_t>(header_buf[4]) << 8) | static_cast<uint16_t>(header_buf[5]));
+    auto     num_channels = static_cast<uint16_t>((static_cast<uint16_t>(header_buf[6]) << 8) | static_cast<uint16_t>(header_buf[7]));
     uint64_t num_frames   = 0;
     for (int i = 0; i < 8; ++i) {
         num_frames = (num_frames << BITS_PER_BYTE) | header_buf[8 + i];
@@ -467,13 +467,13 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
             size_t   base = sampleIndex * bytes_per_sample;
             uint64_t word = 0;
             for (size_t byteIndex = 0; byteIndex < bytes_per_sample; ++byteIndex) {
-                word = (word << BITS_PER_BYTE) | uint64_t(pcm_be_bytes[base + byteIndex]);
+                word = (word << BITS_PER_BYTE) | static_cast<uint64_t>(pcm_be_bytes[base + byteIndex]);
             }
             // Handle signed values depending on bit depth
-            uint64_t signbit = uint64_t(1) << (bit_depth - 1);
+            uint64_t signbit = static_cast<uint64_t>(1) << (bit_depth - 1);
             int64_t  sval    = 0;
-            if (word & signbit) {
-                sval = static_cast<int64_t>(word - (uint64_t(1) << bit_depth));
+            if ((word & signbit) != 0u) {
+                sval = static_cast<int64_t>(word - (static_cast<uint64_t>(1) << bit_depth));
             } else {
                 sval = static_cast<int64_t>(word);
             }
@@ -488,9 +488,9 @@ AudioIndex::AudioData AudioIndex::indexToAudioData(const boost::multiprecision::
     // pack bytes
     AudioData audioData{};
     audioData.audio_format = 1;
-    audioData.num_channels = static_cast<uint16_t>(num_channels);
+    audioData.num_channels = num_channels;
     audioData.sample_rate  = sample_rate;
-    audioData.bit_rate     = static_cast<uint16_t>(bit_depth);
+    audioData.bit_rate     = bit_depth;
     // reuse bytes_per_sample computed above
     audioData.samples.resize(total_samples * bytes_per_sample);
 
@@ -518,7 +518,7 @@ void AudioIndex::exportAudioDataToWav(const AudioData& audioData, const std::str
 
     // fmt chunk
     out.write("fmt ", 4);
-    uint32_t fmt_size = static_cast<uint32_t>(FMT_CHUNK_MIN_SIZE);
+    auto fmt_size = static_cast<uint32_t>(FMT_CHUNK_MIN_SIZE);
     write_u32_le(out, fmt_size);
 
     uint16_t audio_format = audioData.audio_format;
@@ -529,13 +529,13 @@ void AudioIndex::exportAudioDataToWav(const AudioData& audioData, const std::str
     uint32_t byte_rate = audioData.sample_rate * audioData.num_channels * (audioData.bit_rate / BITS_PER_BYTE);
     write_u32_le(out, byte_rate);
 
-    uint16_t block_align = static_cast<uint16_t>(audioData.num_channels * (audioData.bit_rate / BITS_PER_BYTE));
+    auto block_align = static_cast<uint16_t>(audioData.num_channels * (audioData.bit_rate / BITS_PER_BYTE));
     write_u16_le(out, block_align);
     write_u16_le(out, audioData.bit_rate);
 
     // data chunk
     out.write("data", 4);
-    uint32_t data_size = static_cast<uint32_t>(audioData.samples.size());
+    auto data_size = static_cast<uint32_t>(audioData.samples.size());
     write_u32_le(out, data_size);
     out.write(reinterpret_cast<const char*>(audioData.samples.data()), audioData.samples.size());
 }
@@ -577,8 +577,9 @@ void AudioIndex::writeIndexToFile(const boost::multiprecision::cpp_int& index, c
 
     // write base64 textual representation as <dir>/<name>.b64.txt
     std::ofstream out((dir / (name + ".txt")).string());
-    if (!out)
+    if (!out) {
         return;
+    }
 
     static const char b64[]    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     uint32_t          acc      = 0;
@@ -588,12 +589,12 @@ void AudioIndex::writeIndexToFile(const boost::multiprecision::cpp_int& index, c
         acc_bits += static_cast<int>(BITS_PER_BYTE);
         while (acc_bits >= BASE64_BITS) {
             acc_bits -= BASE64_BITS;
-            uint8_t idx = static_cast<uint8_t>((acc >> acc_bits) & BASE64_MASK_INT);
+            auto idx = static_cast<uint8_t>((acc >> acc_bits) & BASE64_MASK_INT);
             out.put(b64[idx]);
         }
     }
     if (acc_bits > 0) {
-        uint8_t idx = static_cast<uint8_t>((acc << (BASE64_BITS - acc_bits)) & BASE64_MASK_INT);
+        auto idx = static_cast<uint8_t>((acc << (BASE64_BITS - acc_bits)) & BASE64_MASK_INT);
         out.put(b64[idx]);
     }
     out.put('\n');
@@ -604,9 +605,9 @@ void AudioIndex::writeIndexToFile(const boost::multiprecision::cpp_int& index, c
 // 10) Metadata derivation
 // ---------------------------------------------------------------------------
 
-//TODO: Find a better way to do this?
+// TODO(tomer): Find a better way to do this?
 
-AudioIndex::Metadata AudioIndex::indexToMetadata(const boost::multiprecision::cpp_int& index) {
+auto AudioIndex::indexToMetadata(const boost::multiprecision::cpp_int& index) -> AudioIndex::Metadata {
     std::vector<uint8_t> bytes;
     boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8, true);
 
@@ -638,8 +639,9 @@ AudioIndex::Metadata AudioIndex::indexToMetadata(const boost::multiprecision::cp
     std::string svg = "<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>";
     svg += "<rect width='100%' height='100%' fill='#";
     unsigned int color = 0;
-    for (size_t i = 0; i < 3; ++i)
+    for (size_t i = 0; i < 3; ++i) {
         color = (color << 8) | (i < bytes.size() ? bytes[i] : 0);
+    }
     const char* hex = "0123456789abcdef";
     for (int i = 5; i >= 0; --i) {
         unsigned int nib = (color >> (i * 4)) & 0xF;

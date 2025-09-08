@@ -102,7 +102,7 @@ auto main() -> int {
 
         // Assume index input -> WAV
         if (output.empty()) {
-            size_t pos = input.find_last_of(".");
+            size_t pos = input.find_last_of('.');
             output     = (pos == std::string::npos) ? (input + ".wav") : (input.substr(0, pos) + ".wav");
         }
 
@@ -130,8 +130,9 @@ auto main() -> int {
         {
             std::istringstream ss(contents);
             ss >> idx;
-            if (ss.fail())
+            if (ss.fail()) {
                 throw std::runtime_error("Failed to parse index from file: " + input);
+            }
         }
 
         std::cerr << "Reconstructing WAV from index...\n";

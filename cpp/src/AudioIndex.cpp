@@ -76,6 +76,13 @@ static auto read_u32_le(const char* ptr) -> uint32_t {
     return read_le<uint32_t>(ptr);
 }
 
+/**
+ * We currently only support Bit Rates/Bit Depths of 8, 16, and 32
+ */
+auto isBitDepthSupported(uint16_t bitDepth) -> bool {
+    return PCM_BITS_PER_SAMPLE.end() != std::find(PCM_BITS_PER_SAMPLE.begin(), PCM_BITS_PER_SAMPLE.end(), bitDepth);
+}
+
 // ---------------------------------------------------------------------------
 // 2) Operators
 // ---------------------------------------------------------------------------
@@ -144,14 +151,17 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
     // Open the WAV file for reading
     std::ifstream fileInput(path, std::ios::binary);
     if (!fileInput) {
-        throw std::runtime_error("Failed to open WAV file: " + path);
+        throw std::runtime_error(std::string("Failed to open WAV file: ") + path);
     }
 
     // Read RIFF header, throw error if not found
     std::array<char, WAV_ID_LEN> riff{};
     fileInput.read(riff.data(), WAV_ID_LEN);
     if (std::strncmp(riff.data(), "RIFF", WAV_ID_LEN) != 0) {
-        throw std::runtime_error("Not a RIFF file");
+        std::string        found(riff.data(), WAV_ID_LEN);
+        std::ostringstream ss;
+        ss << "Not a RIFF file: header='" << found << "'";
+        throw std::runtime_error(ss.str());
     }
 
     // Read file size
@@ -162,7 +172,10 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
     std::array<char, WAV_ID_LEN> wave{};
     fileInput.read(wave.data(), WAV_ID_LEN);
     if (std::strncmp(wave.data(), "WAVE", WAV_ID_LEN) != 0) {
-        throw std::runtime_error("Not a WAVE file");
+        std::string        found(wave.data(), WAV_ID_LEN);
+        std::ostringstream ss;
+        ss << "Not a WAVE file: header='" << found << "'";
+        throw std::runtime_error(ss.str());
     }
 
     AudioData audioData{};
@@ -217,6 +230,14 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
             audioData.num_channels = read_u16_le(buf.data() + 2);
             audioData.sample_rate  = read_u32_le(buf.data() + 4);
             audioData.bit_rate     = read_u16_le(buf.data() + 14);
+
+            // Validate bit depth read from fmt chunk to avoid later division by zero
+            if (!isBitDepthSupported(audioData.bit_rate)) {
+                std::ostringstream ss;
+                ss << "Unsupported bits per sample in WAV fmt chunk: bitsPerSample=" << audioData.bit_rate << " sample_rate=" << audioData.sample_rate
+                   << " num_channels=" << audioData.num_channels;
+                throw std::runtime_error(ss.str());
+            }
         }
 
         /**
@@ -233,7 +254,9 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
             // (declared size > actual bytes available). Treat this as a fatal error.
             std::streamsize bytesRead = fileInput.gcount();
             if (static_cast<uint32_t>(bytesRead) != chunkSize) {
-                throw std::runtime_error("Declared data chunk larger than actual bytes available");
+                std::ostringstream ss;
+                ss << "Declared data chunk larger than actual bytes available: declared=" << chunkSize << " read=" << bytesRead << " path=" << path;
+                throw std::runtime_error(ss.str());
             }
         }
 
@@ -252,11 +275,24 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
 
     // Validate that we found a data chunk and populated samples
     if (audioData.samples.empty()) {
-        throw std::runtime_error("No data chunk found in WAV");
+        std::ostringstream ss;
+        ss << "No data chunk found in WAV: path=" << path;
+        throw std::runtime_error(ss.str());
     }
 
     // Compute number of frames
     // Number of Frames = Total Samples / ((Bit Rate / 8) * Number of Channels)
+    // Defensive checks: ensure bit_rate and num_channels are reasonable to avoid division by zero
+    if (audioData.bit_rate == 0 || audioData.num_channels == 0) {
+        std::ostringstream ss;
+        ss << "Invalid WAV header fields: bit_rate=" << audioData.bit_rate << " num_channels=" << audioData.num_channels << " path=" << path;
+        throw std::runtime_error(ss.str());
+    }
+    if (!isBitDepthSupported(audioData.bit_rate)) {
+        std::ostringstream ss;
+        ss << "Unsupported bits per sample in WAV: " << audioData.bit_rate << " path=" << path;
+        throw std::runtime_error(ss.str());
+    }
     size_t bytes_per_sample = audioData.bit_rate / BITS_PER_BYTE;
     audioData.num_frames    = audioData.samples.size() / (bytes_per_sample * audioData.num_channels);
     return audioData;
@@ -300,16 +336,12 @@ void AudioIndex::clearLastDebugInfo() {
     lastDebug = DebugInfo();
 }
 
-/**
- * We currently only support Bit Rates/Bit Depths of 8, 16, and 32
- */
-auto isBitDepthSupported(uint16_t bitDepth) -> bool {
-    return PCM_BITS_PER_SAMPLE.end() != std::find(PCM_BITS_PER_SAMPLE.begin(), PCM_BITS_PER_SAMPLE.end(), bitDepth);
-}
-
 auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boost::multiprecision::cpp_int {
     if (!isBitDepthSupported(audioData.bit_rate)) {
-        throw std::runtime_error("Unsupported bit depth");
+        std::ostringstream ss;
+        ss << "Unsupported bit depth in audioDataToIndex: " << audioData.bit_rate << " sample_rate=" << audioData.sample_rate
+           << " num_channels=" << audioData.num_channels;
+        throw std::runtime_error(ss.str());
     }
 
     /**
@@ -417,7 +449,10 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
     }
 
     if (!isBitDepthSupported(bit_depth)) {
-        throw std::runtime_error("Unsupported bit depth in index");
+        std::ostringstream ss;
+        ss << "Unsupported bit depth in indexToAudioData: " << bit_depth << " sample_rate=" << sample_rate << " num_channels=" << num_channels
+           << " num_frames=" << num_frames;
+        throw std::runtime_error(ss.str());
     }
 
     // Compute number of samples
@@ -472,7 +507,7 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
             // Handle signed values depending on bit depth
             uint64_t signbit = static_cast<uint64_t>(1) << (bit_depth - 1);
             int64_t  sval    = 0;
-            if ((word & signbit) != 0u) {
+            if ((word & signbit) != 0U) {
                 sval = static_cast<int64_t>(word - (static_cast<uint64_t>(1) << bit_depth));
             } else {
                 sval = static_cast<int64_t>(word);

@@ -1,188 +1,303 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Audibel — Random & Search</title>
+    <link rel="stylesheet" href="./css/site.css" />
+    <style>
+      .top-controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
 
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Audibel — Random & Search</title>
-  <link rel="stylesheet" href="./css/site.css" />
-  <style>
-    .top-controls {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap
-    }
+      .top-controls .group {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+    </style>
+  </head>
 
-    .top-controls .group {
-      display: flex;
-      gap: 8px;
-      align-items: center
-    }
-  </style>
-</head>
+  <body class="home">
+    <div class="wrap">
+      <main class="card">
+        <h1>Audibel — Random & Search</h1>
+        <p class="lead">
+          Generate a random index or upload a WAV to extract its index and
+          listen to the reconstruction.
+        </p>
 
-<body class="home">
-  <div class="wrap">
-    <main class="card">
-      <h1>Audibel — Random & Search</h1>
-      <p class="lead">Generate a random index or upload a WAV to extract its index and listen to the reconstruction.</p>
-
-      <div class="top-controls" style="margin-bottom:16px">
-        <div class="group">
-          <button class="btn" id="tabRandom">Random</button>
-          <button class="btn" id="tabFile">Upload .wav</button>
+        <div class="top-controls" style="margin-bottom: 16px">
+          <div class="group">
+            <button class="btn" id="tabRandom">Random</button>
+            <button class="btn" id="tabFile">Upload .wav</button>
+          </div>
         </div>
-      </div>
 
-      <div id="panelRandom" style="margin-bottom:12px">
-        <label for="sizeSelect">Index size:</label>
-        <select id="sizeSelect">
-          <option value="65536">64 KB</option>
-          <option value="262144" selected>256 KB</option>
-          <option value="524288">512 KB</option>
-          <option value="1048576">1 MB</option>
-          <option value="3145728">3 MB</option>
-          <option value="5242880">5 MB</option>
-          <option value="62914560">60 MB</option>
-        </select>
-        <button class="btn" id="regenBtn">Generate Random Index</button>
-        <p style="margin-top:8px"><small>Server max index size is 60 MB.</small></p>
-      </div>
-
-      <div id="panelFile" style="display:none; margin-bottom:12px">
-        <label for="fileInput">Select a .wav file to upload:</label>
-        <input id="fileInput" type="file" accept="audio/wav,audio/x-wav,.wav" style="display:block;margin-top:6px" />
-        <div style="margin-top:8px">
-          <button class="btn" id="doFileSearch">Upload & Extract</button>
+        <div id="panelRandom" style="margin-bottom: 12px">
+          <label for="sizeSelect">Index size:</label>
+          <select id="sizeSelect">
+            <option value="65536">64 KB</option>
+            <option value="262144" selected>256 KB</option>
+            <option value="524288">512 KB</option>
+            <option value="1048576">1 MB</option>
+            <option value="3145728">3 MB</option>
+            <option value="5242880">5 MB</option>
+            <option value="62914560">60 MB</option>
+          </select>
+          <button class="btn" id="regenBtn">Generate Random Index</button>
+          <p style="margin-top: 8px">
+            <small>Server max index size is 60 MB.</small>
+          </p>
         </div>
-        <p style="margin-top:8px"><small>Uploaded files must be under server's size limit.</small></p>
-      </div>
 
-      <!-- shared result area -->
-      <div id="statusLine" style="margin-bottom:8px; display:flex; align-items:center; gap:8px"><span
-          id="statusMsg">Ready</span><span id="statusSpinner" style="display:none" class="spinner"></span></div>
-      <div id="resultContainer"></div>
+        <div id="panelFile" style="display: none; margin-bottom: 12px">
+          <label for="fileInput">Select a .wav file to upload:</label>
+          <input
+            id="fileInput"
+            type="file"
+            accept="audio/wav,audio/x-wav,.wav"
+            style="display: block; margin-top: 6px"
+          />
+          <div style="margin-top: 8px">
+            <button class="btn" id="doFileSearch">Upload & Extract</button>
+          </div>
+          <p style="margin-top: 8px">
+            <small>Uploaded files must be under server's size limit.</small>
+          </p>
+        </div>
 
-      <script type="module">
-        import { loadFragment } from './js/loadFragment.js';
+        <!-- shared result area -->
+        <div
+          id="statusLine"
+          style="
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          "
+        >
+          <span id="statusMsg">Ready</span
+          ><span
+            id="statusSpinner"
+            style="display: none"
+            class="spinner"
+          ></span>
+        </div>
+        <div id="resultContainer"></div>
 
-        const tabRandom = document.getElementById('tabRandom');
-        const tabFile = document.getElementById('tabFile');
-        const panelRandom = document.getElementById('panelRandom');
-        const panelFile = document.getElementById('panelFile');
-        const regenBtn = document.getElementById('regenBtn');
-        const sizeSelect = document.getElementById('sizeSelect');
-        const fileInput = document.getElementById('fileInput');
-        const doFileSearch = document.getElementById('doFileSearch');
+        <script type="module">
+          import { loadFragment } from "./js/loadFragment.js";
 
-        function setActiveTab(tab) {
-          tabRandom.classList.remove('tab-active');
-          tabFile.classList.remove('tab-active');
-          if (tab === 'random') tabRandom.classList.add('tab-active');
-          if (tab === 'file') tabFile.classList.add('tab-active');
-        }
-        function showRandom() { panelRandom.style.display = ''; panelFile.style.display = 'none'; setActiveTab('random'); }
-        function showFile() { panelRandom.style.display = 'none'; panelFile.style.display = ''; setActiveTab('file'); }
-        tabRandom.addEventListener('click', showRandom);
-        tabFile.addEventListener('click', showFile);
+          const tabRandom = document.getElementById("tabRandom");
+          const tabFile = document.getElementById("tabFile");
+          const panelRandom = document.getElementById("panelRandom");
+          const panelFile = document.getElementById("panelFile");
+          const regenBtn = document.getElementById("regenBtn");
+          const sizeSelect = document.getElementById("sizeSelect");
+          const fileInput = document.getElementById("fileInput");
+          const doFileSearch = document.getElementById("doFileSearch");
 
-        let resultFrag = null;
-        async function ensureResultFrag() { if (!resultFrag) resultFrag = await loadFragment('#resultContainer', './components/result.html'); return resultFrag; }
-
-        function toBase64(buffer) { const bytes = new Uint8Array(buffer); let binary = ''; const chunk = 0x8000; for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk)); return btoa(binary); }
-
-        async function handleJsonResponse(j, originalIndexB64) {
-          const frag = await ensureResultFrag();
-          const indexDisplay = frag.get('#indexDisplay');
-          const resultEl = frag.get('#result');
-          if (indexDisplay) indexDisplay.textContent = originalIndexB64 || j.indexBase64 || '';
-          if (j.metadata) {
-            const g = frag.get('#metaGenre'); const a = frag.get('#metaArtist'); const al = frag.get('#metaAlbum'); const t = frag.get('#metaTrack');
-            if (g) g.textContent = j.metadata.genre || '';
-            if (a) a.textContent = j.metadata.artist || '';
-            if (al) al.textContent = j.metadata.album || '';
-            if (t) t.textContent = j.metadata.track || '';
-            const cover = frag.get('#coverImg'); const metadataEl = frag.get('#metadata');
-            if (cover && j.metadata.cover) { cover.src = j.metadata.cover; if (metadataEl) metadataEl.style.display = ''; } else if (cover && metadataEl) { cover.src = ''; metadataEl.style.display = 'none'; }
+          function setActiveTab(tab) {
+            tabRandom.classList.remove("tab-active");
+            tabFile.classList.remove("tab-active");
+            if (tab === "random") tabRandom.classList.add("tab-active");
+            if (tab === "file") tabFile.classList.add("tab-active");
           }
-          if (j.wavBase64) {
-            const bytes = atob(j.wavBase64); const ab = new Uint8Array(bytes.length); for (let i = 0; i < bytes.length; ++i) ab[i] = bytes.charCodeAt(i);
-            const blob = new Blob([ab], { type: 'audio/wav' }); const url = URL.createObjectURL(blob);
-            const audioPlayer = frag.get('#audioPlayer'); const downloadLink = frag.get('#downloadLink');
-            if (audioPlayer) audioPlayer.src = url; if (downloadLink) downloadLink.href = url;
-            if (window.__SOTB_PLAYER && typeof window.__SOTB_PLAYER.setTrack === 'function') window.__SOTB_PLAYER.setTrack({ wavUrl: url, index: originalIndexB64 || j.indexBase64, metadata: j.metadata });
+          function showRandom() {
+            panelRandom.style.display = "";
+            panelFile.style.display = "none";
+            setActiveTab("random");
           }
-          if (resultEl) resultEl.style.display = '';
-          setLoading(false);
-        }
-
-        // Random generation flow
-        function setLoading(on) {
-          const spinner = document.getElementById('statusSpinner');
-          const msg = document.getElementById('statusMsg');
-          const controls = [regenBtn, doFileSearch];
-          const resultContainer = document.getElementById('resultContainer');
-          if (on) {
-            if (spinner) spinner.style.display = 'inline-block';
-            if (msg) msg.textContent = 'Loading...';
-            controls.forEach(c => c.classList.add('disabled'));
-            if (resultContainer) resultContainer.classList.add('skeleton');
-          } else {
-            if (spinner) spinner.style.display = 'none';
-            if (msg) msg.textContent = 'Ready';
-            controls.forEach(c => c.classList.remove('disabled'));
-            if (resultContainer) resultContainer.classList.remove('skeleton');
+          function showFile() {
+            panelRandom.style.display = "none";
+            panelFile.style.display = "";
+            setActiveTab("file");
           }
+          tabRandom.addEventListener("click", showRandom);
+          tabFile.addEventListener("click", showFile);
+
+          let resultFrag = null;
+          async function ensureResultFrag() {
+            if (!resultFrag)
+              resultFrag = await loadFragment(
+                "#resultContainer",
+                "./components/result.html"
+              );
+            return resultFrag;
+          }
+
+          function toBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = "";
+            const chunk = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunk)
+              binary += String.fromCharCode.apply(
+                null,
+                bytes.subarray(i, i + chunk)
+              );
+            return btoa(binary);
+          }
+
+          async function handleJsonResponse(j, originalIndexB64) {
+            const frag = await ensureResultFrag();
+            const indexDisplay = frag.get("#indexDisplay");
+            const resultEl = frag.get("#result");
+            if (indexDisplay)
+              indexDisplay.textContent =
+                originalIndexB64 || j.indexBase64 || "";
+            if (j.metadata) {
+              const g = frag.get("#metaGenre");
+              const a = frag.get("#metaArtist");
+              const al = frag.get("#metaAlbum");
+              const t = frag.get("#metaTrack");
+              if (g) g.textContent = j.metadata.genre || "";
+              if (a) a.textContent = j.metadata.artist || "";
+              if (al) al.textContent = j.metadata.album || "";
+              if (t) t.textContent = j.metadata.track || "";
+              const cover = frag.get("#coverImg");
+              const metadataEl = frag.get("#metadata");
+              if (cover && j.metadata.cover) {
+                cover.src = j.metadata.cover;
+                if (metadataEl) metadataEl.style.display = "";
+              } else if (cover && metadataEl) {
+                cover.src = "";
+                metadataEl.style.display = "none";
+              }
+            }
+            if (j.wavBase64) {
+              const bytes = atob(j.wavBase64);
+              const ab = new Uint8Array(bytes.length);
+              for (let i = 0; i < bytes.length; ++i)
+                ab[i] = bytes.charCodeAt(i);
+              const blob = new Blob([ab], { type: "audio/wav" });
+              const url = URL.createObjectURL(blob);
+              const audioPlayer = frag.get("#audioPlayer");
+              const downloadLink = frag.get("#downloadLink");
+              if (audioPlayer) audioPlayer.src = url;
+              if (downloadLink) downloadLink.href = url;
+              if (
+                window.__SOTB_PLAYER &&
+                typeof window.__SOTB_PLAYER.setTrack === "function"
+              )
+                window.__SOTB_PLAYER.setTrack({
+                  wavUrl: url,
+                  index: originalIndexB64 || j.indexBase64,
+                  metadata: j.metadata,
+                });
+            }
+            if (resultEl) resultEl.style.display = "";
+            setLoading(false);
+          }
+
+          // Random generation flow
+          function setLoading(on) {
+            const spinner = document.getElementById("statusSpinner");
+            const msg = document.getElementById("statusMsg");
+            const controls = [regenBtn, doFileSearch];
+            const resultContainer = document.getElementById("resultContainer");
+            if (on) {
+              if (spinner) spinner.style.display = "inline-block";
+              if (msg) msg.textContent = "Loading...";
+              controls.forEach((c) => c.classList.add("disabled"));
+              if (resultContainer) resultContainer.classList.add("skeleton");
+            } else {
+              if (spinner) spinner.style.display = "none";
+              if (msg) msg.textContent = "Ready";
+              controls.forEach((c) => c.classList.remove("disabled"));
+              if (resultContainer) resultContainer.classList.remove("skeleton");
+            }
+          }
+
+          regenBtn.addEventListener("click", async () => {
+            try {
+              setLoading(true);
+              const size = Math.min(
+                60 * 1024 * 1024,
+                parseInt(sizeSelect.value || "262144", 10) || 262144
+              );
+              const buf = new Uint8Array(size);
+              if (window.crypto && window.crypto.getRandomValues) {
+                const CHUNK = 65536;
+                for (let i = 0; i < size; i += CHUNK) {
+                  const end = Math.min(i + CHUNK, size);
+                  window.crypto.getRandomValues(buf.subarray(i, end));
+                }
+              } else {
+                for (let i = 0; i < size; ++i)
+                  buf[i] = Math.floor(Math.random() * 256);
+              }
+              const b64 = toBase64(buf.buffer);
+              const resp = await fetch("/reconstruct?metadata=1", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Accept: "application/json",
+                },
+                body: JSON.stringify({ format: "base64", data: b64 }),
+              });
+              if (!resp.ok) throw new Error("Server error " + resp.status);
+              const j = await resp.json();
+              await handleJsonResponse(j, b64);
+            } catch (err) {
+              console.error(err);
+              alert("Error: " + String(err));
+            } finally {
+              setLoading(false);
+            }
+          });
+
+          // File upload flow
+          doFileSearch.addEventListener("click", async () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) return alert("Please select a .wav file first");
+            const form = new FormData();
+            form.append("file", file, file.name);
+            try {
+              setLoading(true);
+              const resp = await fetch("/search_by_file", {
+                method: "POST",
+                body: form,
+              });
+              if (!resp.ok) {
+                const txt = await resp.text();
+                return alert("Server error: " + resp.status + "\n" + txt);
+              }
+              const j = await resp.json();
+              await handleJsonResponse(j, j.indexBase64);
+            } catch (err) {
+              console.error(err);
+              alert("Upload failed: " + String(err));
+            } finally {
+              setLoading(false);
+            }
+          });
+
+          // Default to Random panel
+          showRandom();
+        </script>
+
+        <footer>
+          <small
+            >Prototype — combine random generation and file-based search on one
+            page.</small
+          >
+        </footer>
+      </main>
+    </div>
+
+    <script type="module">
+      import { loadPlayer } from "./js/player.js";
+      (async () => {
+        try {
+          window.__SOTB_PLAYER = await loadPlayer("body");
+        } catch (e) {
+          console.error("Player failed to load", e);
         }
-
-        regenBtn.addEventListener('click', async () => {
-          try {
-            setLoading(true);
-            const size = Math.min(60 * 1024 * 1024, parseInt(sizeSelect.value || '262144', 10) || 262144);
-            const buf = new Uint8Array(size);
-            if (window.crypto && window.crypto.getRandomValues) {
-              const CHUNK = 65536;
-              for (let i = 0; i < size; i += CHUNK) { const end = Math.min(i + CHUNK, size); window.crypto.getRandomValues(buf.subarray(i, end)); }
-            } else { for (let i = 0; i < size; ++i) buf[i] = Math.floor(Math.random() * 256); }
-            const b64 = toBase64(buf.buffer);
-            const resp = await fetch('/reconstruct?metadata=1', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ format: 'base64', data: b64 }) });
-            if (!resp.ok) throw new Error('Server error ' + resp.status);
-            const j = await resp.json();
-            await handleJsonResponse(j, b64);
-          } catch (err) { console.error(err); alert('Error: ' + String(err)); }
-          finally { setLoading(false); }
-        });
-
-        // File upload flow
-        doFileSearch.addEventListener('click', async () => {
-          const file = fileInput.files && fileInput.files[0];
-          if (!file) return alert('Please select a .wav file first');
-          const form = new FormData(); form.append('file', file, file.name);
-          try {
-            setLoading(true);
-            const resp = await fetch('/search_by_file', { method: 'POST', body: form });
-            if (!resp.ok) { const txt = await resp.text(); return alert('Server error: ' + resp.status + '\n' + txt); }
-            const j = await resp.json();
-            await handleJsonResponse(j, j.indexBase64);
-          } catch (err) { console.error(err); alert('Upload failed: ' + String(err)); }
-          finally { setLoading(false); }
-        });
-
-        // Default to Random panel
-        showRandom();
-      </script>
-
-      <footer>
-        <small>Prototype — combine random generation and file-based search on one page.</small>
-      </footer>
-    </main>
-  </div>
-
-  <script type="module">
-    import { loadPlayer } from './js/player.js';
-    (async () => { try { window.__SOTB_PLAYER = await loadPlayer('body'); } catch (e) { console.error('Player failed to load', e); } })();
-  </script>
-</body>
-
+      })();
+    </script>
+  </body>
 </html>

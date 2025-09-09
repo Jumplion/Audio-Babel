@@ -6,7 +6,15 @@ import { fileURLToPath } from 'url';
 // Body (application/json): { format: 'base64', data: string }
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
-import { writeFileSync, unlinkSync, createReadStream, existsSync, statSync, accessSync, readFileSync } from 'fs';
+import {
+  writeFileSync,
+  unlinkSync,
+  createReadStream,
+  existsSync,
+  statSync,
+  accessSync,
+  readFileSync,
+} from 'fs';
 import { spawn } from 'child_process';
 import path from 'path';
 import zlib from 'zlib';
@@ -20,12 +28,12 @@ app.use(json({ limit: '50mb' }));
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const frontendPublic = path.resolve(path.join(__dirname, '..', '..', 'frontend', 'public'));
-  try {
-    accessSync(frontendPublic);
-    console.log('Serving static frontend from', frontendPublic);
-  } catch (e) {
-    console.log('Frontend public not found at', frontendPublic);
-  }
+try {
+  accessSync(frontendPublic);
+  console.log('Serving static frontend from', frontendPublic);
+} catch (e) {
+  console.log('Frontend public not found at', frontendPublic);
+}
 app.use(express.static(frontendPublic));
 
 // Serve index at root explicitly
@@ -61,23 +69,19 @@ app.post('/reconstruct', async (req, res) => {
   }
 
   if (!['base64', 'base64url'].includes(format.toLowerCase())) {
-    return res
-      .status(400)
-      .json({
-        error: 'This endpoint accepts only base64 or base64url formats for direct reconstruction',
-      });
+    return res.status(400).json({
+      error: 'This endpoint accepts only base64 or base64url formats for direct reconstruction',
+    });
   }
 
   let buf;
   try {
     buf = Buffer.from(normalizeBase64(data), 'base64');
   } catch (err) {
-    return res
-      .status(400)
-      .json({
-        error: 'Failed to decode base64 input',
-        message: String(err && err.message ? err.message : err),
-      });
+    return res.status(400).json({
+      error: 'Failed to decode base64 input',
+      message: String(err && err.message ? err.message : err),
+    });
   }
 
   // Basic validation: non-empty and size limit
@@ -137,22 +141,18 @@ app.post('/reconstruct', async (req, res) => {
 
     const ALLOWED_BIT_DEPTHS = new Set([8, 16, 24, 32]);
     if (!ALLOWED_BIT_DEPTHS.has(bitDepth)) {
-      return res
-        .status(422)
-        .json({
-          error: 'Unsupported bit depth in index header',
-          bitDepth,
-          allowed: Array.from(ALLOWED_BIT_DEPTHS),
-        });
+      return res.status(422).json({
+        error: 'Unsupported bit depth in index header',
+        bitDepth,
+        allowed: Array.from(ALLOWED_BIT_DEPTHS),
+      });
     }
   } catch (err) {
     console.error('Header parse error', err);
-    return res
-      .status(400)
-      .json({
-        error: 'Failed to parse header from decoded input',
-        message: String(err && err.message ? err.message : err),
-      });
+    return res.status(400).json({
+      error: 'Failed to parse header from decoded input',
+      message: String(err && err.message ? err.message : err),
+    });
   }
 
   // Helper: derive deterministic metadata from payload bytes and produce a PNG cover.
@@ -162,9 +162,9 @@ app.post('/reconstruct', async (req, res) => {
     function token(offset, len) {
       let s = '';
       for (let i = 0; i < len; ++i) {
-        const v = (offset + i < b.length) ? b[offset + i] : 0;
+        const v = offset + i < b.length ? b[offset + i] : 0;
         const r = v % 36;
-        s += (r < 10) ? String.fromCharCode(48 + (r)) : String.fromCharCode(97 + (r - 10));
+        s += r < 10 ? String.fromCharCode(48 + r) : String.fromCharCode(97 + (r - 10));
       }
       return s;
     }
@@ -175,15 +175,17 @@ app.post('/reconstruct', async (req, res) => {
 
     // Build a deterministic PNG from the payload bytes.
     function crc32(buf) {
-      const table = crc32.table || (crc32.table = (function() {
-        const t = new Uint32Array(256);
-        for (let i = 0; i < 256; ++i) {
-          let c = i;
-          for (let k = 0; k < 8; ++k) c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
-          t[i] = c >>> 0;
-        }
-        return t;
-      })());
+      const table =
+        crc32.table ||
+        (crc32.table = (function () {
+          const t = new Uint32Array(256);
+          for (let i = 0; i < 256; ++i) {
+            let c = i;
+            for (let k = 0; k < 8; ++k) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+            t[i] = c >>> 0;
+          }
+          return t;
+        })());
       let crc = 0xffffffff;
       for (let i = 0; i < buf.length; ++i) {
         crc = (crc >>> 8) ^ table[(crc ^ buf[i]) & 0xff];
@@ -227,7 +229,7 @@ app.post('/reconstruct', async (req, res) => {
         return Buffer.concat([len, typeBuf, data, crcBuf]);
       }
 
-      const sig = Buffer.from([137,80,78,71,13,10,26,10]);
+      const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
       const ihdr = Buffer.alloc(13);
       ihdr.writeUInt32BE(width, 0);
       ihdr.writeUInt32BE(height, 4);
@@ -237,7 +239,12 @@ app.post('/reconstruct', async (req, res) => {
       ihdr[11] = 0; // filter
       ihdr[12] = 0; // interlace
 
-      const png = Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', idat), chunk('IEND', Buffer.alloc(0))]);
+      const png = Buffer.concat([
+        sig,
+        chunk('IHDR', ihdr),
+        chunk('IDAT', idat),
+        chunk('IEND', Buffer.alloc(0)),
+      ]);
       return png;
     }
 
@@ -307,12 +314,10 @@ app.post('/reconstruct', async (req, res) => {
     try {
       unlinkSync(inPath);
     } catch (_) {}
-    return res
-      .status(500)
-      .json({
-        error: 'Failed to run recon CLI',
-        message: String(err && err.message ? err.message : err),
-      });
+    return res.status(500).json({
+      error: 'Failed to run recon CLI',
+      message: String(err && err.message ? err.message : err),
+    });
   });
 
   // Handle child process close
@@ -367,19 +372,21 @@ app.post('/reconstruct', async (req, res) => {
       try {
         unlinkSync(outPath);
       } catch (_) {}
-      return res
-        .status(500)
-        .json({
-          error: 'Failed to read reconstructed output',
-          message: String(err && err.message ? err.message : err),
-        });
+      return res.status(500).json({
+        error: 'Failed to read reconstructed output',
+        message: String(err && err.message ? err.message : err),
+      });
     }
 
     // If client requested metadata (query param or JSON accept), return JSON with metadata + base64 WAV
-    const wantsMetadata = req.query && (req.query.metadata === '1' || req.query.metadata === 'true' || (req.headers.accept && req.headers.accept.indexOf('application/json') !== -1));
+    const wantsMetadata =
+      req.query &&
+      (req.query.metadata === '1' ||
+        req.query.metadata === 'true' ||
+        (req.headers.accept && req.headers.accept.indexOf('application/json') !== -1));
     if (wantsMetadata) {
       try {
-  const wavBuf = readFileSync(outPath);
+        const wavBuf = readFileSync(outPath);
         const wavB64 = wavBuf.toString('base64');
         const meta = {
           genre: derivedMetadata.genre,
@@ -403,7 +410,12 @@ app.post('/reconstruct', async (req, res) => {
         try {
           unlinkSync(outPath);
         } catch (_) {}
-        return res.status(500).json({ error: 'Failed to read reconstructed output', message: String(err && err.message ? err.message : err) });
+        return res
+          .status(500)
+          .json({
+            error: 'Failed to read reconstructed output',
+            message: String(err && err.message ? err.message : err),
+          });
       }
     }
 
@@ -442,7 +454,9 @@ const upload = multer({ dest: path.join(tmpdir(), 'sotb_uploads') });
 
 app.post('/search_by_file', upload.single('file'), async (req, res) => {
   if (!req.file || !req.file.path) {
-    return res.status(400).json({ error: 'Expected multipart/form-data with a file field named "file"' });
+    return res
+      .status(400)
+      .json({ error: 'Expected multipart/form-data with a file field named "file"' });
   }
 
   const uploadedPath = req.file.path;
@@ -450,16 +464,27 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
   try {
     const st = statSync(uploadedPath);
     if (st.size === 0) {
-      try { unlinkSync(uploadedPath); } catch (_) {}
+      try {
+        unlinkSync(uploadedPath);
+      } catch (_) {}
       return res.status(400).json({ error: 'Uploaded file is empty' });
     }
     if (st.size > MAX_WAV_BYTES) {
-      try { unlinkSync(uploadedPath); } catch (_) {}
+      try {
+        unlinkSync(uploadedPath);
+      } catch (_) {}
       return res.status(413).json({ error: 'Uploaded WAV too large', maxBytes: MAX_WAV_BYTES });
     }
   } catch (err) {
-    try { unlinkSync(uploadedPath); } catch (_) {}
-    return res.status(500).json({ error: 'Failed to stat uploaded file', message: String(err && err.message ? err.message : err) });
+    try {
+      unlinkSync(uploadedPath);
+    } catch (_) {}
+    return res
+      .status(500)
+      .json({
+        error: 'Failed to stat uploaded file',
+        message: String(err && err.message ? err.message : err),
+      });
   }
 
   // Find extract_index_cli in the same candidate locations as reconstruct_cli
@@ -488,10 +513,13 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
 
   if (!cliPath) {
     // CLI not found: return helpful 501 with instructions to build the helper CLI
-    try { unlinkSync(uploadedPath); } catch (_) {}
+    try {
+      unlinkSync(uploadedPath);
+    } catch (_) {}
     return res.status(501).json({
       error: 'extract_index_cli not found on server',
-      message: 'Please build cpp/tools/extract_index_cli.cpp (uses AudioIndex) and place the binary on the server or in build/. See cpp/tools/README or project build instructions.'
+      message:
+        'Please build cpp/tools/extract_index_cli.cpp (uses AudioIndex) and place the binary on the server or in build/. See cpp/tools/README or project build instructions.',
     });
   }
 
@@ -501,31 +529,54 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
 
   const child = spawn(cliPath, [uploadedPath, outIndex], { stdio: ['ignore', 'pipe', 'pipe'] });
   let stderr = '';
-  child.stderr.on('data', (d) => { stderr += d.toString(); });
+  child.stderr.on('data', (d) => {
+    stderr += d.toString();
+  });
 
   let timedOut = false;
   const killTimer = setTimeout(() => {
     timedOut = true;
-    try { child.kill('SIGKILL'); } catch (e) {}
+    try {
+      child.kill('SIGKILL');
+    } catch (e) {}
   }, CHILD_TIMEOUT_MS);
 
   child.on('error', (err) => {
     clearTimeout(killTimer);
-    try { unlinkSync(uploadedPath); } catch (_) {}
-    try { unlinkSync(outIndex); } catch (_) {}
-    return res.status(500).json({ error: 'Failed to run extract CLI', message: String(err && err.message ? err.message : err) });
+    try {
+      unlinkSync(uploadedPath);
+    } catch (_) {}
+    try {
+      unlinkSync(outIndex);
+    } catch (_) {}
+    return res
+      .status(500)
+      .json({
+        error: 'Failed to run extract CLI',
+        message: String(err && err.message ? err.message : err),
+      });
   });
 
   child.on('close', (code, signal) => {
     clearTimeout(killTimer);
     if (timedOut) {
-      try { unlinkSync(uploadedPath); } catch (_) {}
-      try { unlinkSync(outIndex); } catch (_) {}
-      return res.status(504).json({ error: 'Index extraction timed out', timeoutMs: CHILD_TIMEOUT_MS });
+      try {
+        unlinkSync(uploadedPath);
+      } catch (_) {}
+      try {
+        unlinkSync(outIndex);
+      } catch (_) {}
+      return res
+        .status(504)
+        .json({ error: 'Index extraction timed out', timeoutMs: CHILD_TIMEOUT_MS });
     }
     if (code !== 0) {
-      try { unlinkSync(uploadedPath); } catch (_) {}
-      try { unlinkSync(outIndex); } catch (_) {}
+      try {
+        unlinkSync(uploadedPath);
+      } catch (_) {}
+      try {
+        unlinkSync(outIndex);
+      } catch (_) {}
       return res.status(500).json({ error: 'extract_index_cli failed', code, message: stderr });
     }
 
@@ -536,14 +587,14 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
       if (!idxBuf || idxBuf.length === 0) throw new Error('Index output empty');
 
       // Derive metadata deterministically from the index bytes (server's deriveMetadata expects raw payload)
-      const derived = (function(payload) {
+      const derived = (function (payload) {
         const b = payload || Buffer.alloc(0);
         function token(offset, len) {
           let s = '';
           for (let i = 0; i < len; ++i) {
-            const v = (offset + i < b.length) ? b[offset + i] : 0;
+            const v = offset + i < b.length ? b[offset + i] : 0;
             const r = v % 36;
-            s += (r < 10) ? String.fromCharCode(48 + (r)) : String.fromCharCode(97 + (r - 10));
+            s += r < 10 ? String.fromCharCode(48 + r) : String.fromCharCode(97 + (r - 10));
           }
           return s;
         }
@@ -553,7 +604,7 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
         const track = token(22, 6);
         let color = 0;
         for (let i = 0; i < 3; ++i) color = (color << 8) | (i < b.length ? b[i] : 0);
-        const hex = ((color >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
+        const hex = ((color >>> 0) & 0xffffff).toString(16).padStart(6, '0');
         const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><rect width='100%' height='100%' fill='#${hex}'/><text x='50%' y='50%' font-size='20' text-anchor='middle' fill='#fff' dominant-baseline='middle'>${track}</text></svg>`;
         const coverBase64 = Buffer.from(svg, 'utf8').toString('base64');
         return { genre, artist, album, track, coverBase64 };
@@ -562,17 +613,36 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
       // Also include the uploaded WAV back to client as base64 to allow playback
       const wavBuf = readFileSync(uploadedPath);
       const wavB64 = wavBuf.toString('base64');
-  const meta = { genre: derived.genre, artist: derived.artist, album: derived.album, track: derived.track, cover: `data:image/png;base64,${derived.coverBase64}` };
+      const meta = {
+        genre: derived.genre,
+        artist: derived.artist,
+        album: derived.album,
+        track: derived.track,
+        cover: `data:image/png;base64,${derived.coverBase64}`,
+      };
       const indexB64 = idxBuf.toString('base64');
 
-      try { unlinkSync(uploadedPath); } catch (_) {}
-      try { unlinkSync(outIndex); } catch (_) {}
+      try {
+        unlinkSync(uploadedPath);
+      } catch (_) {}
+      try {
+        unlinkSync(outIndex);
+      } catch (_) {}
 
       return res.json({ indexBase64: indexB64, metadata: meta, wavBase64: wavB64 });
     } catch (err) {
-      try { unlinkSync(uploadedPath); } catch (_) {}
-      try { unlinkSync(outIndex); } catch (_) {}
-      return res.status(500).json({ error: 'Failed to read index output', message: String(err && err.message ? err.message : err) });
+      try {
+        unlinkSync(uploadedPath);
+      } catch (_) {}
+      try {
+        unlinkSync(outIndex);
+      } catch (_) {}
+      return res
+        .status(500)
+        .json({
+          error: 'Failed to read index output',
+          message: String(err && err.message ? err.message : err),
+        });
     }
   });
 });

@@ -24,11 +24,11 @@ body.home {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(11, 18, 32, 0.95);
+    background: rgb(11 18 32 / 95%);
     color: var(--accent);
-    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    border-top: 1px solid rgb(255 255 255 / 4%);
     padding: 10px 14px;
-    box-shadow: 0 -6px 24px rgba(2, 6, 23, 0.6);
+    box-shadow: 0 -6px 24px rgb(2 6 23 / 60%);
     z-index: 9999;
   }
 
@@ -37,75 +37,75 @@ body.home {
     align-items: center;
     gap: 12px;
     max-width: 1100px;
-    margin: 0 auto
+    margin: 0 auto;
   }
 
   .sotb-controls-left {
     display: flex;
     gap: 8px;
-    align-items: center
+    align-items: center;
   }
 
   .sotb-controls-right {
     display: flex;
     gap: 12px;
     align-items: center;
-    margin-left: auto
+    margin-left: auto;
   }
 
   .sotb-btn {
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid rgb(255 255 255 / 6%);
     color: inherit;
     padding: 8px 10px;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 14px
+    font-size: 14px;
   }
 
   .sotb-btn:disabled {
     opacity: 0.5;
-    cursor: default
+    cursor: default;
   }
 
   .sotb-track {
     min-width: 220px;
     max-width: 480px;
-    overflow: hidden
+    overflow: hidden;
   }
 
   .sotb-track-title {
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis
+    text-overflow: ellipsis;
   }
 
   .sotb-track-meta {
     font-size: 12px;
-    color: var(--muted)
+    color: var(--muted);
   }
 
   .sotb-progress {
     width: 200px;
     height: 6px;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgb(255 255 255 / 3%);
     border-radius: 6px;
     overflow: hidden;
-    cursor: pointer
+    cursor: pointer;
   }
 
   .sotb-progress-bar {
     height: 100%;
     background: linear-gradient(90deg, var(--btn), #66a9ff);
-    width: 0%
+    width: 0%;
   }
 
   .sotb-time {
     font-size: 12px;
     color: var(--muted);
     min-width: 40px;
-    text-align: right
+    text-align: right;
   }
 
   /* Playlist drawer */
@@ -115,25 +115,25 @@ body.home {
     bottom: 76px;
     width: 320px;
     max-height: 60vh;
-    background: rgba(8, 12, 20, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: rgb(8 12 20 / 95%);
+    border: 1px solid rgb(255 255 255 / 4%);
     padding: 10px;
     border-radius: 10px;
-    box-shadow: 0 6px 24px rgba(2, 6, 23, 0.6);
+    box-shadow: 0 6px 24px rgb(2 6 23 / 60%);
     overflow: auto;
     display: none;
-    z-index: 10000
+    z-index: 10000;
   }
 
   .sotb-playlist-drawer[aria-hidden="false"] {
-    display: block
+    display: block;
   }
 
   .sotb-playlist-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px
+    margin-bottom: 8px;
   }
 
   .sotb-playlist {
@@ -142,7 +142,7 @@ body.home {
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px
+    gap: 8px;
   }
 
   .sotb-playlist-item {
@@ -151,11 +151,15 @@ body.home {
     align-items: center;
     padding: 8px;
     border-radius: 8px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.02))
+    background: linear-gradient(
+      180deg,
+      rgb(255 255 255 / 1%),
+      rgb(255 255 255 / 2%)
+    );
   }
 
   .sotb-playlist-item.dragging {
-    opacity: 0.5
+    opacity: 0.5;
   }
 
   .sotb-playlist-item .meta {
@@ -163,31 +167,31 @@ body.home {
     color: var(--muted);
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap
+    white-space: nowrap;
   }
 
   .sotb-playlist-item .handle {
     cursor: grab;
-    padding: 6px
+    padding: 6px;
   }
 
   .sotb-playlist-item button {
-    margin-left: auto
+    margin-left: auto;
   }
 
   .sotb-playlist-actions {
     margin-top: 8px;
     display: flex;
-    justify-content: flex-end
+    justify-content: flex-end;
   }
 
-  @media(max-width:720px) {
+  @media (width <= 720px) {
     .sotb-player-inner {
-      flex-wrap: wrap
+      flex-wrap: wrap;
     }
 
     .sotb-progress {
-      width: 120px
+      width: 120px;
     }
   }
 
@@ -195,21 +199,21 @@ body.home {
   body.light .sotb-player {
     background: linear-gradient(180deg, #fff, #f7fbff);
     color: #0b1220;
-    border-top-color: rgba(11, 18, 32, 0.04)
+    border-top-color: rgb(11 18 32 / 4%);
   }
 
   body.light .sotb-playlist-drawer {
     background: #fff;
-    border-color: rgba(11, 18, 32, 0.04);
-    box-shadow: 0 6px 24px rgba(2, 6, 23, 0.08)
+    border-color: rgb(11 18 32 / 4%);
+    box-shadow: 0 6px 24px rgb(2 6 23 / 8%);
   }
 
   body.light .sotb-playlist-item {
-    background: #f8fbff
+    background: #f8fbff;
   }
 
   body.light .sotb-btn {
-    border-color: rgba(11, 18, 32, 0.06);
+    border-color: rgb(11 18 32 / 6%);
   }
 
   background: linear-gradient(180deg, #041025 0%, #071426 100%);
@@ -230,22 +234,22 @@ body.light {
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgb(255 255 255 / 2%);
   border-radius: 12px;
   padding: 40px 32px;
   max-width: 640px;
   width: 100%;
-  box-shadow: 0 6px 24px rgba(2, 6, 23, 0.6);
+  box-shadow: 0 6px 24px rgb(2 6 23 / 60%);
 }
 
 /* Light card variant for the light pages */
 .card.light {
   background: white;
-  box-shadow: 0 6px 24px rgba(2, 6, 23, 0.08);
+  box-shadow: 0 6px 24px rgb(2 6 23 / 8%);
 }
 
 h1 {
-  margin: 0 0 24px 0;
+  margin: 0 0 24px;
   font-size: 28px;
   line-height: 1.1;
 }
@@ -259,7 +263,7 @@ h1 {
 }
 
 p.lead {
-  margin: 0 0 24px 0;
+  margin: 0 0 24px;
   color: var(--muted);
 }
 
@@ -270,20 +274,22 @@ p.lead {
 }
 
 .option {
-  background: linear-gradient(180deg,
-      rgba(255, 255, 255, 0.02),
-      rgba(255, 255, 255, 0.01));
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 2%),
+    rgb(255 255 255 / 1%)
+  );
   padding: 14px 18px;
   border-radius: 8px;
   color: #e6f7ff;
   text-decoration: none;
   font-weight: 600;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  border: 1px solid rgb(255 255 255 / 3%);
 }
 
 .option:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.6);
+  box-shadow: 0 8px 24px rgb(2 6 23 / 60%);
 }
 
 footer {
@@ -307,7 +313,7 @@ footer {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid rgba(0, 0, 0, 0.08);
+  border: 2px solid rgb(0 0 0 / 8%);
   border-top-color: var(--btn);
   animation: spin 1s linear infinite;
   display: inline-block;
@@ -326,7 +332,7 @@ footer {
   height: 16px;
   border-radius: 50%;
   box-sizing: border-box;
-  border: 2px solid rgba(255, 255, 255, 0.15);
+  border: 2px solid rgb(255 255 255 / 15%);
   border-top-color: #fff;
   animation: spin 1s linear infinite;
   display: inline-block;
@@ -345,17 +351,27 @@ footer {
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.03) 100%);
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 3%) 0%,
+    rgb(255 255 255 / 6%) 50%,
+    rgb(255 255 255 / 3%) 100%
+  );
 }
 
 .skeleton::after {
-  content: '';
+  content: "";
   position: absolute;
   left: -150px;
   top: 0;
   bottom: 0;
   width: 150px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 4%),
+    transparent
+  );
   animation: loadingShimmer 1s infinite;
 }
 
@@ -383,27 +399,32 @@ footer {
 .btn.tab-active {
   background: linear-gradient(90deg, var(--btn), #66a9ff);
   color: #fff;
-  box-shadow: 0 8px 24px rgba(11, 120, 255, 0.16);
+  box-shadow: 0 8px 24px rgb(11 120 255 / 16%);
   transform: translateY(-2px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgb(255 255 255 / 8%);
 }
 
 .btn.tab-active:focus {
-  outline: 3px solid rgba(11, 120, 255, 0.12);
+  outline: 3px solid rgb(11 120 255 / 12%);
 }
 
-*** End Patch .skeleton {
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.04) 25%, rgba(0, 0, 0, 0.02) 37%, rgba(0, 0, 0, 0.04) 63%);
+*** end patch .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgb(0 0 0 / 4%) 25%,
+    rgb(0 0 0 / 2%) 37%,
+    rgb(0 0 0 / 4%) 63%
+  );
   background-size: 400% 100%;
   animation: shimmer 1.2s linear infinite;
 }
 
 @keyframes shimmer {
   0% {
-    background-position: 200% 0
+    background-position: 200% 0;
   }
 
   100% {
-    background-position: -200% 0
+    background-position: -200% 0;
   }
 }

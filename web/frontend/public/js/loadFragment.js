@@ -3,10 +3,13 @@
 // Returns an object with a `get` helper to resolve elements inside the injected fragment.
 export async function loadFragment(containerSelector, fragmentPath) {
   const container = document.querySelector(containerSelector);
-  if (!container) throw new Error('Container not found: ' + containerSelector);
+  if (!container) throw new Error("Container not found: " + containerSelector);
 
   const resp = await fetch(fragmentPath);
-  if (!resp.ok) throw new Error('Failed to fetch fragment: ' + fragmentPath + ' (' + resp.status + ')');
+  if (!resp.ok)
+    throw new Error(
+      "Failed to fetch fragment: " + fragmentPath + " (" + resp.status + ")"
+    );
   const html = await resp.text();
   container.innerHTML = html;
 

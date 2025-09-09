@@ -97,3 +97,4 @@ dist/
 
 # End of .gitignore
 .vscode/tasks.json
+tools/clang-tidy-output.txt

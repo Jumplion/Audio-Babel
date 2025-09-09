@@ -4,7 +4,7 @@ module.exports = {
     node: true,
     es2021: true,
   },
-  extends: ["eslint:recommended", "plugin:node/recommended", "prettier"],
+  extends: ["eslint:recommended", "prettier"],
   parserOptions: {
     ecmaVersion: 2021,
     sourceType: "module",
@@ -13,6 +13,7 @@ module.exports = {
     // prefer error for obvious issues
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
     "no-console": "off",
-    "node/no-unsupported-features/es-syntax": ["error", { "ignores": ["modules"] }]
+  // plugin:node was removed from devDependencies; keep ES module support permissive
+  // If you want node-specific checks, re-add eslint-plugin-node and the extend above.
   }
 };

@@ -6,7 +6,6 @@
     },
     "extends": [
         "eslint:recommended",
-        "plugin:node/recommended",
         "eslint:recommended"
     ],
     "parserOptions": {
@@ -25,20 +24,24 @@
         "semi": [
             "error",
             "always"
-        ]
+        ],
+        "no-empty": "off",
+        "node/no-unsupported-features/es-syntax": "off"
     },
     "overrides": [
         {
             "files": [
                 "../frontend/public/js/**/*.js"
             ],
+            "parser": "@babel/eslint-parser",
             "env": {
                 "browser": true,
                 "es6": true
             },
             "parserOptions": {
                 "sourceType": "module",
-                "ecmaVersion": 2020
+                "ecmaVersion": 2020,
+                "requireConfigFile": false
             }
         }
     ]

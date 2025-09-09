@@ -1,29 +1,21 @@
 <section id="result" style="margin-top: 16px; display: none">
   <h3>Index (base64)</h3>
-  <pre
-    id="indexDisplay"
-    style="
+  <pre id="indexDisplay" style="
       white-space: break-spaces;
       overflow: auto;
       max-height: 160px;
       padding: 8px;
       background: #f6f8fa;
       border-radius: 6px;
-    "
-  ></pre>
+    "></pre>
   <div id="metadata" style="display: none; margin-bottom: 12px">
-    <img
-      id="coverImg"
-      src=""
-      alt="cover"
-      style="
+    <img id="coverImg" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="cover" style="
         width: 128px;
         height: 128px;
         float: left;
         margin-right: 12px;
         border-radius: 6px;
-      "
-    />
+      " />
     <div style="overflow: hidden">
       <div><strong>Genre:</strong> <span id="metaGenre"></span></div>
       <div><strong>Artist:</strong> <span id="metaArtist"></span></div>
@@ -33,7 +25,7 @@
     <div style="clear: both"></div>
   </div>
   <h3>Audio</h3>
-  <audio id="audioPlayer" controls style="width: 100%"></audio>
+  <audio id="audioPlayer" controls="controls" style="width: 100%"></audio>
   <p>
     <a id="downloadLink" href="#" download="reconstructed.wav">Download WAV</a>
   </p>

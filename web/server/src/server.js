@@ -289,7 +289,7 @@ app.post('/reconstruct', async (req, res) => {
         cliPath = c;
         break;
       }
-    } catch (e) {}
+  } catch (e) { /* ignore */ }
   }
   if (cliPath) console.log('Using reconstruct_cli at:', cliPath);
   // fallback to assuming it's on PATH
@@ -305,7 +305,7 @@ app.post('/reconstruct', async (req, res) => {
     timedOut = true;
     try {
       child.kill('SIGKILL');
-    } catch (e) {}
+  } catch (e) { /* ignore */ }
   }, CHILD_TIMEOUT_MS);
 
   child.on('error', (err) => {
@@ -313,7 +313,7 @@ app.post('/reconstruct', async (req, res) => {
     console.error('Failed to spawn reconstruct_cli', err);
     try {
       unlinkSync(inPath);
-    } catch (_) {}
+  } catch (_) { /* ignore */ }
     return res.status(500).json({
       error: 'Failed to run recon CLI',
       message: String(err && err.message ? err.message : err),
@@ -321,16 +321,16 @@ app.post('/reconstruct', async (req, res) => {
   });
 
   // Handle child process close
-  child.on('close', (code, signal) => {
+  child.on('close', (code, _signal) => {
     clearTimeout(killTimer);
     if (timedOut) {
       console.error('reconstruct_cli timed out', CHILD_TIMEOUT_MS);
       try {
         unlinkSync(inPath);
-      } catch (_) {}
+  } catch (_) { /* ignore */ }
       try {
         unlinkSync(outPath);
-      } catch (_) {}
+  } catch (_) { /* ignore */ }
       return res
         .status(504)
         .json({ error: 'Reconstruction timed out', timeoutMs: CHILD_TIMEOUT_MS });
@@ -340,10 +340,10 @@ app.post('/reconstruct', async (req, res) => {
       console.error('reconstruct_cli failed', code, stderr);
       try {
         unlinkSync(inPath);
-      } catch (_) {}
+  } catch (_) { /* ignore */ }
       try {
         unlinkSync(outPath);
-      } catch (_) {}
+  } catch (_) { /* ignore */ }
       return res.status(500).json({ error: 'Reconstruction failed', code, message: stderr });
     }
 
@@ -356,10 +356,10 @@ app.post('/reconstruct', async (req, res) => {
       if (st.size > MAX_WAV_BYTES) {
         try {
           unlinkSync(inPath);
-        } catch (_) {}
+  } catch (_) { /* ignore */ }
         try {
           unlinkSync(outPath);
-        } catch (_) {}
+  } catch (_) { /* ignore */ }
         return res
           .status(413)
           .json({ error: 'Reconstructed WAV too large', maxBytes: MAX_WAV_BYTES });
@@ -368,10 +368,10 @@ app.post('/reconstruct', async (req, res) => {
       console.error('Failed to stat output file', err);
       try {
         unlinkSync(inPath);
-      } catch (_) {}
+      } catch (_) { /* ignore */ }
       try {
         unlinkSync(outPath);
-      } catch (_) {}
+      } catch (_) { /* ignore */ }
       return res.status(500).json({
         error: 'Failed to read reconstructed output',
         message: String(err && err.message ? err.message : err),
@@ -397,19 +397,19 @@ app.post('/reconstruct', async (req, res) => {
         };
         try {
           unlinkSync(inPath);
-        } catch (_) {}
+  } catch (_) { /* ignore */ }
         try {
           unlinkSync(outPath);
-        } catch (_) {}
+  } catch (_) { /* ignore */ }
         return res.json({ metadata: meta, wavBase64: wavB64 });
       } catch (err) {
         console.error('Failed to read WAV for json response', err);
         try {
           unlinkSync(inPath);
-        } catch (_) {}
+  } catch (_) { void 0; }
         try {
           unlinkSync(outPath);
-        } catch (_) {}
+  } catch (_) { void 0; }
         return res
           .status(500)
           .json({
@@ -426,19 +426,19 @@ app.post('/reconstruct', async (req, res) => {
     stream.on('end', () => {
       try {
         unlinkSync(inPath);
-      } catch (_) {}
+      } catch (_) { /* ignore */ }
       try {
         unlinkSync(outPath);
-      } catch (_) {}
+      } catch (_) { /* ignore */ }
     });
     stream.on('error', (err) => {
       console.error('Stream error', err);
       try {
         unlinkSync(inPath);
-      } catch (_) {}
+      } catch (_) { /* ignore */ }
       try {
         unlinkSync(outPath);
-      } catch (_) {}
+      } catch (_) { /* ignore */ }
       if (!res.headersSent) res.status(500).end();
     });
     stream.pipe(res);
@@ -466,19 +466,19 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
     if (st.size === 0) {
       try {
         unlinkSync(uploadedPath);
-      } catch (_) {}
+  } catch (_) { /* ignore */ }
       return res.status(400).json({ error: 'Uploaded file is empty' });
     }
     if (st.size > MAX_WAV_BYTES) {
       try {
         unlinkSync(uploadedPath);
-      } catch (_) {}
+  } catch (_) { void 0; }
       return res.status(413).json({ error: 'Uploaded WAV too large', maxBytes: MAX_WAV_BYTES });
     }
   } catch (err) {
     try {
       unlinkSync(uploadedPath);
-    } catch (_) {}
+    } catch (_) { /* ignore */ }
     return res
       .status(500)
       .json({
@@ -508,14 +508,14 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
         cliPath = c;
         break;
       }
-    } catch (e) {}
+  } catch (e) { /* ignore */ }
   }
 
   if (!cliPath) {
     // CLI not found: return helpful 501 with instructions to build the helper CLI
     try {
       unlinkSync(uploadedPath);
-    } catch (_) {}
+  } catch (_) { /* ignore */ }
     return res.status(501).json({
       error: 'extract_index_cli not found on server',
       message:
@@ -538,17 +538,17 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
     timedOut = true;
     try {
       child.kill('SIGKILL');
-    } catch (e) {}
+  } catch (e) { /* ignore */ }
   }, CHILD_TIMEOUT_MS);
 
   child.on('error', (err) => {
     clearTimeout(killTimer);
     try {
       unlinkSync(uploadedPath);
-    } catch (_) {}
+  } catch (_) { /* ignore */ }
     try {
       unlinkSync(outIndex);
-    } catch (_) {}
+  } catch (_) { void 0; }
     return res
       .status(500)
       .json({
@@ -557,15 +557,15 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
       });
   });
 
-  child.on('close', (code, signal) => {
+  child.on('close', (code, _signal) => {
     clearTimeout(killTimer);
     if (timedOut) {
       try {
         unlinkSync(uploadedPath);
-      } catch (_) {}
+      } catch (_) { /* ignore */ }
       try {
         unlinkSync(outIndex);
-      } catch (_) {}
+      } catch (_) { /* ignore */ }
       return res
         .status(504)
         .json({ error: 'Index extraction timed out', timeoutMs: CHILD_TIMEOUT_MS });
@@ -573,10 +573,10 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
     if (code !== 0) {
       try {
         unlinkSync(uploadedPath);
-      } catch (_) {}
+      } catch (_) { /* ignore */ }
       try {
         unlinkSync(outIndex);
-      } catch (_) {}
+      } catch (_) { /* ignore */ }
       return res.status(500).json({ error: 'extract_index_cli failed', code, message: stderr });
     }
 
@@ -624,19 +624,19 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
 
       try {
         unlinkSync(uploadedPath);
-      } catch (_) {}
+  } catch (_) { /* ignore */ }
       try {
         unlinkSync(outIndex);
-      } catch (_) {}
+  } catch (_) { /* ignore */ }
 
       return res.json({ indexBase64: indexB64, metadata: meta, wavBase64: wavB64 });
     } catch (err) {
       try {
         unlinkSync(uploadedPath);
-      } catch (_) {}
+  } catch (_) { /* ignore */ }
       try {
         unlinkSync(outIndex);
-      } catch (_) {}
+  } catch (_) { void 0; }
       return res
         .status(500)
         .json({

@@ -1,9 +1,12 @@
 {
   "tagname-lowercase": true,
   "attr-lowercase": true,
+  "attr-value-not-empty": true,
   "attr-value-double-quotes": true,
   "doctype-first": true,
   "doctype-html5": true,
+  "spec-char-escape": true,
   "id-unique": true,
+  "img-req-alt": true,
   "src-not-empty": true
 }

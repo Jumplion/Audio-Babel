@@ -151,11 +151,9 @@ body.home {
     align-items: center;
     padding: 8px;
     border-radius: 8px;
-    background: linear-gradient(
-      180deg,
-      rgb(255 255 255 / 1%),
-      rgb(255 255 255 / 2%)
-    );
+    background: linear-gradient(180deg,
+        rgb(255 255 255 / 1%),
+        rgb(255 255 255 / 2%));
   }
 
   .sotb-playlist-item.dragging {
@@ -185,7 +183,7 @@ body.home {
     justify-content: flex-end;
   }
 
-  @media (width <= 720px) {
+  @media (width <=720px) {
     .sotb-player-inner {
       flex-wrap: wrap;
     }
@@ -274,11 +272,9 @@ p.lead {
 }
 
 .option {
-  background: linear-gradient(
-    180deg,
-    rgb(255 255 255 / 2%),
-    rgb(255 255 255 / 1%)
-  );
+  background: linear-gradient(180deg,
+      rgb(255 255 255 / 2%),
+      rgb(255 255 255 / 1%));
   padding: 14px 18px;
   border-radius: 8px;
   color: #e6f7ff;
@@ -310,32 +306,16 @@ footer {
 
 /* Loading spinner + skeleton */
 .spinner {
-  width: 18px;
-  height: 18px;
+  /* unified spinner: default size and appearance; theme-specific overrides applied below */
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
+  box-sizing: border-box;
   border: 2px solid rgb(0 0 0 / 8%);
   border-top-color: var(--btn);
   animation: spin 1s linear infinite;
   display: inline-block;
   vertical-align: middle;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* loading UI */
-.spinner {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  box-sizing: border-box;
-  border: 2px solid rgb(255 255 255 / 15%);
-  border-top-color: #fff;
-  animation: spin 1s linear infinite;
-  display: inline-block;
 }
 
 @keyframes spin {
@@ -348,15 +328,22 @@ footer {
   }
 }
 
+/* light theme spinner overrides */
+body.light .spinner {
+  border: 2px solid rgb(255 255 255 / 15%);
+  border-top-color: #fff;
+}
+
+/* skeleton shimmer */
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(
-    90deg,
-    rgb(255 255 255 / 3%) 0%,
-    rgb(255 255 255 / 6%) 50%,
-    rgb(255 255 255 / 3%) 100%
-  );
+  background: linear-gradient(90deg,
+      rgb(0 0 0 / 4%) 25%,
+      rgb(0 0 0 / 2%) 37%,
+      rgb(0 0 0 / 4%) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.2s linear infinite;
 }
 
 .skeleton::after {
@@ -366,16 +353,14 @@ footer {
   top: 0;
   bottom: 0;
   width: 150px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgb(255 255 255 / 4%),
-    transparent
-  );
-  animation: loadingShimmer 1s infinite;
+  background: linear-gradient(90deg,
+      transparent,
+      rgb(255 255 255 / 4%),
+      transparent);
+  animation: loading-shimmer 1s infinite;
 }
 
-@keyframes loadingShimmer {
+@keyframes loading-shimmer {
   from {
     left: -150px;
   }
@@ -406,17 +391,6 @@ footer {
 
 .btn.tab-active:focus {
   outline: 3px solid rgb(11 120 255 / 12%);
-}
-
-*** end patch .skeleton {
-  background: linear-gradient(
-    90deg,
-    rgb(0 0 0 / 4%) 25%,
-    rgb(0 0 0 / 2%) 37%,
-    rgb(0 0 0 / 4%) 63%
-  );
-  background-size: 400% 100%;
-  animation: shimmer 1.2s linear infinite;
 }
 
 @keyframes shimmer {

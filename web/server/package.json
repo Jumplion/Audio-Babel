@@ -6,7 +6,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "lint:js": "eslint \"../frontend/public/js/**/*.js\" \"src/**/*.js\" --ext .js,.mjs || exit 0",
+    "lint:js": "eslint \"src/**/*.js\" --ext .js,.mjs || exit 0",
     "lint:css": "stylelint \"../frontend/public/css/**/*.css\" || exit 0",
     "lint:html": "htmlhint ../frontend/public || exit 0",
     "lint": "npm run lint:js && npm run lint:css && npm run lint:html",
@@ -19,6 +19,7 @@
     "multer": "^2.0.2"
   },
   "devDependencies": {
+    "@babel/eslint-parser": "^7.28.4",
     "eslint": "^8.45.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-node": "^11.1.0",

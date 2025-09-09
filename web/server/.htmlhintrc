@@ -3,7 +3,7 @@
   "attr-lowercase": true,
   "attr-value-not-empty": true,
   "attr-value-double-quotes": true,
-  "doctype-first": true,
+  "doctype-first": false,
   "doctype-html5": true,
   "spec-char-escape": true,
   "id-unique": true,

@@ -15,7 +15,7 @@ import {
   accessSync,
   readFileSync,
 } from 'fs';
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import path from 'path';
 import zlib from 'zlib';
 
@@ -61,6 +61,50 @@ app.get('/health', (req, res) => {
 const MAX_INDEX_BYTES = 60 * 1024 * 1024; // ~60 MB max raw index input (~6 minutes)
 const MAX_WAV_BYTES = 100 * 1024 * 1024; // 100 MB max reconstructed WAV
 const CHILD_TIMEOUT_MS = 20 * 1000; // 20s timeout for reconstruction
+
+// Helper: detect if running inside a container (docker/k8s/etc)
+function isContainerized() {
+  try {
+    if (existsSync('/.dockerenv')) return true;
+  } catch (_) {}
+  try {
+    const cg = readFileSync('/proc/1/cgroup', 'utf8');
+    if (/docker|kubepods|containerd|lxc/i.test(cg)) return true;
+  } catch (_) {}
+  if (process.env.KUBERNETES_SERVICE_HOST) return true;
+  if (process.env.CONTAINER) return true;
+  return false;
+}
+
+function getFfmpegInstallHelp() {
+  const container = isContainerized();
+  const plat = process.platform; // 'win32', 'linux', 'darwin'
+  let msg = '';
+  if (container) {
+    msg += 'Server appears to be running inside a container. Ensure ffmpeg is installed in the container image. Example (Debian/Ubuntu Dockerfile):\n';
+    msg += '  FROM ubuntu:22.04\n  RUN apt-get update && apt-get install -y ffmpeg \\n  && rm -rf /var/lib/apt/lists/*\n';
+    msg += "Or use an image with ffmpeg preinstalled, e.g. 'jrottenberg/ffmpeg'.\n";
+  } else if (plat === 'win32') {
+    msg += 'On Windows, install ffmpeg and ensure ffmpeg.exe is on PATH. Recommended options:\n';
+    msg += '  - Using winget (Windows 10/11): run in an elevated PowerShell:\n';
+    msg += "      winget install -e --id Gyan.FFmpeg\n";
+    msg += '  - Or using Chocolatey:\n';
+    msg += "      choco install ffmpeg -y\n";
+    msg += '  - Or download static build from https://www.gyan.dev/ffmpeg/builds/ and add the folder containing ffmpeg.exe to your PATH.\n';
+    msg += "After installing, verify with (PowerShell):\n      where.exe ffmpeg\n      ffmpeg -version\n";
+    msg += 'Then restart the server process so the PATH change is picked up.\n';
+  } else if (plat === 'darwin') {
+    msg += 'On macOS, install ffmpeg via Homebrew:\n  brew install ffmpeg\n';
+  } else {
+    // assume linux
+    msg += 'On Linux, install ffmpeg via your package manager. Examples:\n';
+    msg += '  Debian/Ubuntu:\n    sudo apt-get update && sudo apt-get install -y ffmpeg\n';
+    msg += '  Fedora/CentOS (may require RPMFusion/EPEL):\n    sudo dnf install -y ffmpeg\n';
+    msg += "Or install a static build and place 'ffmpeg' on PATH.\n";
+  }
+  msg += "If you cannot install system-wide, place a static ffmpeg binary next to the server executable and ensure it's executable and on PATH.\n";
+  return msg;
+}
 
 app.post('/reconstruct', async (req, res) => {
   const { format, data } = req.body || {};
@@ -459,7 +503,7 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
       .json({ error: 'Expected multipart/form-data with a file field named "file"' });
   }
 
-  const uploadedPath = req.file.path;
+  let uploadedPath = req.file.path;
   // Basic size check
   try {
     const st = statSync(uploadedPath);
@@ -485,6 +529,69 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
         error: 'Failed to stat uploaded file',
         message: String(err && err.message ? err.message : err),
       });
+  }
+
+  // If the uploaded file is not a WAV, attempt to convert it using ffmpeg to WAV (44100 Hz, mono, 16-bit)
+  // This allows browser recordings (webm/ogg) to be accepted.
+  const lowerName = (req.file.originalname || '').toLowerCase();
+  const isWav = (req.file.mimetype && req.file.mimetype.indexOf('wav') !== -1) || lowerName.endsWith('.wav') || lowerName.endsWith('.wave');
+  let convertedPath = null;
+  if (!isWav) {
+    const rnd2 = randomBytes(8).toString('hex');
+    convertedPath = path.join(tmpdir(), `sotb_conv_${rnd2}.wav`);
+    // ffmpeg arguments: input, force sample rate 44100, mono, 16-bit PCM
+    const ffArgs = ['-y', '-i', uploadedPath, '-ar', '44100', '-ac', '1', '-sample_fmt', 's16', convertedPath];
+    const ff = spawn('ffmpeg', ffArgs, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let ffErr = '';
+    ff.stderr.on('data', (d) => { ffErr += d.toString(); });
+
+    let ffTimedOut = false;
+    const ffKill = setTimeout(() => {
+      ffTimedOut = true;
+      try { ff.kill('SIGKILL'); } catch (e) { /* ignore */ }
+    }, CHILD_TIMEOUT_MS);
+
+    const ffClosePromise = new Promise((resolve, reject) => {
+      ff.on('error', (err) => {
+        clearTimeout(ffKill);
+        reject(err);
+      });
+      ff.on('close', (code) => {
+        clearTimeout(ffKill);
+        if (ffTimedOut) return reject(new Error('ffmpeg timed out'));
+        if (code !== 0) return reject(new Error('ffmpeg failed: ' + ffErr));
+        return resolve();
+      });
+    });
+
+    try {
+      await ffClosePromise;
+      // replace uploadedPath with converted WAV for downstream processing
+      try {
+        const st2 = statSync(convertedPath);
+        if (st2.size === 0) throw new Error('Converted WAV is empty');
+        if (st2.size > MAX_WAV_BYTES) {
+          try { unlinkSync(uploadedPath); } catch (_) { /* ignore */ }
+          try { unlinkSync(convertedPath); } catch (_) { /* ignore */ }
+          return res.status(413).json({ error: 'Converted WAV too large', maxBytes: MAX_WAV_BYTES });
+        }
+  // swap: remove original uploaded file and adopt converted WAV
+  try { unlinkSync(uploadedPath); } catch (_) { /* ignore */ }
+  uploadedPath = convertedPath;
+  convertedPath = null; // ownership moved; prevent double-delete
+      } catch (err) {
+        try { unlinkSync(uploadedPath); } catch (_) { /* ignore */ }
+        try { unlinkSync(convertedPath); } catch (_) { /* ignore */ }
+        return res.status(500).json({ error: 'Failed to validate converted WAV', message: String(err && err.message ? err.message : err) });
+      }
+    } catch (err) {
+      // conversion failed
+      try { unlinkSync(uploadedPath); } catch (_) { /* ignore */ }
+      try { unlinkSync(convertedPath); } catch (_) { /* ignore */ }
+      const msg = String(err && err.message ? err.message : err);
+  console.error('ffmpeg conversion failed', msg);
+  return res.status(500).json({ error: 'ffmpeg conversion failed', message: msg, hint: getFfmpegInstallHelp() });
+    }
   }
 
   // Find extract_index_cli in the same candidate locations as reconstruct_cli
@@ -648,6 +755,28 @@ app.post('/search_by_file', upload.single('file'), async (req, res) => {
 });
 
 const port = process.env.PORT || 3000;
+// Check ffmpeg availability at startup and warn with install steps if missing
+function checkFfmpegAvailable() {
+  try {
+    const r = spawnSync('ffmpeg', ['-version'], { encoding: 'utf8' });
+    if (r.error) return false;
+    if (r.status === 0) {
+      const firstLine = (r.stdout || '').split(/\r?\n/)[0];
+      console.log('ffmpeg detected:', firstLine);
+      return true;
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
+if (!checkFfmpegAvailable()) {
+  console.warn('ffmpeg was not found in PATH. Recording uploads requiring conversion may fail.\n' + getFfmpegInstallHelp());
+} else {
+  // optional: already logged inside checkFfmpegAvailable
+}
+
 app.listen(port, () => {
   console.log(`Speaker-of-Babel server listening on port ${port}`);
 });

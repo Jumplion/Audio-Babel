@@ -15,21 +15,11 @@
       <button id="sotb-playlist-toggle" class="sotb-btn" title="Show playlist">
         ☰ Playlist
       </button>
-      <button
-        id="sotb-add"
-        class="sotb-btn"
-        title="Add current index to playlist"
-      >
+      <button id="sotb-add" class="sotb-btn" title="Add current index to playlist">
         ＋ Add
       </button>
-      <div
-        id="sotb-progress"
-        class="sotb-progress"
-        role="progressbar"
-        aria-valuemin="0"
-        aria-valuemax="100"
-        aria-valuenow="0"
-      >
+      <div id="sotb-progress" class="sotb-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+        aria-valuenow="0">
         <div id="sotb-progress-bar" class="sotb-progress-bar"></div>
       </div>
       <div id="sotb-time" class="sotb-time">0:00</div>
@@ -51,3 +41,6 @@
     <button id="sotb-clear-playlist" class="sotb-btn">Clear</button>
   </div>
 </div>
+
+<!-- Toast container for transient notifications (added by player) -->
+<div id="sotb-toast-container" class="sotb-toast-container" aria-live="polite" aria-atomic="true"></div>

@@ -71,6 +71,32 @@ class SOTBPlayer {
       console.warn("Failed to load saved playlist", e);
     }
 
+    // If resultHandler saved any pending tracks while the player was still
+    // initializing, pick them up now from sessionStorage.
+    try {
+      const pendingKey = 'sotb.pending_tracks';
+      const raw = sessionStorage.getItem(pendingKey);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length) {
+          arr.forEach((t) => {
+            try {
+              // add returns position; do not auto-play
+              this.add(t);
+            } catch (e) {
+              console.warn('Failed to add pending track', e);
+            }
+          });
+          // show toast that tracks were restored
+          this._showToast(`${arr.length} track(s) restored`);
+          // clear pending
+          sessionStorage.removeItem(pendingKey);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to restore pending tracks', e);
+    }
+
     // reflect state in UI but don't auto-play on load
     this._updateButtons();
     this._renderPlaylist();
@@ -229,6 +255,8 @@ class SOTBPlayer {
     this._updateButtons();
     this._saveState();
     this._renderPlaylist();
+  // transient notification
+  this._showToast('Added to playlist');
     return this.playlist.length - 1;
   }
 
@@ -249,16 +277,36 @@ class SOTBPlayer {
           wavUrl: audioEl.src,
           index: idxEl ? idxEl.textContent : null,
         };
-        const pos = this.add(track);
-        // if there was nothing playing, start this one
-        if (this.current < 0) (this.current = pos), this._loadCurrent();
-        alert("Added to playlist");
+  const pos = this.add(track);
+  // if there was nothing playing, start this one
+  if (this.current < 0) (this.current = pos), this._loadCurrent();
+  // replaced alert with toast
+  this._showToast('Added to playlist');
       } else {
-        alert("No audio to add");
+  this._showToast('No audio to add');
       }
     } catch (e) {
       console.warn(e);
       alert("Add failed");
+    }
+  }
+
+  _showToast(msg, ttl = 2500) {
+    try {
+      const container = document.getElementById('sotb-toast-container');
+      if (!container) return;
+      const el = document.createElement('div');
+      el.className = 'sotb-toast';
+      el.textContent = msg;
+      container.appendChild(el);
+      // trigger show
+      requestAnimationFrame(() => el.classList.add('show'));
+      setTimeout(() => {
+        el.classList.remove('show');
+        setTimeout(() => el.remove(), 220);
+      }, ttl);
+    } catch (e) {
+      // swallow; toast is optional
     }
   }
 

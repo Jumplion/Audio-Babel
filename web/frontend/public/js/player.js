@@ -21,16 +21,18 @@ class SOTBPlayer {
 
     this.el = container.querySelector("#sotb-player");
     this.audio = this.el.querySelector("#sotb-audio");
+    // playlist drawer and related elements live alongside the player in the
+    // fragment container, so query them from `container` rather than `this.el`.
     this.ui = {
       playBtn: this.el.querySelector("#sotb-play"),
       prevBtn: this.el.querySelector("#sotb-prev"),
       nextBtn: this.el.querySelector("#sotb-next"),
       addBtn: this.el.querySelector("#sotb-add"),
       playlistToggle: this.el.querySelector("#sotb-playlist-toggle"),
-      playlistDrawer: this.el.querySelector("#sotb-playlist-drawer"),
-      playlistEl: this.el.querySelector("#sotb-playlist"),
-      playlistClose: this.el.querySelector("#sotb-playlist-close"),
-      clearPlaylist: this.el.querySelector("#sotb-clear-playlist"),
+      playlistDrawer: container.querySelector("#sotb-playlist-drawer"),
+      playlistEl: container.querySelector("#sotb-playlist"),
+      playlistClose: container.querySelector("#sotb-playlist-close"),
+      clearPlaylist: container.querySelector("#sotb-clear-playlist"),
       title: this.el.querySelector("#sotb-track-title"),
       meta: this.el.querySelector("#sotb-track-meta"),
       progress: this.el.querySelector("#sotb-progress"),
@@ -47,7 +49,7 @@ class SOTBPlayer {
     // playlist UI handlers
     if (this.ui.playlistToggle)
       this.ui.playlistToggle.addEventListener("click", () =>
-        this._togglePlaylist(true)
+        this._togglePlaylist()
       );
     if (this.ui.playlistClose)
       this.ui.playlistClose.addEventListener("click", () =>

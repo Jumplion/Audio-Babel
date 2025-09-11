@@ -47,6 +47,7 @@
       <div class="top-controls" style="margin-bottom: 16px">
         <div class="group">
           <button class="btn" id="tabRandom">Random</button>
+          <button class="btn" id="tabBrowse">Browse</button>
           <button class="btn" id="tabFile">Upload .wav</button>
           <button class="btn" id="tabRecord">Record</button>
         </div>
@@ -57,6 +58,18 @@
         <p style="margin-top: 8px">
           <small>Clicking the button will generate a random index size between 64 KB and 5 MB (server max 60
             MB).</small>
+        </p>
+      </div>
+
+      <div id="panelBrowse" style="display: none; margin-bottom: 12px">
+        <label for="browseInput">Enter an index string (A-Z, a-z, 0-9, - and _):</label>
+        <input id="browseInput" type="text" style="display: block; margin-top: 6px; width: 100%" />
+        <div style="margin-top: 8px">
+          <button class="btn" id="doBrowseGenerate" disabled>Generate from index</button>
+        </div>
+        <p style="margin-top: 8px">
+          <small>Only characters A-Z a-z 0-9 - and _ are allowed. The string will be used directly as the index
+            bytes.</small>
         </p>
       </div>
 

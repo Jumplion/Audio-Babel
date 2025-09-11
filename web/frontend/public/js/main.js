@@ -1,4 +1,5 @@
 import { generateAndSend } from './randomIndex.js';
+import { generateFromIndex, attachBrowseInputFilter } from './browse.js';
 import { uploadFile } from './fileUpload.js';
 import { createRecorder } from './recorder.js';
 import { handleJsonResponse } from './resultHandler.js';
@@ -19,10 +20,11 @@ function setLoading(on) {
   const spinner = document.getElementById('statusSpinner');
   const msg = document.getElementById('statusMsg');
   const regenBtn = document.getElementById('regenBtn');
+  const doBrowseGenerate = document.getElementById('doBrowseGenerate');
   const doFileSearch = document.getElementById('doFileSearch');
   const recordStartStop = document.getElementById('recordStartStop');
   const uploadRecording = document.getElementById('uploadRecording');
-  const controls = [regenBtn, doFileSearch, recordStartStop, uploadRecording];
+  const controls = [regenBtn, doBrowseGenerate, doFileSearch, recordStartStop, uploadRecording];
   const resultContainer = document.getElementById('resultContainer');
   if (on) {
     if (spinner) spinner.style.display = 'inline-block';
@@ -43,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const tabRecord = document.getElementById('tabRecord');
   const panelRandom = document.getElementById('panelRandom');
   const panelFile = document.getElementById('panelFile');
+  const panelBrowse = document.getElementById('panelBrowse');
   const panelRecord = document.getElementById('panelRecord');
   const regenBtn = document.getElementById('regenBtn');
   const fileInput = document.getElementById('fileInput');
@@ -53,15 +56,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const recordPlayer = document.getElementById('recordPlayer');
   const recordDuration = document.getElementById('recordDuration');
 
-  function showRandom() { panelRandom.style.display = ''; panelFile.style.display = 'none'; panelRecord.style.display = 'none'; setActiveTabUI('random'); }
-  function showFile() { panelRandom.style.display = 'none'; panelFile.style.display = ''; panelRecord.style.display = 'none'; setActiveTabUI('file'); }
+  function showRandom() { panelRandom.style.display = ''; panelBrowse.style.display = 'none'; panelFile.style.display = 'none'; panelRecord.style.display = 'none'; setActiveTabUI('random'); }
+  function showFile() { panelRandom.style.display = 'none'; panelBrowse.style.display = 'none'; panelFile.style.display = ''; panelRecord.style.display = 'none'; setActiveTabUI('file'); }
+  function showBrowse() { panelRandom.style.display = 'none'; panelBrowse.style.display = ''; panelFile.style.display = 'none'; panelRecord.style.display = 'none'; setActiveTabUI('browse'); }
   function showRecord() { panelRandom.style.display = 'none'; panelFile.style.display = 'none'; panelRecord.style.display = ''; setActiveTabUI('record'); }
 
   tabRandom.addEventListener('click', showRandom);
+  const tabBrowse = document.getElementById('tabBrowse');
+  tabBrowse.addEventListener('click', showBrowse);
   tabFile.addEventListener('click', showFile);
   tabRecord.addEventListener('click', showRecord);
 
   regenBtn.addEventListener('click', () => generateAndSend(regenBtn, handleJsonResponse, setLoading));
+
+  const browseInput = document.getElementById('browseInput');
+  // attach filtering to prevent invalid characters
+  attachBrowseInputFilter(browseInput);
+  const doBrowseGenerateBtn = document.getElementById('doBrowseGenerate');
+  doBrowseGenerateBtn.addEventListener('click', () => generateFromIndex(browseInput, doBrowseGenerateBtn, handleJsonResponse, setLoading));
+  // enable generate button only when input is non-empty
+  const updateBrowseButtonState = () => {
+    if (!doBrowseGenerateBtn) return;
+    const v = (browseInput && browseInput.value) ? browseInput.value.trim() : '';
+    if (v.length > 0) doBrowseGenerateBtn.removeAttribute('disabled');
+    else doBrowseGenerateBtn.setAttribute('disabled', '');
+  };
+  browseInput.addEventListener('input', updateBrowseButtonState);
+  // set initial state
+  updateBrowseButtonState();
 
   doFileSearch.addEventListener('click', async () => {
     const file = fileInput.files && fileInput.files[0];

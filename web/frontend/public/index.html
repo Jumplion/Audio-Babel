@@ -63,7 +63,9 @@
 
       <div id="panelBrowse" style="display: none; margin-bottom: 12px">
         <label for="browseInput">Enter an index string (A-Z, a-z, 0-9, - and _):</label>
-        <input id="browseInput" type="text" style="display: block; margin-top: 6px; width: 100%" />
+        <textarea id="browseInput" rows="1"
+          style="display: block; margin-top: 6px; width: 100%; overflow: hidden; resize: none;"
+          placeholder="Type index here..."></textarea>
         <div style="margin-top: 8px">
           <button class="btn" id="doBrowseGenerate" disabled>Generate from index</button>
         </div>

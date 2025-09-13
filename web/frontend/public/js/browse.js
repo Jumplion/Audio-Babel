@@ -36,6 +36,16 @@ export function attachBrowseInputFilter(inputEl) {
   if (!inputEl) return;
   const allowed = /[A-Za-z0-9_-]/;
 
+  function autosize() {
+    try {
+      inputEl.style.height = 'auto';
+      const h = inputEl.scrollHeight;
+      inputEl.style.height = Math.max(24, h) + 'px';
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
   // prevent invalid key input
   inputEl.addEventListener('keypress', (e) => {
     const ch = String.fromCharCode(e.charCode || e.which || 0);
@@ -50,12 +60,13 @@ export function attachBrowseInputFilter(inputEl) {
       if (filtered !== txt) {
         e.preventDefault();
         // insert filtered text at caret
-        const start = inputEl.selectionStart || 0;
-        const end = inputEl.selectionEnd || 0;
-        const v = inputEl.value || '';
-        inputEl.value = v.slice(0, start) + filtered + v.slice(end);
-        const pos = start + filtered.length;
-        inputEl.setSelectionRange(pos, pos);
+  const start = inputEl.selectionStart || 0;
+  const end = inputEl.selectionEnd || 0;
+  const v = inputEl.value || '';
+  inputEl.value = v.slice(0, start) + filtered + v.slice(end);
+  const pos = start + filtered.length;
+  inputEl.setSelectionRange(pos, pos);
+  autosize();
       }
     } catch (err) {
       // fallback: do nothing
@@ -69,7 +80,10 @@ export function attachBrowseInputFilter(inputEl) {
     if (filtered !== v) {
       const pos = inputEl.selectionStart || filtered.length;
       inputEl.value = filtered;
-      inputEl.setSelectionRange(pos - 1, pos - 1);
+      inputEl.setSelectionRange(Math.max(0, pos - 1), Math.max(0, pos - 1));
     }
+    autosize();
   });
+  // initial size
+  autosize();
 }

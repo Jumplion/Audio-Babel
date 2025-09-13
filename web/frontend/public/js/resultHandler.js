@@ -80,7 +80,10 @@ export async function handleJsonResponse(j, originalIndexB64) {
             if (nextPow <= dur) nextPow *= 2;
             // compute rough target byte-size assuming linear scaling between index bytes and audio duration
             const baseBytes = b64ToBytes(rawIndexB64).length;
-            const targetBytes = Math.max(baseBytes + 1, Math.round((baseBytes * nextPow) / dur));
+            const MIN_EXTRA = 256;
+            const MAX_BYTES = 65536; // cap to 64KB to avoid huge allocations
+            const rough = Math.round((baseBytes * nextPow) / dur);
+            const targetBytes = Math.min(MAX_BYTES, Math.max(baseBytes + MIN_EXTRA, rough));
             if (targetBytes <= baseBytes) return;
             // build buffer with random bytes and embed base at a random offset
             const out = randBytes(targetBytes);
@@ -138,6 +141,11 @@ function randBytes(n) {
   return b;
 }
 
+function randInt(min, max) {
+  // inclusive
+  return Math.floor(min + Math.random() * (max - min + 1));
+}
+
 function generateSimilarVariants(indexB64, limit = 6) {
   // variants include: original, prefix random 1-3 chars + original, original + suffix random, and wrapped
   const base = b64ToBytes(indexB64);
@@ -148,25 +156,25 @@ function generateSimilarVariants(indexB64, limit = 6) {
   while (variants.length < limit && variants.length < tries) {
     const mode = variants.length % 3;
     if (mode === 0) {
-      // prefix random 1-3 bytes
-      const n = 1 + (variants.length % 3);
+      // prefix random 256-1024 bytes
+      const n = randInt(256, 1024);
       const p = randBytes(n);
       const out = new Uint8Array(p.length + base.length);
       out.set(p, 0);
       out.set(base, p.length);
       variants.push(bytesToB64(out));
     } else if (mode === 1) {
-      // suffix random
-      const n = 1 + (variants.length % 4);
+      // suffix random 256-1024 bytes
+      const n = randInt(256, 1024);
       const s = randBytes(n);
       const out = new Uint8Array(base.length + s.length);
       out.set(base, 0);
       out.set(s, base.length);
       variants.push(bytesToB64(out));
     } else {
-      // wrapped: random prefix + original + random suffix
-      const n1 = 1 + ((variants.length + 1) % 3);
-      const n2 = 1 + ((variants.length + 2) % 3);
+      // wrapped: random prefix + original + random suffix, both 256-1024
+      const n1 = randInt(256, 1024);
+      const n2 = randInt(256, 1024);
       const p = randBytes(n1);
       const s = randBytes(n2);
       const out = new Uint8Array(p.length + base.length + s.length);

@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "../include/Base64Url.h"
+#include "../include/Utilities.h"
 
 namespace AudioBabel {
 
@@ -39,7 +39,7 @@ static auto buildMetadataFromBytesAndB64(const std::vector<uint8_t>& bytes, cons
 
 // Overload: accept a URL-safe base64 string representing the index bytes
 auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> IndexMetadata {
-    std::vector<uint8_t> bytes = ::AudioBabel::decodeBase64Url(base64Index);
+    std::vector<uint8_t> bytes = ::AudioBabel::Utilities::decodeBase64Url(base64Index);
     return buildMetadataFromBytesAndB64(bytes, base64Index);
 }
 
@@ -49,7 +49,7 @@ auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_in
 
     // Convert all bytes to a deterministic URL-safe base64 string (no padding).
     // This matches the alphabet used elsewhere in the project.
-    std::string b64str = ::AudioBabel::encodeBase64Url(bytes);
+    std::string b64str = ::AudioBabel::Utilities::encodeBase64Url(bytes);
 
     return buildMetadataFromBytesAndB64(bytes, b64str);
 }

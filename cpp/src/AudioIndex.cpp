@@ -14,41 +14,21 @@
 #include <stdexcept>
 #include <vector>
 
-#include "EndianUtils.h"
+#include "Constants.h"
 #include "FileWriters.h"
 #include "IndexMetadata.h"
-
+#include "Utilities.h"
 
 using boost::multiprecision::cpp_int;
 namespace fs = std::filesystem;
 
 namespace AudioBabel {
 
-// Repository-wide numeric constants to avoid magic numbers in the implementation.
-namespace {
-    constexpr size_t   WAV_ID_LEN             = 4;             // 'RIFF'/'WAVE' id length
-    constexpr size_t   FMT_CHUNK_MIN_SIZE     = 16;            // canonical PCM fmt chunk size
-    constexpr size_t   HEADER_BYTES_CONST     = 4 + 2 + 2 + 8; // 16 bytes header layout
-    constexpr size_t   BITS_PER_BYTE          = 8;
-    constexpr int      BASE64_BITS            = 6;          // bits per base64 digit in our table
-    constexpr int      BYTE_MASK_INT          = 0xFF;       // mask for a single byte (integer) (255)
-    constexpr int      BASE64_MASK_INT        = 0x3F;       // mask for base64 integer values (63)
-    constexpr uint32_t BYTE_MASK              = 0xFFU;      // mask for a single byte (255)
-    constexpr uint32_t BASE64_MASK            = 0x3FU;      // mask for 6-bit base64 values (63)
-    constexpr uint16_t PCM_FORMAT_CODE        = 1;          // PCM format value
-    constexpr uint16_t DEFAULT_NUM_CHANNELS   = 1;          // default assumed channels for sample vectors
-    constexpr uint32_t CHUNK_SIZE_LIMIT       = (1U << 30); // sanity limit for chunk sizes (1,073,741,824 or 1 GiB)
-    constexpr uint32_t WAV_FILE_BASE_OVERHEAD = 36;         // base size used in RIFF size field
-
-    constexpr std::array<uint16_t, 3> PCM_BITS_PER_SAMPLE = {8, 16, 32}; // bits per sample for each channel layout
-
-} // namespace
-
 // ---------------------------------------------------------------------------
 // 1) Binary IO helpers
 // ---------------------------------------------------------------------------
 
-using namespace EndianUtils;
+using namespace Utilities;
 
 /**
  * We currently only support Bit Rates/Bit Depths of 8, 16, and 32
@@ -131,7 +111,7 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
     // Read RIFF header, throw error if not found
     std::array<char, WAV_ID_LEN> riff{};
     fileInput.read(riff.data(), WAV_ID_LEN);
-    if (std::strncmp(riff.data(), "RIFF", WAV_ID_LEN) != 0) {
+    if (!tagEquals(riff, "RIFF")) {
         std::string        found(riff.data(), WAV_ID_LEN);
         std::ostringstream ss;
         ss << "Not a RIFF file: header='" << found << "'";
@@ -145,7 +125,7 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
     // Read "WAVE" header, throw error if not found
     std::array<char, WAV_ID_LEN> wave{};
     fileInput.read(wave.data(), WAV_ID_LEN);
-    if (std::strncmp(wave.data(), "WAVE", WAV_ID_LEN) != 0) {
+    if (!tagEquals(wave, "WAVE")) {
         std::string        found(wave.data(), WAV_ID_LEN);
         std::ostringstream ss;
         ss << "Not a WAVE file: header='" << found << "'";
@@ -174,7 +154,7 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
 
         // Interpret chunk size, guard against unreasonable chunk sizes (> 1 GiB or 1,073,741,824 bytes)
         uint32_t chunkSize = read_u32_le(sizeBuf.data());
-        if (chunkSize > CHUNK_SIZE_LIMIT) {
+        if (chunkSize > ::AudioBabel::CHUNK_SIZE_LIMIT) {
             break;
         }
 
@@ -190,7 +170,7 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
          *         NOTE: These offsets correspond to the standard 16‑byte PCM fmt layout:
          *             AudioFormat, NumChannels, SampleRate, ByteRate, BlockAlign, BitsPerSample
          */
-        if (std::strncmp(id.data(), "fmt ", WAV_ID_LEN) == 0) {
+        if (tagEquals(id, "fmt ")) {
             if (chunkSize < FMT_CHUNK_MIN_SIZE) {
                 break;
             }
@@ -219,7 +199,7 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
          *  Resizes audioData.samples to the chunk size and 
          *  reads raw sample bytes into that buffer.
          */
-        else if (std::strncmp(id.data(), "data", WAV_ID_LEN) == 0) {
+        else if (tagEquals(id, "data")) {
             // Reserve space for the declared data chunk then attempt to read it.
             audioData.samples.resize(chunkSize);
             fileInput.read(reinterpret_cast<char*>(audioData.samples.data()), static_cast<std::streamsize>(chunkSize));
@@ -335,14 +315,10 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
         std::vector<uint8_t> pcm_be;
         pcm_be.reserve(total_samples * bytes_per_sample);
 
-        // audioData.samples stores little-endian bytes per sample; we need
-        // to append each sample's bytes in big-endian order so the first
-        // sample ends up as the most-significant bytes in the resulting integer.
+        // Convert samples from little-endian per-sample bytes to big-endian byte stream
         for (size_t sampleIndex = 0; sampleIndex < total_samples; ++sampleIndex) {
             size_t offset = sampleIndex * bytes_per_sample;
-            for (int byteIndex = static_cast<int>(bytes_per_sample) - 1; byteIndex >= 0; --byteIndex) {
-                pcm_be.push_back(audioData.samples[offset + byteIndex]);
-            }
+            append_sample_be_from_le(audioData.samples, offset, bytes_per_sample, pcm_be);
         }
 
         // Import bytes into cpp_int (MSB-first)
@@ -363,31 +339,13 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
     std::vector<uint8_t> header_buf;
     header_buf.reserve(HEADER_BYTES_CONST);
 
-    uint32_t sRate = audioData.sample_rate;
-    for (int i = 3; i >= 0; i--) {
-        header_buf.push_back(static_cast<uint8_t>((sRate >> (i * BITS_PER_BYTE)) & BYTE_MASK));
-    }
-
-    // Don't loop these ones (write as two big-endian bytes each)
-    uint16_t bitRate = audioData.bit_rate;
-    header_buf.push_back(static_cast<uint8_t>((bitRate >> 8) & BYTE_MASK));
-    header_buf.push_back(static_cast<uint8_t>((bitRate >> 0) & BYTE_MASK));
-
-    uint16_t numChannels = audioData.num_channels;
-    header_buf.push_back(static_cast<uint8_t>((numChannels >> 8) & BYTE_MASK));
-    header_buf.push_back(static_cast<uint8_t>((numChannels >> 0) & BYTE_MASK));
-
-    uint64_t numFrames = audioData.num_frames;
-    for (int headerIndex = 7; headerIndex >= 0; --headerIndex) {
-        header_buf.push_back(static_cast<uint8_t>((numFrames >> (headerIndex * BITS_PER_BYTE)) & BYTE_MASK));
-    }
+    push_be_u32(header_buf, audioData.sample_rate);
+    push_be_u16(header_buf, audioData.bit_rate);
+    push_be_u16(header_buf, audioData.num_channels);
+    push_be_u64(header_buf, audioData.num_frames);
 
     // Convert header_buf to cpp_int (big-endian bytes)
-    cpp_int header_int = 0;
-    for (uint8_t headerByte : header_buf) {
-        header_int <<= 8;
-        header_int |= cpp_int(static_cast<uint32_t>(headerByte));
-    }
+    cpp_int header_int = bytes_to_cpp_int_be(header_buf);
 
     // Combine: shift pcm_int left by header_bits and OR header_int
     size_t  header_bits = HEADER_BYTES_CONST * BITS_PER_BYTE;

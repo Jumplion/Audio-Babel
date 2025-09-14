@@ -709,12 +709,12 @@ auto main(int argc, char** argv) -> int {
                 acc_bits += 8;
                 while (acc_bits >= 6) {
                     acc_bits -= 6;
-                    uint8_t idx = static_cast<uint8_t>((acc >> acc_bits) & 0x3F);
+                    auto idx = static_cast<uint8_t>((acc >> acc_bits) & 0x3F);
                     b64str.push_back(b64_alpha[idx]);
                 }
             }
             if (acc_bits > 0) {
-                uint8_t idx = static_cast<uint8_t>((acc << (6 - acc_bits)) & 0x3F);
+                auto idx = static_cast<uint8_t>((acc << (6 - acc_bits)) & 0x3F);
                 b64str.push_back(b64_alpha[idx]);
             }
 
@@ -725,7 +725,7 @@ auto main(int argc, char** argv) -> int {
 
             auto valid_b64_chars = [&](const std::string& s) {
                 for (char c : s) {
-                    if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_')) {
+                    if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' && c != '_') {
                         return false;
                     }
                 }
@@ -769,12 +769,12 @@ auto main(int argc, char** argv) -> int {
                 acc_bits += 8;
                 while (acc_bits >= 6) {
                     acc_bits -= 6;
-                    uint8_t idx = static_cast<uint8_t>((acc >> acc_bits) & 0x3F);
+                    auto idx = static_cast<uint8_t>((acc >> acc_bits) & 0x3F);
                     b64str.push_back(b64_alpha[idx]);
                 }
             }
             if (acc_bits > 0) {
-                uint8_t idx = static_cast<uint8_t>((acc << (6 - acc_bits)) & 0x3F);
+                auto idx = static_cast<uint8_t>((acc << (6 - acc_bits)) & 0x3F);
                 b64str.push_back(b64_alpha[idx]);
             }
 
@@ -789,7 +789,7 @@ auto main(int argc, char** argv) -> int {
 
             auto valid_b64_chars = [&](const std::string& s) {
                 for (char c : s) {
-                    if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_')) {
+                    if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' && c != '_') {
                         return false;
                     }
                 }
@@ -831,12 +831,12 @@ auto main(int argc, char** argv) -> int {
                 acc_bits += 8;
                 while (acc_bits >= 6) {
                     acc_bits -= 6;
-                    uint8_t idx = static_cast<uint8_t>((acc >> acc_bits) & 0x3F);
+                    auto idx = static_cast<uint8_t>((acc >> acc_bits) & 0x3F);
                     clean_b64.push_back(b64_alpha[idx]);
                 }
             }
             if (acc_bits > 0) {
-                uint8_t idx = static_cast<uint8_t>((acc << (6 - acc_bits)) & 0x3F);
+                auto idx = static_cast<uint8_t>((acc << (6 - acc_bits)) & 0x3F);
                 clean_b64.push_back(b64_alpha[idx]);
             }
 

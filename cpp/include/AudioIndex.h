@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+#include "IndexMetadata.h"
+
 namespace AudioBabel {
 
 /*
@@ -36,13 +38,8 @@ class AudioIndex {
     // ---------------------
     // Metadata
     // ---------------------
-    struct Metadata {
-        std::string          genre;
-        std::string          artist;
-        std::string          album;
-        std::string          track;
-        std::vector<uint8_t> cover; // optional small image bytes
-    };
+    // Metadata type was extracted to its own header `IndexMetadata.h`.
+    // See cpp/include/IndexMetadata.h
 
     // ---------------------
     // Construction / lifecycle
@@ -153,7 +150,7 @@ class AudioIndex {
                                  const std::string&                    filename = std::string());
 
     // Metadata helpers
-    static auto indexToMetadata(const boost::multiprecision::cpp_int& index) -> Metadata;
+    static auto indexToMetadata(const boost::multiprecision::cpp_int& index) -> IndexMetadata;
 
     /**
      * Get the sample rate of the audio index.
@@ -180,8 +177,8 @@ class AudioIndex {
     }
 
    private:
-    AudioData audioData;
-    Metadata  metadata;
+    AudioData     audioData;
+    IndexMetadata metadata;
 };
 
 } // namespace AudioBabel

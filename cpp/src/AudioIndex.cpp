@@ -14,6 +14,9 @@
 #include <stdexcept>
 #include <vector>
 
+#include "EndianUtils.h"
+#include "IndexMetadata.h"
+
 using boost::multiprecision::cpp_int;
 namespace fs = std::filesystem;
 
@@ -43,38 +46,7 @@ namespace {
 // 1) Binary IO helpers
 // ---------------------------------------------------------------------------
 
-template <typename T>
-static void write_le(std::ostream& out, T value) {
-    std::array<uint8_t, sizeof(T)> buf{};
-    for (size_t index = 0; index < sizeof(T); ++index) {
-        buf[index] = static_cast<uint8_t>((value >> (index * BITS_PER_BYTE)) & BYTE_MASK);
-    }
-    out.write(reinterpret_cast<const char*>(buf.data()), sizeof(T));
-}
-
-static void write_u32_le(std::ostream& out, uint32_t value) {
-    write_le<uint32_t>(out, value);
-}
-static void write_u16_le(std::ostream& out, uint16_t value) {
-    write_le<uint16_t>(out, value);
-}
-
-template <typename T>
-static auto read_le(const char* ptr) -> T {
-    // use a 64-bit accumulator to avoid needing type_traits; safe for up to 64-bit reads
-    uint64_t acc = 0;
-    for (size_t index = 0; index < sizeof(T); ++index) {
-        acc |= (static_cast<uint64_t>(static_cast<uint8_t>(ptr[index])) << (index * BITS_PER_BYTE));
-    }
-    return static_cast<T>(acc);
-}
-
-static auto read_u16_le(const char* ptr) -> uint16_t {
-    return read_le<uint16_t>(ptr);
-}
-static auto read_u32_le(const char* ptr) -> uint32_t {
-    return read_le<uint32_t>(ptr);
-}
+using namespace EndianUtils;
 
 /**
  * We currently only support Bit Rates/Bit Depths of 8, 16, and 32
@@ -114,7 +86,7 @@ auto AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, int sampl
     // build index integer and derive metadata
     try {
         cpp_int idx    = AudioIndex::audioDataToIndex(index.audioData);
-        index.metadata = AudioIndex::indexToMetadata(idx);
+        index.metadata = IndexMetadata::extractMetadataFromIndex(idx);
     } catch (...) {
         // non-fatal: leave metadata blank on error
     }
@@ -640,53 +612,10 @@ void AudioIndex::writeIndexToFile(const boost::multiprecision::cpp_int& index, c
 // 10) Metadata derivation
 // ---------------------------------------------------------------------------
 
-// TODO(tomer): Find a better way to do this?
-
-auto AudioIndex::indexToMetadata(const boost::multiprecision::cpp_int& index) -> AudioIndex::Metadata {
-    std::vector<uint8_t> bytes;
-    boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8, true);
-
-    auto generateMetaName = [&](size_t off, size_t len) {
-        std::string name;
-        for (size_t i = 0; i < len; ++i) {
-            uint8_t base = (off + i < bytes.size()) ? bytes[off + i] : 0;
-            char    c    = static_cast<char>((base % 36) < 10 ? ('0' + (base % 10)) : ('a' + ((base % 36) - 10)));
-            name.push_back(c);
-        }
-        return name;
-    };
-
-    Metadata meta;
-    if (bytes.empty()) {
-        meta.genre  = "g0";
-        meta.artist = "a0";
-        meta.album  = "al0";
-        meta.track  = "t0";
-        return meta;
-    }
-
-    meta.genre  = generateMetaName(0, 6);
-    meta.artist = generateMetaName(6, 8);
-    meta.album  = generateMetaName(14, 8);
-    meta.track  = generateMetaName(22, 6);
-
-    // generate a tiny SVG cover from first bytes
-    std::string svg = "<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>";
-    svg += "<rect width='100%' height='100%' fill='#";
-    unsigned int color = 0;
-    for (size_t i = 0; i < 3; ++i) {
-        color = (color << 8) | (i < bytes.size() ? bytes[i] : 0);
-    }
-    const char* hex = "0123456789abcdef";
-    for (int i = 5; i >= 0; --i) {
-        unsigned int nib = (color >> (i * 4)) & 0xF;
-        svg.push_back(hex[nib]);
-    }
-    svg += "'/><text x='50%' y='50%' font-size='20' text-anchor='middle' fill='#fff' dominant-baseline='middle'>";
-    svg += meta.track;
-    svg += "</text></svg>";
-    meta.cover.assign(svg.begin(), svg.end());
-    return meta;
+// AudioIndex::indexToMetadata remains a thin wrapper which delegates to
+// IndexMetadata::extractMetadataFromIndex (implemented in IndexMetadata.cpp).
+auto AudioIndex::indexToMetadata(const boost::multiprecision::cpp_int& index) -> IndexMetadata {
+    return IndexMetadata::extractMetadataFromIndex(index);
 }
 
 } // namespace AudioBabel

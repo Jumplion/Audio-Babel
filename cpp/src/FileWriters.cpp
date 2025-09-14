@@ -6,14 +6,14 @@
 #include <iostream>
 #include <sstream>
 
-#include "EndianUtils.h"
+#include "Utilities.h"
 
 using boost::multiprecision::cpp_int;
 namespace fs = std::filesystem;
 
 namespace AudioBabel {
 
-using namespace EndianUtils;
+using namespace Utilities;
 
 void FileWriters::exportAudioDataToWav(const AudioIndex::AudioData& audioData, const std::string& path) {
     std::ofstream out(path, std::ios::binary);

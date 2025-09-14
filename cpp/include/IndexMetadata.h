@@ -18,13 +18,14 @@ class IndexMetadata {
 
     // Extract deterministic metadata from a big-integer index.
     static auto extractMetadataFromIndex(const boost::multiprecision::cpp_int& index) -> IndexMetadata;
+
     // Overload: extract metadata directly from a URL-safe base64 string
     // representation (no padding) of the index bytes.
     static auto extractMetadataFromIndex(const std::string& base64Index) -> IndexMetadata;
-    // Public helper: generate a tiny SVG cover from bytes and a track string.
+
+    // Generate a tiny SVG cover from bytes and a track string.
     // Returns the SVG markup as a std::string.
-    static std::string generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track);
-    // NOTE: base64 validation/encode/decode utilities moved to Base64Url.h
+    static auto generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track) -> std::string;
 };
 
 } // namespace AudioBabel

@@ -34,9 +34,6 @@ auto IndexMetadata::generateSvgCover(const std::vector<uint8_t>& bytes, const st
 
 // Decoding/encoding is provided by Base64Url utilities in Base64Url.h/cpp
 
-// Forward declaration for helper used by both overloads
-static auto buildMetadataFromBytesAndB64(const std::vector<uint8_t>& bytes, const std::string& b64str) -> IndexMetadata;
-
 // Overload: accept a URL-safe base64 string representing the index bytes
 auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> IndexMetadata {
     std::vector<uint8_t> bytes = ::AudioBabel::Utilities::decodeBase64Url(base64Index);
@@ -54,9 +51,9 @@ auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_in
     return buildMetadataFromBytesAndB64(bytes, b64str);
 }
 
-// Centralized helper that builds IndexMetadata from raw bytes and the
-// corresponding base64 string. This removes duplication between overloads.
-static auto buildMetadataFromBytesAndB64(const std::vector<uint8_t>& bytes, const std::string& b64str) -> IndexMetadata {
+// Centralized helper that builds IndexMetadata from raw bytes and the corresponding base64 string.
+// Define the static helper declared in the header so the symbol is available
+auto IndexMetadata::buildMetadataFromBytesAndB64(const std::vector<uint8_t>& bytes, const std::string& b64str) -> IndexMetadata {
     IndexMetadata meta;
     if (b64str.empty()) {
         meta.genre  = "g0";

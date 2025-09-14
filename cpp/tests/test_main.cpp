@@ -15,7 +15,7 @@
 #include <vector>
 
 #include "AudioIndex.h"
-#include "Base64Url.h"
+#include "Utilities.h"
 #ifndef M_PI
 #    define M_PI 3.14159265358979323846
 #endif
@@ -285,13 +285,13 @@ auto main(int argc, char** argv) -> int {
         const std::string name = "IndexMetadata: isValidBase64 and decode behavior";
         bool              ok   = true;
         // Valid URL-safe base64 strings (no padding)
-        ok &= RUN_CHECK(runner, name, AudioBabel::isValidBase64Url(""), "empty string valid");
-        ok &= RUN_CHECK(runner, name, AudioBabel::isValidBase64Url("A"), "single A valid");
-        ok &= RUN_CHECK(runner, name, AudioBabel::isValidBase64Url("Ab0-_"), "chars allowed");
+        ok &= RUN_CHECK(runner, name, AudioBabel::Utilities::isValidBase64Url(""), "empty string valid");
+        ok &= RUN_CHECK(runner, name, AudioBabel::Utilities::isValidBase64Url("A"), "single A valid");
+        ok &= RUN_CHECK(runner, name, AudioBabel::Utilities::isValidBase64Url("Ab0-_"), "chars allowed");
 
         // Invalid characters: '=' padding and '!' should be rejected by isValidBase64
-        ok &= RUN_CHECK(runner, name, !AudioBabel::isValidBase64Url("A="), "padding '=' invalid");
-        ok &= RUN_CHECK(runner, name, !AudioBabel::isValidBase64Url("!"), "'!' invalid");
+        ok &= RUN_CHECK(runner, name, !AudioBabel::Utilities::isValidBase64Url("A="), "padding '=' invalid");
+        ok &= RUN_CHECK(runner, name, !AudioBabel::Utilities::isValidBase64Url("!"), "'!' invalid");
 
         // extractMetadataFromIndex should throw for invalid base64 input
         bool threw = false;
@@ -323,8 +323,8 @@ auto main(int argc, char** argv) -> int {
 
     runner.add("Base64Url: encode/decode roundtrip", [&runner]() -> bool {
         const std::string name = "Base64Url: encode/decode roundtrip";
-        using AudioBabel::encodeBase64Url;
-        using AudioBabel::decodeBase64Url;
+        using AudioBabel::Utilities::encodeBase64Url;
+        using AudioBabel::Utilities::decodeBase64Url;
         std::vector<uint8_t> in = {0x00, 0x12, 0x34, 0xFF, 0x80};
         try {
             std::string s   = encodeBase64Url(in);

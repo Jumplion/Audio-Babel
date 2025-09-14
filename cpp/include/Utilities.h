@@ -5,13 +5,15 @@
 #include <boost/multiprecision/cpp_int.hpp>
 #include <cstdint>
 #include <ostream>
+#include <string>
+#include <string_view>
 #include <vector>
 
 // Utilities: endian helpers and small byte/bit helpers used across the audio code.
 // Header-only and inline to avoid ODR issues.
 namespace AudioBabel::Utilities {
 
-// --- Endian helpers (LE) -----------------------------------------------------------------
+// --- Little-Endian Write helpers ----------------------------------------------------------
 template <typename T>
 inline void write_le(std::ostream& out, T value) {
     std::array<uint8_t, sizeof(T)> buf{};
@@ -28,6 +30,7 @@ inline void write_u32_le(std::ostream& out, uint32_t value) {
     write_le<uint32_t>(out, value);
 }
 
+// --- Little-endian Read helpers -----------------------------------------------------------
 template <typename T>
 inline auto read_le(const char* ptr) -> T {
     uint64_t acc = 0;
@@ -107,6 +110,71 @@ static inline auto bytes_to_cpp_int_be(const std::vector<uint8_t>& bytes) -> boo
         res |= boost::multiprecision::cpp_int(static_cast<uint32_t>(b));
     }
     return res;
+}
+
+// --- Base64 URL-safe utilities (alphabet A-Z a-z 0-9 - _, no padding) ---------
+// Accepts string-like inputs via std::string_view.
+constexpr auto isValidBase64Url(std::string_view s) -> bool {
+    for (char c : s) {
+        if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' && c != '_') {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Decode URL-safe base64 (no padding) into bytes. Throws std::invalid_argument on invalid input.
+inline auto decodeBase64Url(const std::string& s) -> std::vector<uint8_t> {
+    static const std::array<int8_t, 256> rev = []() {
+        std::array<int8_t, 256> table{};
+        table.fill(-1);
+        const std::string alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+        for (size_t i = 0; i < alpha.size(); ++i) {
+            table[static_cast<unsigned char>(alpha[i])] = static_cast<int8_t>(i);
+        }
+        return table;
+    }();
+
+    std::vector<uint8_t> out;
+    uint32_t             acc      = 0;
+    int                  acc_bits = 0;
+    for (char ch : s) {
+        int8_t v = rev[static_cast<unsigned char>(ch)];
+        if (v < 0) {
+            throw std::invalid_argument("Invalid base64 character in input");
+        }
+        acc = (acc << 6) | static_cast<uint32_t>(v);
+        acc_bits += 6;
+        if (acc_bits >= 8) {
+            acc_bits -= 8;
+            auto b = static_cast<uint8_t>((acc >> acc_bits) & 0xFF);
+            out.push_back(b);
+        }
+    }
+    return out;
+}
+
+// Encode bytes into URL-safe base64 (no padding)
+inline auto encodeBase64Url(const std::vector<uint8_t>& bytes) -> std::string {
+    static const char b64_alpha[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    std::string       b64str;
+    b64str.reserve((bytes.size() * 8 + 5) / 6);
+    uint32_t acc      = 0;
+    int      acc_bits = 0;
+    for (uint8_t byte : bytes) {
+        acc = (acc << 8) | byte;
+        acc_bits += 8;
+        while (acc_bits >= 6) {
+            acc_bits -= 6;
+            auto idx = static_cast<uint8_t>((acc >> acc_bits) & 0x3F);
+            b64str.push_back(b64_alpha[idx]);
+        }
+    }
+    if (acc_bits > 0) {
+        auto idx = static_cast<uint8_t>((acc << (6 - acc_bits)) & 0x3F);
+        b64str.push_back(b64_alpha[idx]);
+    }
+    return b64str;
 }
 
 } // namespace AudioBabel::Utilities

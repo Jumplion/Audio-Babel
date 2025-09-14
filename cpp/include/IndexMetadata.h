@@ -16,6 +16,9 @@ class IndexMetadata {
     std::string          track;
     std::vector<uint8_t> cover; // optional small image bytes
 
+    // Forward declaration for helper used by both overloads
+    static auto buildMetadataFromBytesAndB64(const std::vector<uint8_t>& bytes, const std::string& b64str) -> IndexMetadata;
+
     // Extract deterministic metadata from a big-integer index.
     static auto extractMetadataFromIndex(const boost::multiprecision::cpp_int& index) -> IndexMetadata;
 

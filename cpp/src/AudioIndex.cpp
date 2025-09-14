@@ -15,8 +15,9 @@
 #include <vector>
 
 #include "EndianUtils.h"
-#include "IndexMetadata.h"
 #include "FileWriters.h"
+#include "IndexMetadata.h"
+
 
 using boost::multiprecision::cpp_int;
 namespace fs = std::filesystem;
@@ -512,24 +513,10 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
     return audioData;
 }
 
-
-// ---------------------------------------------------------------------------
-// 9) Index representation helpers
-// ---------------------------------------------------------------------------
-
-// File I/O helpers moved to FileWriters (see cpp/include/FileWriters.h).
-
-// ---------------------------------------------------------------------------
-// 10) Metadata derivation
-// ---------------------------------------------------------------------------
-
-// AudioIndex::indexToMetadata remains a thin wrapper which delegates to
-// IndexMetadata::extractMetadataFromIndex (implemented in IndexMetadata.cpp).
 auto AudioIndex::indexToMetadata(const boost::multiprecision::cpp_int& index) -> IndexMetadata {
     return IndexMetadata::extractMetadataFromIndex(index);
 }
 
-// Backwards-compatible wrappers forwarding to FileWriters
 void AudioIndex::exportAudioDataToWav(const AudioData& audioData, const std::string& path) {
     FileWriters::exportAudioDataToWav(audioData, path);
 }

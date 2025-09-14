@@ -123,28 +123,10 @@ class AudioIndex {
     static auto getLastDebugInfo() -> DebugInfo;
     static void clearLastDebugInfo();
 
-    // ---------------------
-    // File I/O
-    // ---------------------
-    /**
-     * Write AudioData to a canonical little-endian WAV file (PCM).
-     * @param audioData Audio data to write
-     * @param path File path to write to
-     */
+    // File I/O helpers were moved to FileWriters to separate concerns.
+    // Backwards-compatible wrappers (thin) retained for external callers.
     static void exportAudioDataToWav(const AudioData& audioData, const std::string& path);
 
-    /**
-     * Write multiple textual representations of a big-integer index
-     * to files prefixed with outPrefix. The following files are produced:
-     *  - <outPrefix>.txt   : base64 (RFC4648) textual representation
-     * If `outDir` is empty, files are written to the repository-relative
-     * `cpp/tests/indexes` directory. If `filename` is empty a stable short hex
-     * stem is generated from the first bytes of the index; otherwise `filename`
-     * is used as the base name (no extension).
-     * @param index Big integer index to write representations for
-     * @param outDir Output directory for the representations
-     * @param filename Base filename for the representations
-    */
     static void writeIndexToFile(const boost::multiprecision::cpp_int& index,
                                  const std::string&                    outDir   = std::string(),
                                  const std::string&                    filename = std::string());

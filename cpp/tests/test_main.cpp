@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "AudioIndex.h"
+#include "Base64Url.h"
 #ifndef M_PI
 #    define M_PI 3.14159265358979323846
 #endif
@@ -238,6 +239,71 @@ auto main(int argc, char** argv) -> int {
         return ok;
     });
 
+    // Additional roundtrip tests for other bit depths
+    runner.add("AudioIndex: audioData -> index -> audioData roundtrip (8-bit)", [&runner]() -> bool {
+        const std::string    name      = "AudioIndex: audioData -> index -> audioData roundtrip (8-bit)";
+        std::vector<int32_t> samples   = {0, 127, -128, 64, -64};
+        auto                 audioData = AudioIndex::extractAudioDataFromSamples(samples, 8000, 8);
+        try {
+            auto idx        = AudioIndex::audioDataToIndex(audioData);
+            auto audioData2 = AudioIndex::indexToAudioData(idx);
+            bool ok         = true;
+            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
+            ok &= RUN_CHECK(runner, name, audioData2.samples.size() == audioData.samples.size(), "samples size match");
+            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
+            return ok;
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            return false;
+        }
+    });
+
+    runner.add("AudioIndex: audioData -> index -> audioData roundtrip (32-bit)", [&runner]() -> bool {
+        const std::string    name      = "AudioIndex: audioData -> index -> audioData roundtrip (32-bit)";
+        std::vector<int32_t> samples   = {0, 2147483647, -2147483647, 1000000, -1000000};
+        auto                 audioData = AudioIndex::extractAudioDataFromSamples(samples, 48000, 32);
+        try {
+            auto idx        = AudioIndex::audioDataToIndex(audioData);
+            auto audioData2 = AudioIndex::indexToAudioData(idx);
+            bool ok         = true;
+            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
+            ok &= RUN_CHECK(runner, name, audioData2.samples.size() == audioData.samples.size(), "samples size match");
+            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
+            return ok;
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            return false;
+        }
+    });
+
+    // Base64 / IndexMetadata validation tests
+    runner.add("IndexMetadata: isValidBase64 and decode behavior", [&runner]() -> bool {
+        const std::string name = "IndexMetadata: isValidBase64 and decode behavior";
+        bool              ok   = true;
+        // Valid URL-safe base64 strings (no padding)
+        ok &= RUN_CHECK(runner, name, AudioBabel::isValidBase64Url(""), "empty string valid");
+        ok &= RUN_CHECK(runner, name, AudioBabel::isValidBase64Url("A"), "single A valid");
+        ok &= RUN_CHECK(runner, name, AudioBabel::isValidBase64Url("Ab0-_"), "chars allowed");
+
+        // Invalid characters: '=' padding and '!' should be rejected by isValidBase64
+        ok &= RUN_CHECK(runner, name, !AudioBabel::isValidBase64Url("A="), "padding '=' invalid");
+        ok &= RUN_CHECK(runner, name, !AudioBabel::isValidBase64Url("!"), "'!' invalid");
+
+        // extractMetadataFromIndex should throw for invalid base64 input
+        bool threw = false;
+        try {
+            IndexMetadata m = IndexMetadata::extractMetadataFromIndex(std::string("A="));
+        } catch (const std::exception&) {
+            threw = true;
+        }
+        ok &= RUN_CHECK(runner, name, threw, "extractMetadataFromIndex throws on invalid base64");
+        return ok;
+    });
+
     runner.add("AudioIndex: audioData -> index -> audioData roundtrip", [&runner]() -> bool {
         const std::string    name       = "AudioIndex: audioData -> index -> audioData roundtrip";
         std::vector<int32_t> samples    = {0, 12345, -12345, 30000, -30000};
@@ -253,6 +319,22 @@ auto main(int argc, char** argv) -> int {
         ok &= RUN_CHECK(runner, name, audioData2.samples.size() == audioData.samples.size(), "samples size match");
         ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
         return ok;
+    });
+
+    runner.add("Base64Url: encode/decode roundtrip", [&runner]() -> bool {
+        const std::string name = "Base64Url: encode/decode roundtrip";
+        using AudioBabel::encodeBase64Url;
+        using AudioBabel::decodeBase64Url;
+        std::vector<uint8_t> in = {0x00, 0x12, 0x34, 0xFF, 0x80};
+        try {
+            std::string s   = encodeBase64Url(in);
+            auto        out = decodeBase64Url(s);
+            bool        ok  = RUN_CHECK(runner, name, out == in, "roundtrip equality");
+            return ok;
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            return false;
+        }
     });
 
     runner.add("AudioIndex: fromAudioSamples and getters", [&runner]() -> bool {

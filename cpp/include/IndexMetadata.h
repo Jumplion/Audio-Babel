@@ -24,9 +24,7 @@ class IndexMetadata {
     // Public helper: generate a tiny SVG cover from bytes and a track string.
     // Returns the SVG markup as a std::string.
     static std::string generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track);
-    // Validate whether a string contains only URL-safe base64 characters
-    // (A-Z, a-z, 0-9, '-' and '_'). Empty string is considered valid.
-    static bool isValidBase64(const std::string& s);
+    // NOTE: base64 validation/encode/decode utilities moved to Base64Url.h
 };
 
 } // namespace AudioBabel

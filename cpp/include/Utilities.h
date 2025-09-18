@@ -9,6 +9,9 @@
 #include <string_view>
 #include <vector>
 
+#include "Constants.h"
+
+
 // Utilities: endian helpers and small byte/bit helpers used across the audio code.
 // Header-only and inline to avoid ODR issues.
 namespace AudioBabel::Utilities {
@@ -76,6 +79,9 @@ static inline auto bytes_to_cpp_int_be(const std::vector<uint8_t>& bytes) -> boo
 
 // --- Base64 URL-safe utilities (alphabet A-Z a-z 0-9 - _, no padding) ---------
 // Accepts string-like inputs via std::string_view.
+// URL-safe base64 alphabet used by encoder/decoder (no padding)
+constexpr char BASE64_URL_ALPHA[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
 constexpr auto isValidBase64Url(std::string_view s) -> bool {
     for (char c : s) {
         if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' && c != '_') {
@@ -90,8 +96,8 @@ inline auto decodeBase64Url(const std::string& s) -> std::vector<uint8_t> {
     static const std::array<int8_t, 256> rev = []() {
         std::array<int8_t, 256> table{};
         table.fill(-1);
-        const std::string alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-        for (size_t i = 0; i < alpha.size(); ++i) {
+        const char* alpha = BASE64_URL_ALPHA;
+        for (size_t i = 0; i < 64; ++i) {
             table[static_cast<unsigned char>(alpha[i])] = static_cast<int8_t>(i);
         }
         return table;
@@ -118,22 +124,22 @@ inline auto decodeBase64Url(const std::string& s) -> std::vector<uint8_t> {
 
 // Encode bytes into URL-safe base64 (no padding)
 inline auto encodeBase64Url(const std::vector<uint8_t>& bytes) -> std::string {
-    static const char b64_alpha[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    std::string       b64str;
-    b64str.reserve((bytes.size() * 8 + 5) / 6);
+    static const char* b64_alpha = BASE64_URL_ALPHA;
+    std::string        b64str;
+    b64str.reserve((bytes.size() * AudioBabel::BITS_PER_BYTE + (AudioBabel::BASE64_BITS - 1)) / AudioBabel::BASE64_BITS);
     uint32_t acc      = 0;
     int      acc_bits = 0;
     for (uint8_t byte : bytes) {
-        acc = (acc << 8) | byte;
-        acc_bits += 8;
-        while (acc_bits >= 6) {
-            acc_bits -= 6;
-            auto idx = static_cast<uint8_t>((acc >> acc_bits) & 0x3F);
+        acc = (acc << AudioBabel::BITS_PER_BYTE) | byte;
+        acc_bits += AudioBabel::BITS_PER_BYTE;
+        while (acc_bits >= AudioBabel::BASE64_BITS) {
+            acc_bits -= AudioBabel::BASE64_BITS;
+            auto idx = static_cast<uint8_t>((acc >> acc_bits) & AudioBabel::BASE64_MASK);
             b64str.push_back(b64_alpha[idx]);
         }
     }
     if (acc_bits > 0) {
-        auto idx = static_cast<uint8_t>((acc << (6 - acc_bits)) & 0x3F);
+        auto idx = static_cast<uint8_t>((acc << (AudioBabel::BASE64_BITS - acc_bits)) & AudioBabel::BASE64_MASK);
         b64str.push_back(b64_alpha[idx]);
     }
     return b64str;

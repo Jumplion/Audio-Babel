@@ -77,23 +77,6 @@ static inline void push_be_u64(std::vector<uint8_t>& out, uint64_t v, size_t BIT
     }
 }
 
-static inline auto parse_be_u16(const std::vector<uint8_t>& buf, size_t offset, size_t BITS_PER_BYTE = 8) -> uint16_t {
-    return static_cast<uint16_t>((static_cast<uint16_t>(buf[offset]) << 8) | static_cast<uint16_t>(buf[offset + 1]));
-}
-
-static inline auto parse_be_u32(const std::vector<uint8_t>& buf, size_t offset, size_t BITS_PER_BYTE = 8) -> uint32_t {
-    return (static_cast<uint32_t>(buf[offset]) << 24) | (static_cast<uint32_t>(buf[offset + 1]) << 16) |
-           (static_cast<uint32_t>(buf[offset + 2]) << 8) | static_cast<uint32_t>(buf[offset + 3]);
-}
-
-static inline auto parse_be_u64(const std::vector<uint8_t>& buf, size_t offset, size_t BITS_PER_BYTE = 8) -> uint64_t {
-    uint64_t v = 0;
-    for (int i = 0; i < 8; ++i) {
-        v = (v << BITS_PER_BYTE) | static_cast<uint64_t>(buf[offset + i]);
-    }
-    return v;
-}
-
 static inline void append_sample_be_from_le(const std::vector<uint8_t>& le_samples,
                                             size_t                      offset,
                                             size_t                      bytes_per_sample,

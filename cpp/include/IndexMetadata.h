@@ -10,11 +10,11 @@ namespace AudioBabel {
 // Metadata type for audio indices (renamed from AudioMetaData).
 class IndexMetadata {
    public:
-    std::string          genre;
-    std::string          artist;
-    std::string          album;
-    std::string          track;
-    std::vector<uint8_t> cover; // optional small image bytes
+    std::string genre;
+    std::string artist;
+    std::string album;
+    std::string track;
+    std::string cover; // optional small image (SVG text) stored as string
 
     // Forward declaration for helper used by both overloads
     static auto buildMetadataFromBytesAndB64(const std::vector<uint8_t>& bytes, const std::string& b64str) -> IndexMetadata;

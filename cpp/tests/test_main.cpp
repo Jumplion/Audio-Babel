@@ -352,6 +352,30 @@ auto main(int argc, char** argv) -> int {
         return ok;
     });
 
+    runner.add("Base64Url: alphabet and edge-case roundtrip", [&runner]() -> bool {
+        const std::string name = "Base64Url: alphabet and edge-case roundtrip";
+        bool ok = true;
+        using AudioBabel::Utilities::encodeBase64Url;
+        using AudioBabel::Utilities::decodeBase64Url;
+
+        // Alphabet constant should be 64 chars
+        ok &= RUN_CHECK(runner, name, std::char_traits<char>::length(AudioBabel::Utilities::BASE64_URL_ALPHA) == 64, "alphabet length == 64");
+
+        // Empty input roundtrip
+        std::vector<uint8_t> in0;
+        std::string s0 = encodeBase64Url(in0);
+        auto out0 = decodeBase64Url(s0);
+        ok &= RUN_CHECK(runner, name, out0.empty(), "empty roundtrip");
+
+        // Single byte roundtrip
+        std::vector<uint8_t> in1 = {0xFF};
+        std::string s1 = encodeBase64Url(in1);
+        auto out1 = decodeBase64Url(s1);
+        ok &= RUN_CHECK(runner, name, out1 == in1, "single-byte roundtrip");
+
+        return ok;
+    });
+
     runner.add("AudioIndex: exportAudioDataToWav and read back", [&runner]() -> bool {
         const std::string    name      = "AudioIndex: exportAudioDataToWav and read back";
         std::vector<int32_t> samples   = {0, 1000, -1000, 2000, -2000};
@@ -806,7 +830,7 @@ auto main(int argc, char** argv) -> int {
 
             // cover contains svg
             ok &= RUN_CHECK(runner, name, !meta.cover.empty(), "cover non-empty");
-            std::string cover_str(meta.cover.begin(), meta.cover.end());
+            std::string const& cover_str = meta.cover;
             ok &= RUN_CHECK(runner, name, cover_str.find("<svg") != std::string::npos, "cover contains svg");
 
         } catch (const std::exception& e) {

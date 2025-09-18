@@ -24,30 +24,30 @@ void FileWriters::exportAudioDataToWav(const AudioIndex::AudioData& audioData, c
     // RIFF header
     out.write("RIFF", 4);
     uint32_t file_size = 36 + static_cast<uint32_t>(audioData.samples.size());
-    write_u32_le(out, file_size);
+    write_le<uint32_t>(out, file_size);
     out.write("WAVE", 4);
 
     // fmt chunk
     out.write("fmt ", 4);
     auto fmt_size = static_cast<uint32_t>(16);
-    write_u32_le(out, fmt_size);
+    write_le<uint32_t>(out, fmt_size);
 
     uint16_t audio_format = audioData.audio_format;
-    write_u16_le(out, audio_format);
-    write_u16_le(out, audioData.num_channels);
-    write_u32_le(out, audioData.sample_rate);
+    write_le<uint16_t>(out, audio_format);
+    write_le<uint16_t>(out, audioData.num_channels);
+    write_le<uint32_t>(out, audioData.sample_rate);
 
     uint32_t byte_rate = audioData.sample_rate * audioData.num_channels * (audioData.bit_rate / 8);
-    write_u32_le(out, byte_rate);
+    write_le<uint32_t>(out, byte_rate);
 
     auto block_align = static_cast<uint16_t>(audioData.num_channels * (audioData.bit_rate / 8));
-    write_u16_le(out, block_align);
-    write_u16_le(out, audioData.bit_rate);
+    write_le<uint16_t>(out, block_align);
+    write_le<uint16_t>(out, audioData.bit_rate);
 
     // data chunk
     out.write("data", 4);
     auto data_size = static_cast<uint32_t>(audioData.samples.size());
-    write_u32_le(out, data_size);
+    write_le<uint32_t>(out, data_size);
     out.write(reinterpret_cast<const char*>(audioData.samples.data()), audioData.samples.size());
 }
 

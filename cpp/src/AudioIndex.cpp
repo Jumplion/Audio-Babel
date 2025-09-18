@@ -153,7 +153,7 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
         }
 
         // Interpret chunk size, guard against unreasonable chunk sizes (> 1 GiB or 1,073,741,824 bytes)
-        uint32_t chunkSize = read_u32_le(sizeBuf.data());
+        auto chunkSize = read_le<uint32_t>(sizeBuf.data());
         if (chunkSize > ::AudioBabel::CHUNK_SIZE_LIMIT) {
             break;
         }
@@ -180,10 +180,10 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
                 break;
             }
 
-            audioData.audio_format = read_u16_le(buf.data());
-            audioData.num_channels = read_u16_le(buf.data() + 2);
-            audioData.sample_rate  = read_u32_le(buf.data() + 4);
-            audioData.bit_rate     = read_u16_le(buf.data() + 14);
+            audioData.audio_format = read_le<uint16_t>(buf.data());
+            audioData.num_channels = read_le<uint16_t>(buf.data() + 2);
+            audioData.sample_rate  = read_le<uint32_t>(buf.data() + 4);
+            audioData.bit_rate     = read_le<uint16_t>(buf.data() + 14);
 
             // Validate bit depth read from fmt chunk to avoid later division by zero
             if (!isBitDepthSupported(audioData.bit_rate)) {
@@ -339,10 +339,10 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
     std::vector<uint8_t> header_buf;
     header_buf.reserve(HEADER_BYTES_CONST);
 
-    push_be_u32(header_buf, audioData.sample_rate);
-    push_be_u16(header_buf, audioData.bit_rate);
-    push_be_u16(header_buf, audioData.num_channels);
-    push_be_u64(header_buf, audioData.num_frames);
+    push_be<uint32_t>(header_buf, audioData.sample_rate);
+    push_be<uint16_t>(header_buf, audioData.bit_rate);
+    push_be<uint16_t>(header_buf, audioData.num_channels);
+    push_be<uint64_t>(header_buf, audioData.num_frames);
 
     // Convert header_buf to cpp_int (big-endian bytes)
     cpp_int header_int = bytes_to_cpp_int_be(header_buf);

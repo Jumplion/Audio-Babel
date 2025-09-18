@@ -23,13 +23,6 @@ inline void write_le(std::ostream& out, T value) {
     out.write(reinterpret_cast<const char*>(buf.data()), sizeof(T));
 }
 
-inline void write_u16_le(std::ostream& out, uint16_t value) {
-    write_le<uint16_t>(out, value);
-}
-inline void write_u32_le(std::ostream& out, uint32_t value) {
-    write_le<uint32_t>(out, value);
-}
-
 // --- Little-endian Read helpers -----------------------------------------------------------
 template <typename T>
 inline auto read_le(const char* ptr) -> T {
@@ -38,13 +31,6 @@ inline auto read_le(const char* ptr) -> T {
         acc |= (static_cast<uint64_t>(static_cast<uint8_t>(ptr[index])) << (index * 8));
     }
     return static_cast<T>(acc);
-}
-
-inline auto read_u16_le(const char* ptr) -> uint16_t {
-    return read_le<uint16_t>(ptr);
-}
-inline auto read_u32_le(const char* ptr) -> uint32_t {
-    return read_le<uint32_t>(ptr);
 }
 
 // --- Big-endian helpers and byte utilities -----------------------------------------------
@@ -60,20 +46,13 @@ static inline auto tagEquals(const std::array<char, 4>& tagBuf, const char expec
     return true;
 }
 
-static inline void push_be_u16(std::vector<uint8_t>& out, uint16_t v, size_t BITS_PER_BYTE = 8, uint32_t BYTE_MASK = 0xFFU) {
-    out.push_back(static_cast<uint8_t>((v >> 8) & BYTE_MASK));
-    out.push_back(static_cast<uint8_t>((v >> 0) & BYTE_MASK));
-}
-
-static inline void push_be_u32(std::vector<uint8_t>& out, uint32_t v, size_t BITS_PER_BYTE = 8, uint32_t BYTE_MASK = 0xFFU) {
-    for (int i = 3; i >= 0; --i) {
-        out.push_back(static_cast<uint8_t>((v >> (i * BITS_PER_BYTE)) & BYTE_MASK));
-    }
-}
-
-static inline void push_be_u64(std::vector<uint8_t>& out, uint64_t v, size_t BITS_PER_BYTE = 8, uint32_t BYTE_MASK = 0xFFU) {
-    for (int i = 7; i >= 0; --i) {
-        out.push_back(static_cast<uint8_t>((v >> (i * BITS_PER_BYTE)) & BYTE_MASK));
+template <typename T>
+static inline void push_be(std::vector<uint8_t>& out, T val, size_t BITS_PER_BYTE = 8, uint32_t BYTE_MASK = 0xFFU) {
+    // Cast to a known-width unsigned type for safe shifting
+    auto      uv        = static_cast<uint64_t>(val);
+    const int num_bytes = static_cast<int>(sizeof(T));
+    for (int i = num_bytes - 1; i >= 0; --i) {
+        out.push_back(static_cast<uint8_t>((uv >> (i * BITS_PER_BYTE)) & BYTE_MASK));
     }
 }
 

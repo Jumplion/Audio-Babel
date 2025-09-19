@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Audibel — Browse Index</title>
+    <link rel="stylesheet" href="./css/site.css" />
+</head>
+
+<body class="browse">
+    <div class="wrap">
+        <main class="card">
+            <h1>Browse Index</h1>
+            <div style="margin-bottom:12px">
+                <label for="browseInput">Enter an index string (A-Z, a-z, 0-9, - and _):</label>
+                <textarea id="browseInput" rows="1"
+                    style="display: block; margin-top: 6px; width: 100%; overflow: hidden; resize: none;"
+                    placeholder="Type index here..."></textarea>
+                <div style="margin-top: 8px">
+                    <button class="btn" id="doBrowseGenerate" disabled>Generate from index</button>
+                </div>
+                <p style="margin-top: 8px">
+                    <small>Only characters A-Z a-z 0-9 - and _ are allowed. The string will be used directly as the
+                        index
+                        bytes.</small>
+                </p>
+            </div>
+
+            <div id="statusLine" style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+                <span id="statusMsg">Ready</span><span id="statusSpinner" style="display: none" class="spinner"></span>
+            </div>
+            <div id="resultContainer"></div>
+
+            <footer>
+                <small><a href="./index.html">Back</a></small>
+            </footer>
+        </main>
+    </div>
+
+    <script type="module" src="./js/main.js"></script>
+    <script type="module">
+        import { loadPlayer } from "./js/player.js";
+        (async () => {
+            try {
+                window.__SOTB_PLAYER = await loadPlayer("body");
+            } catch (e) {
+                console.error("Player failed to load", e);
+            }
+        })();
+    </script>
+</body>
+
+</html>

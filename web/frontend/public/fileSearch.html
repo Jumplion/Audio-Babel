@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Audibel — Upload .wav</title>
+    <link rel="stylesheet" href="./css/site.css" />
+</head>
+
+<body class="file-search">
+    <div class="wrap">
+        <main class="card">
+            <h1>Upload .wav</h1>
+            <div style="margin-bottom:12px">
+                <label for="fileInput">Select a .wav file to upload:</label>
+                <input id="fileInput" type="file" accept="audio/wav,audio/x-wav,.wav"
+                    style="display: block; margin-top: 6px" />
+                <div style="margin-top: 8px">
+                    <button class="btn" id="doFileSearch">Upload &amp; Extract</button>
+                </div>
+                <p style="margin-top: 8px">
+                    <small>Uploaded files must be under server's size limit.</small>
+                </p>
+            </div>
+
+            <div id="statusLine" style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+                <span id="statusMsg">Ready</span><span id="statusSpinner" style="display: none" class="spinner"></span>
+            </div>
+            <div id="resultContainer"></div>
+
+            <footer>
+                <small><a href="./index.html">Back</a></small>
+            </footer>
+        </main>
+    </div>
+
+    <script type="module" src="./js/main.js"></script>
+    <script type="module">
+        import { loadPlayer } from "./js/player.js";
+        (async () => {
+            try {
+                window.__SOTB_PLAYER = await loadPlayer("body");
+            } catch (e) {
+                console.error("Player failed to load", e);
+            }
+        })();
+    </script>
+</body>
+
+</html>

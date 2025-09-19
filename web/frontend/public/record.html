@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Audibel — Record</title>
+    <link rel="stylesheet" href="./css/site.css" />
+</head>
+
+<body class="record">
+    <div class="wrap">
+        <main class="card">
+            <h1>Record Audio</h1>
+            <p>
+                <small>Record audio from your microphone and upload it for index extraction.</small>
+            </p>
+            <div style="margin-top: 8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+                <button class="btn" id="recordStartStop">Start Recording</button>
+                <button class="btn" id="uploadRecording" disabled>Upload &amp; Extract</button>
+                <span id="recordStatus" style="margin-left:6px">Idle</span>
+                <span id="recordDuration" style="margin-left:8px">00:00</span>
+            </div>
+            <div style="margin-top:8px">
+                <audio id="recordPlayer" controls style="max-width:100%"></audio>
+            </div>
+
+            <div id="statusLine" style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+                <span id="statusMsg">Ready</span><span id="statusSpinner" style="display: none" class="spinner"></span>
+            </div>
+            <div id="resultContainer"></div>
+
+            <footer>
+                <small><a href="./index.html">Back</a></small>
+            </footer>
+        </main>
+    </div>
+
+    <script type="module" src="./js/main.js"></script>
+    <script type="module">
+        import { loadPlayer } from "./js/player.js";
+        (async () => {
+            try {
+                window.__SOTB_PLAYER = await loadPlayer("body");
+            } catch (e) {
+                console.error("Player failed to load", e);
+            }
+        })();
+    </script>
+</body>
+
+</html>

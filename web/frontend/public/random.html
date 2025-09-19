@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Audibel — Random Index</title>
+    <link rel="stylesheet" href="./css/site.css" />
+</head>
+
+<body class="random">
+    <div class="wrap">
+        <main class="card">
+            <h1>Generate Random Index</h1>
+            <div style="margin-bottom:12px">
+                <button class="btn" id="regenBtn">Generate Random Index</button>
+                <p style="margin-top:8px"><small>Clicking the button will generate a random index size between 64 KB and
+                        5 MB (server max 60 MB).</small></p>
+            </div>
+
+            <div id="statusLine" style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+                <span id="statusMsg">Ready</span><span id="statusSpinner" style="display: none" class="spinner"></span>
+            </div>
+            <div id="resultContainer"></div>
+
+            <footer>
+                <small><a href="./index.html">Back</a></small>
+            </footer>
+        </main>
+    </div>
+
+    <script type="module" src="./js/main.js"></script>
+    <script type="module">
+        import { loadPlayer } from "./js/player.js";
+        (async () => {
+            try {
+                window.__SOTB_PLAYER = await loadPlayer("body");
+            } catch (e) {
+                console.error("Player failed to load", e);
+            }
+        })();
+    </script>
+</body>
+
+</html>

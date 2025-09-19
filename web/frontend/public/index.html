@@ -46,63 +46,11 @@
 
       <div class="top-controls" style="margin-bottom: 16px">
         <div class="group">
-          <button class="btn" id="tabRandom">Random</button>
-          <button class="btn" id="tabBrowse">Browse</button>
-          <button class="btn" id="tabFile">Upload .wav</button>
-          <button class="btn" id="tabRecord">Record</button>
+          <a class="btn" href="./random.html">Random</a>
+          <a class="btn" href="./browse.html">Browse</a>
+          <a class="btn" href="./fileSearch.html">Upload .wav</a>
+          <a class="btn" href="./record.html">Record</a>
         </div>
-      </div>
-
-      <div id="panelRandom" style="margin-bottom: 12px">
-        <button class="btn" id="regenBtn">Generate Random Index</button>
-        <p style="margin-top: 8px">
-          <small>Clicking the button will generate a random index size between 64 KB and 5 MB (server max 60
-            MB).</small>
-        </p>
-      </div>
-
-      <div id="panelBrowse" style="display: none; margin-bottom: 12px">
-        <label for="browseInput">Enter an index string (A-Z, a-z, 0-9, - and _):</label>
-        <textarea id="browseInput" rows="1"
-          style="display: block; margin-top: 6px; width: 100%; overflow: hidden; resize: none;"
-          placeholder="Type index here..."></textarea>
-        <div style="margin-top: 8px">
-          <button class="btn" id="doBrowseGenerate" disabled>Generate from index</button>
-        </div>
-        <p style="margin-top: 8px">
-          <small>Only characters A-Z a-z 0-9 - and _ are allowed. The string will be used directly as the index
-            bytes.</small>
-        </p>
-      </div>
-
-      <div id="panelFile" style="display: none; margin-bottom: 12px">
-        <label for="fileInput">Select a .wav file to upload:</label>
-        <input id="fileInput" type="file" accept="audio/wav,audio/x-wav,.wav" style="display: block; margin-top: 6px" />
-        <div style="margin-top: 8px">
-          <button class="btn" id="doFileSearch">Upload &amp; Extract</button>
-        </div>
-        <p style="margin-top: 8px">
-          <small>Uploaded files must be under server's size limit.</small>
-        </p>
-      </div>
-
-      <div id="panelRecord" style="display: none; margin-bottom: 12px">
-        <p>
-          <small>Record audio from your microphone and upload it for index extraction.</small>
-        </p>
-        <div style="margin-top: 8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap">
-          <button class="btn" id="recordStartStop">Start Recording</button>
-          <button class="btn" id="uploadRecording" disabled>Upload &amp; Extract</button>
-          <span id="recordStatus" style="margin-left:6px">Idle</span>
-          <span id="recordDuration" style="margin-left:8px">00:00</span>
-        </div>
-        <div style="margin-top:8px">
-          <audio id="recordPlayer" controls style="max-width:100%"></audio>
-        </div>
-        <p style="margin-top: 8px">
-          <small>If your browser prompts for microphone access, allow it to record. Recording format may vary by
-            browser.</small>
-        </p>
       </div>
 
       <!-- shared result area -->

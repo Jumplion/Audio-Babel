@@ -1,5 +1,5 @@
 import { generateAndSend } from './randomIndex.js';
-import { generateFromIndex, attachBrowseInputFilter } from './browse.js';
+import { generateFromIndex, attachSearchInputFilter } from './search.js';
 import { uploadFile } from './fileUpload.js';
 import { createRecorder } from './recorder.js';
 import { handleJsonResponse } from './resultHandler.js';
@@ -9,24 +9,27 @@ function setActiveTabUI(tab) {
   const tabRandom = document.getElementById('tabRandom');
   const tabFile = document.getElementById('tabFile');
   const tabRecord = document.getElementById('tabRecord');
+  const tabSearch = document.getElementById('tabSearch');
   if (!tabRandom && !tabFile && !tabRecord) return;
   if (tabRandom) tabRandom.classList.remove('tab-active');
   if (tabFile) tabFile.classList.remove('tab-active');
   if (tabRecord) tabRecord.classList.remove('tab-active');
+  if (tabSearch) tabSearch.classList.remove('tab-active');
   if (tab === 'random' && tabRandom) tabRandom.classList.add('tab-active');
   if (tab === 'file' && tabFile) tabFile.classList.add('tab-active');
   if (tab === 'record' && tabRecord) tabRecord.classList.add('tab-active');
+  if (tab === 'search' && tabSearch) tabSearch.classList.add('tab-active');
 }
 
 function setLoading(on) {
   const spinner = document.getElementById('statusSpinner');
   const msg = document.getElementById('statusMsg');
   const regenBtn = document.getElementById('regenBtn');
-  const doBrowseGenerate = document.getElementById('doBrowseGenerate');
+  const doSearchGenerate = document.getElementById('doSearchGenerate');
   const doFileSearch = document.getElementById('doFileSearch');
   const recordStartStop = document.getElementById('recordStartStop');
   const uploadRecording = document.getElementById('uploadRecording');
-  const controls = [regenBtn, doBrowseGenerate, doFileSearch, recordStartStop, uploadRecording];
+  const controls = [regenBtn, doSearchGenerate, doFileSearch, recordStartStop, uploadRecording];
   const resultContainer = document.getElementById('resultContainer');
   if (on) {
     if (spinner) spinner.style.display = 'inline-block';
@@ -47,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const tabRecord = document.getElementById('tabRecord');
   const panelRandom = document.getElementById('panelRandom');
   const panelFile = document.getElementById('panelFile');
-  const panelBrowse = document.getElementById('panelBrowse');
+  const panelSearch = document.getElementById('panelSearch');
   const panelRecord = document.getElementById('panelRecord');
   const regenBtn = document.getElementById('regenBtn');
   const fileInput = document.getElementById('fileInput');
@@ -61,24 +64,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // Helper functions that operate only if relevant DOM exists
   function showRandom() {
     if (panelRandom) panelRandom.style.display = '';
-    if (panelBrowse) panelBrowse.style.display = 'none';
+    if (panelSearch) panelSearch.style.display = 'none';
     if (panelFile) panelFile.style.display = 'none';
     if (panelRecord) panelRecord.style.display = 'none';
     setActiveTabUI('random');
   }
   function showFile() {
     if (panelRandom) panelRandom.style.display = 'none';
-    if (panelBrowse) panelBrowse.style.display = 'none';
+    if (panelSearch) panelSearch.style.display = 'none';
     if (panelFile) panelFile.style.display = '';
     if (panelRecord) panelRecord.style.display = 'none';
     setActiveTabUI('file');
   }
-  function showBrowse() {
+  function showSearch() {
     if (panelRandom) panelRandom.style.display = 'none';
-    if (panelBrowse) panelBrowse.style.display = '';
+    if (panelSearch) panelSearch.style.display = '';
     if (panelFile) panelFile.style.display = 'none';
     if (panelRecord) panelRecord.style.display = 'none';
-    setActiveTabUI('browse');
+    setActiveTabUI('search');
   }
   function showRecord() {
     if (panelRandom) panelRandom.style.display = 'none';
@@ -89,32 +92,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Wire tab click handlers only if present (single-page layout)
   if (tabRandom) tabRandom.addEventListener('click', showRandom);
-  const tabBrowse = document.getElementById('tabBrowse');
-  if (tabBrowse) tabBrowse.addEventListener('click', showBrowse);
+  const tabSearch = document.getElementById('tabSearch');
+  if (tabSearch) tabSearch.addEventListener('click', showSearch);
   if (tabFile) tabFile.addEventListener('click', showFile);
   if (tabRecord) tabRecord.addEventListener('click', showRecord);
 
   // regen button (exists on random page or index)
   if (regenBtn) regenBtn.addEventListener('click', () => generateAndSend(regenBtn, handleJsonResponse, setLoading));
 
-  // browse input handling (exists on browse page)
-  const browseInput = document.getElementById('browseInput');
-  if (browseInput) {
+  // search input handling (exists on search page)
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
     // attach filtering to prevent invalid characters
-    attachBrowseInputFilter(browseInput);
-    const doBrowseGenerateBtn = document.getElementById('doBrowseGenerate');
-    if (doBrowseGenerateBtn) {
-      doBrowseGenerateBtn.addEventListener('click', () => generateFromIndex(browseInput, doBrowseGenerateBtn, handleJsonResponse, setLoading));
+    attachSearchInputFilter(searchInput);
+    const doSearchGenerateBtn = document.getElementById('doSearchGenerate');
+    if (doSearchGenerateBtn) {
+      doSearchGenerateBtn.addEventListener('click', () => generateFromIndex(searchInput, doSearchGenerateBtn, handleJsonResponse, setLoading));
       // enable generate button only when input is non-empty
-      const updateBrowseButtonState = () => {
-        if (!doBrowseGenerateBtn) return;
-        const v = (browseInput && browseInput.value) ? browseInput.value.trim() : '';
-        if (v.length > 0) doBrowseGenerateBtn.removeAttribute('disabled');
-        else doBrowseGenerateBtn.setAttribute('disabled', '');
+      const updateSearchButtonState = () => {
+        if (!doSearchGenerateBtn) return;
+        const v = (searchInput && searchInput.value) ? searchInput.value.trim() : '';
+        if (v.length > 0) doSearchGenerateBtn.removeAttribute('disabled');
+        else doSearchGenerateBtn.setAttribute('disabled', '');
       };
-      browseInput.addEventListener('input', updateBrowseButtonState);
+      searchInput.addEventListener('input', updateSearchButtonState);
       // set initial state
-      updateBrowseButtonState();
+      updateSearchButtonState();
     }
   }
 
@@ -161,5 +164,5 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // default: if single-page panels are present show random, otherwise do nothing
-  if (panelRandom || panelBrowse || panelFile || panelRecord) showRandom();
+  if (panelRandom || panelSearch || panelFile || panelRecord) showRandom();
 });

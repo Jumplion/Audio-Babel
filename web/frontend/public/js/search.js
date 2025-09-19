@@ -32,7 +32,7 @@ export async function generateFromIndex(inputEl, btnEl, handleJsonResponse, setL
   }
 }
 
-export function attachBrowseInputFilter(inputEl) {
+export function attachSearchInputFilter(inputEl) {
   if (!inputEl) return;
   const allowed = /[A-Za-z0-9_-]/;
 

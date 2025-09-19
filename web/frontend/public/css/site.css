@@ -548,3 +548,85 @@ body.light .site-navbar .nav-links a {
   gap: 8px;
   align-items: center;
 }
+
+/* Browse page: breadcrumb and stage indicator */
+#breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#breadcrumb a {
+  color: var(--accent);
+  text-decoration: none;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+#breadcrumb a:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+#breadcrumb .crumb-inactive {
+  color: var(--muted);
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+/* Highlight the current active stage in breadcrumb */
+#breadcrumb .active-stage {
+  background: linear-gradient(90deg, var(--btn), #66a9ff);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(11, 120, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+/* Stage pill indicator (displayed to the left of status) */
+.stage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Option tiles */
+.option {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+  padding: 12px;
+  text-align: center;
+  border-radius: 8px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.option:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.6);
+}
+
+.option:disabled {
+  opacity: 0.45;
+  cursor: default;
+  filter: grayscale(20%);
+}
+
+.option.selected {
+  background: linear-gradient(90deg, var(--btn), #66a9ff);
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(11, 120, 255, 0.14);
+  transform: translateY(-2px);
+}
+
+.items-grid {
+  gap: 12px;
+}

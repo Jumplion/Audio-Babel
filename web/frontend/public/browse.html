@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Audibel — Browse</title>
+    <link rel="stylesheet" href="./css/site.css" />
+</head>
+
+<body class="browse">
+    <div id="navContainer"></div>
+
+    <div class="wrap">
+        <main class="card">
+            <h1>Browse Record Store</h1>
+
+            <nav id="breadcrumb" aria-label="Breadcrumb" style="margin-bottom:12px"></nav>
+
+            <section id="selectorArea">
+                <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px">
+                    <input id="filterInput" placeholder="Filter visible items (type to narrow)"
+                        style="flex:1; padding:8px;" />
+                    <div>
+                        <button class="btn" id="prevPage">Prev</button>
+                        <button class="btn" id="nextPage">Next</button>
+                    </div>
+                </div>
+
+                <div id="itemsContainer"
+                    style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px"></div>
+            </section>
+
+            <div style="margin-top:12px; display:flex; gap:12px; align-items:center">
+                <button class="btn" id="generateBtn" disabled>Generate .wav</button>
+                <span id="statusMsg">Select genre → artist → album → track</span>
+            </div>
+
+            <div id="resultContainer" style="margin-top:12px"></div>
+
+            <footer style="margin-top:18px"><small>Browse genres, artists, albums and tracks. Selection order
+                    enforced.</small></footer>
+        </main>
+    </div>
+
+    <script type="module" src="./js/browse.js"></script>
+    <script type="module" src="./js/main.js"></script>
+    <script type="module">
+        import { loadFragment } from './js/loadFragment.js';
+        import { highlightActiveNav } from './js/nav.js';
+        (async () => { await loadFragment('#navContainer', './components/navbar.html'); highlightActiveNav('#navContainer'); })();
+    </script>
+
+</body>

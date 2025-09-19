@@ -4,84 +4,28 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Audibel — Random & Search</title>
+  <title>Audibel — Home</title>
   <link rel="stylesheet" href="./css/site.css" />
-  <style>
-    .top-controls {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .top-controls .group {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .tab-active {
-      background: #ddd;
-    }
-
-    .btn.disabled {
-      opacity: 0.5;
-      pointer-events: none;
-    }
-
-    .skeleton {
-      opacity: 0.6;
-    }
-  </style>
 </head>
 
 <body class="home">
-  <div class="wrap">
-    <main class="card">
-      <h1>Audibel — Random & Search</h1>
-      <p class="lead">
-        Generate a random index or upload a WAV to extract its index and
-        listen to the reconstruction.
-      </p>
+  <div id="navContainer"></div>
 
-      <div class="top-controls" style="margin-bottom: 16px">
-        <div class="group">
-          <a class="btn" href="./random.html">Random</a>
-          <a class="btn" href="./browse.html">Browse</a>
-          <a class="btn" href="./fileSearch.html">Upload .wav</a>
-          <a class="btn" href="./record.html">Record</a>
-        </div>
-      </div>
-
-      <!-- shared result area -->
-      <div id="statusLine" style="
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-          ">
-        <span id="statusMsg">Ready</span><span id="statusSpinner" style="display: none" class="spinner"></span>
-      </div>
-      <div id="resultContainer"></div>
-
-      <footer>
-        <small>Prototype — combine random generation and file-based search on one
-          page.</small>
-      </footer>
-    </main>
+  <div class="wrap home">
+    <div class="index-links">
+      <a href="./random.html">Random</a>
+      <a href="./browse.html">Browse</a>
+      <a href="./fileSearch.html">Upload .wav</a>
+      <a href="./record.html">Record</a>
+    </div>
   </div>
 
-  <script type="module" src="./js/main.js"></script>
   <script type="module">
-    import { loadPlayer } from "./js/player.js";
-    (async () => {
-      try {
-        window.__SOTB_PLAYER = await loadPlayer("body");
-      } catch (e) {
-        console.error("Player failed to load", e);
-      }
-    })();
+    import { loadFragment } from './js/loadFragment.js';
+    import { highlightActiveNav } from './js/nav.js';
+    (async () => { await loadFragment('#navContainer', './components/navbar.html'); highlightActiveNav('#navContainer'); })();
   </script>
+  <script type="module" src="./js/main.js"></script>
 </body>
 
 </html>

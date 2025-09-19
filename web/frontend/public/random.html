@@ -9,6 +9,8 @@
 </head>
 
 <body class="random">
+    <div id="navContainer"></div>
+
     <div class="wrap">
         <main class="card">
             <h1>Generate Random Index</h1>
@@ -24,21 +26,16 @@
             <div id="resultContainer"></div>
 
             <footer>
-                <small><a href="./index.html">Back</a></small>
+                <small>Generate a random index and reconstruct the audio.</small>
             </footer>
         </main>
     </div>
 
     <script type="module" src="./js/main.js"></script>
     <script type="module">
-        import { loadPlayer } from "./js/player.js";
-        (async () => {
-            try {
-                window.__SOTB_PLAYER = await loadPlayer("body");
-            } catch (e) {
-                console.error("Player failed to load", e);
-            }
-        })();
+        import { loadFragment } from './js/loadFragment.js';
+        import { highlightActiveNav } from './js/nav.js';
+        (async () => { await loadFragment('#navContainer', './components/navbar.html'); highlightActiveNav('#navContainer'); })();
     </script>
 </body>
 

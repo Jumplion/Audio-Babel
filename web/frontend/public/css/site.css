@@ -401,6 +401,108 @@ body.light .spinner {
   }
 }
 
+/* Navbar styles (shared fragment) */
+.site-navbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 56px;
+  background: rgba(11, 18, 32, 0.95);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  z-index: 10000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.site-navbar .nav-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.site-navbar .nav-brand a {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-navbar .nav-links {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+}
+
+.site-navbar .nav-links a {
+  color: var(--accent);
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.site-navbar .nav-links a:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Main content adjustments to account for fixed navbar */
+.wrap {
+  padding-top: 90px;
+}
+
+/* Index page: vertical centered links (not in a card) */
+body.home .index-links {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 90px);
+}
+
+.index-links a {
+  display: inline-block;
+  padding: 14px 20px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.02));
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+  width: 260px;
+  text-align: center;
+}
+
+.index-links a:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.6);
+}
+
+/* Light theme variants for navbar */
+body.light .site-navbar {
+  background: #fff;
+  color: #0b1220;
+  border-bottom-color: rgba(11, 18, 32, 0.04);
+}
+
+body.light .site-navbar .nav-links a {
+  color: #0b1220;
+}
+
+/* Active nav link */
+.site-navbar .nav-links a.active {
+  background: linear-gradient(90deg, var(--btn), #66a9ff);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(11, 120, 255, 0.12);
+}
+
+.site-navbar .nav-links a[aria-current="page"] {
+  outline: 2px solid rgba(255, 255, 255, 0.04);
+}
+
 .disabled {
   opacity: 0.6;
   pointer-events: none;

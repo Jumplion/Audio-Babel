@@ -18,25 +18,62 @@
             <nav id="breadcrumb" aria-label="Breadcrumb" style="margin-bottom:12px"></nav>
 
             <section id="selectorArea">
-                <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px">
+                <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
                     <input id="filterInput" placeholder="Filter visible items (type to narrow)"
-                        style="flex:1; padding:8px;" />
-                    <div>
-                        <button class="btn" id="prevPage">Prev</button>
-                        <button class="btn" id="nextPage">Next</button>
+                        style="flex:1; padding:8px; min-width:220px" />
+                </div>
+
+                <!-- Generate button and status above the entries -->
+                <div style="margin-bottom:12px; display:flex; gap:12px; align-items:center">
+                    <button class="btn" id="generateBtn" disabled>Generate .wav</button>
+                    <span id="statusMsg">Select genre → artist → album → track</span>
+                </div>
+
+                <!-- Result / player appears above the entries -->
+                <div id="resultContainer" style="margin-bottom:12px"></div>
+
+                <!-- Top pagination controls (below result, above list) -->
+                <div
+                    style="margin-bottom:12px; display:flex; gap:12px; align-items:center; justify-content:flex-start; flex-wrap:wrap">
+                    <div style="display:flex; gap:8px; align-items:center">
+                        <label for="pageInputTop" style="color:var(--muted); margin-right:6px">Page</label>
+                        <input id="pageInputTop" type="text" placeholder="1" style="width:120px; padding:6px" />
+                        <button class="btn" id="goPageTop">Go</button>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center">
+                        <button class="btn" id="prevPageTop">Prev</button>
+                        <button class="btn" id="nextPageTop">Next</button>
+                    </div>
+                    <div style="margin-left:12px;">
+                        <span id="pageInfoTop" style="color:var(--muted)"></span>
                     </div>
                 </div>
 
+                <!-- Items listed vertically in one column -->
                 <div id="itemsContainer"
-                    style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px"></div>
+                    style="display:flex; flex-direction:column; gap:8px; width:100%; align-items:center"></div>
+
+                <!-- Pagination controls moved to the bottom of the list -->
+                <div
+                    style="margin-top:12px; display:flex; gap:12px; align-items:center; justify-content:flex-start; flex-wrap:wrap">
+                    <div style="display:flex; gap:8px; align-items:center">
+                        <label for="pageInput" style="color:var(--muted); margin-right:6px">Page</label>
+                        <input id="pageInput" type="text" placeholder="1" style="width:120px; padding:6px" />
+                        <button class="btn" id="goPage">Go</button>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center">
+                        <button class="btn" id="prevPage">Prev</button>
+                        <button class="btn" id="nextPage">Next</button>
+                    </div>
+                    <div style="margin-left:12px;">
+                        <span id="pageInfo" style="color:var(--muted)"></span>
+                    </div>
+                </div>
             </section>
 
-            <div style="margin-top:12px; display:flex; gap:12px; align-items:center">
-                <button class="btn" id="generateBtn" disabled>Generate .wav</button>
-                <span id="statusMsg">Select genre → artist → album → track</span>
-            </div>
 
-            <div id="resultContainer" style="margin-top:12px"></div>
+
+
 
             <footer style="margin-top:18px"><small>Browse genres, artists, albums and tracks. Selection order
                     enforced.</small></footer>

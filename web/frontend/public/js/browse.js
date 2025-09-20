@@ -8,12 +8,16 @@ for (let i = 0; i < 10; ++i) alphabet.push(String.fromCharCode(48 + i));
 alphabet.push('-');
 alphabet.push('_');
 
-const ALPHABET_SIZE = alphabet.length; // 64
-const TOKEN_LENGTH = 2; // show 2-char tokens (aa, ab,.. aA... a1... etc)
-const TOTAL_TOKENS = Math.pow(ALPHABET_SIZE, TOKEN_LENGTH);
-const PAGE_SIZE = 24;
+const ALPHABET_SIZE = BigInt(alphabet.length); // 64
+// browsing configuration
+// NOTE: tokens are now allowed to be arbitrarily long. We keep a soft-length cap
+// to warn users when tokens exceed a sensible length for browsing (see SOFT_LENGTH_CAP).
+const SOFT_LENGTH_CAP = 6; // soft warning threshold (old hard cap)
+let pageSize = 50; // fixed number of entries per page
 
-let page = 0;
+// (removed old tokenLength-based total function)
+
+let page = 0n; // BigInt page index (0-based)
 let filter = '';
 let currentStage = 'genre';
 const stages = ['genre', 'artist', 'album', 'track'];
@@ -21,16 +25,38 @@ const selection = { genre: null, artist: null, album: null, track: null };
 // store last selected DOM element per stage so we can toggle CSS
 const selectedEl = { genre: null, artist: null, album: null, track: null };
 
-function indexToToken(idx) {
+// Generate token for a variable-length enumeration where tokens are
+// ordered by increasing length: all length-1 tokens, then length-2, etc.
+// Enumeration is unbounded; longer tokens are supported but a soft-cap
+// will warn users when lengths exceed a sensible threshold.
+function indexToVariableToken(indexBig) {
+  // Map a 0-based integer index into the ordered variable-length tokens
+  // (all length-1 strings, then length-2, ...). This implementation no longer
+  // imposes a hard maximum length.
+  let n = BigInt(indexBig);
   const base = ALPHABET_SIZE;
-  let n = idx;
+  // find the length by subtracting counts until n fits into the current length
+  let len = 1;
+  while (true) {
+    const count = base ** BigInt(len);
+    if (n < count) break;
+    n -= count;
+    len++;
+  }
+  // now n is the local index within strings of length `len`
   let out = '';
-  for (let i = 0; i < TOKEN_LENGTH; ++i) {
-    const digit = n % base;
+  let local = n;
+  for (let i = 0; i < len; ++i) {
+    const digit = Number(local % base);
     out = alphabet[digit] + out;
-    n = Math.floor(n / base);
+    local = local / base;
   }
   return out;
+}
+
+function totalTokensBig() {
+  // unlimited token space; return `null` to indicate an infinite/unknown total.
+  return null;
 }
 
 function escapeHtml(s) {
@@ -43,13 +69,61 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
+// Small DOM helper: $(id) -> element or null
+function $(id) {
+  return document.getElementById(id);
+}
+
+// If total is finite, clamp page to the last page. If total is null (infinite) return page unchanged.
+function clampPageForTotal(p) {
+  const total = totalTokensBig();
+  if (total === null) return p;
+  const totalPages = (total + BigInt(pageSize) - 1n) / BigInt(pageSize);
+  if (p < 0n) return 0n;
+  if (p >= totalPages) return totalPages - 1n;
+  return p;
+}
+
+// Create or return the softcap warning element. Keeps creation logic in one place.
+function createOrGetSoftcapWarning(container) {
+  const warnElId = 'softcapWarning';
+  let warnEl = $(warnElId);
+  if (!warnEl) {
+    warnEl = document.createElement('div');
+    warnEl.id = warnElId;
+    warnEl.style.margin = '8px 0';
+    warnEl.style.padding = '8px';
+    warnEl.style.border = '1px solid var(--muted)';
+    warnEl.style.borderRadius = '6px';
+    warnEl.style.background = 'var(--bg)';
+    warnEl.style.color = 'var(--muted)';
+    warnEl.style.display = 'none';
+    container.parentNode && container.parentNode.insertBefore(warnEl, container);
+  }
+  return warnEl;
+}
+
 function renderItems() {
   const container = document.getElementById('itemsContainer');
+  if (!container) {
+    console.warn('browse.js: itemsContainer not found');
+    return;
+  }
   container.innerHTML = '';
-  const start = page * PAGE_SIZE;
+  const total = totalTokensBig();
+  const start = page * BigInt(pageSize);
+  // when total is null the space is infinite; we'll iterate until we've
+  // rendered `pageSize` items or hit a safety attempt limit if a filter
+  // prevents matches.
+  console.debug('browse.renderItems', { page: page.toString(), pageSize, total: total === null ? 'infinite' : total.toString() });
   let count = 0;
-  for (let i = start; i < TOTAL_TOKENS && count < PAGE_SIZE; ++i) {
-    const t = indexToToken(i);
+  let attempts = 0n;
+  const maxAttempts = BigInt(pageSize) * 200n + 1000n; // safety when filter is restrictive
+  for (let i = start; (total ? i <= (total - 1n) : true) && count < pageSize; i = i + 1n) {
+    if (attempts > maxAttempts) break;
+    attempts++;
+    const t = indexToVariableToken(i);
+    // In non-prefix mode we may still have a filter (substring). In prefix mode, filter is the prefix and always matches.
     if (filter && !t.toLowerCase().includes(filter.toLowerCase())) continue;
     const btn = document.createElement('button');
     btn.className = 'option';
@@ -65,14 +139,53 @@ function renderItems() {
     container.appendChild(btn);
     count++;
   }
+  console.debug('browse.renderItems done', { rendered: count, start: start.toString(), total: total === null ? 'infinite' : total.toString() });
+  // show a soft-cap UI warning when token lengths exceed the old hard cap
+  try {
+    const longestShown = Array.from(container.querySelectorAll('button.option')).reduce((m, b) => Math.max(m, (b.textContent || '').length), 0);
+    const dismissed = localStorage.getItem('softcapWarningDismissed') === '1';
+    const warnEl = createOrGetSoftcapWarning(container);
+    if (!dismissed && longestShown > SOFT_LENGTH_CAP) {
+      warnEl.style.display = 'block';
+      warnEl.innerHTML = `Warning: some tokens exceed ${SOFT_LENGTH_CAP} characters which may make browsing slow or hard to read. <button id="dismissSoftcap" class="btn" style="margin-left:12px">Dismiss</button>`;
+      const dBtn = $('dismissSoftcap');
+      if (dBtn) dBtn.addEventListener('click', () => {
+        localStorage.setItem('softcapWarningDismissed', '1');
+        warnEl.style.display = 'none';
+      });
+    } else {
+      warnEl.style.display = 'none';
+    }
+  } catch (e) {
+    // non-fatal UI enhancement; ignore on error
+    console.error('softcap warning update failed', e);
+  }
   updatePagerButtons();
+  updatePageInfo();
 }
 
 function updatePagerButtons() {
   const prev = document.getElementById('prevPage');
   const next = document.getElementById('nextPage');
-  prev.disabled = page <= 0;
-  next.disabled = (page + 1) * PAGE_SIZE >= TOTAL_TOKENS;
+  prev.disabled = page <= 0n;
+  const total = totalTokensBig();
+  if (!next) return;
+  if (total === null) {
+    // infinite space: next is always enabled
+    next.disabled = false;
+  } else {
+    const nextStart = (page + 1n) * BigInt(pageSize);
+    next.disabled = nextStart >= total;
+  }
+}
+
+function updatePageInfo() {
+  const info = document.getElementById('pageInfo');
+  const infoTop = document.getElementById('pageInfoTop');
+  // only show current page number (hide total pages)
+  const text = `Page ${page + 1n}`;
+  if (info) info.textContent = text;
+  if (infoTop) infoTop.textContent = text;
 }
 
 function onSelectToken(token, btnEl) {
@@ -87,7 +200,7 @@ function onSelectToken(token, btnEl) {
   if (curIdx < stages.length - 1) {
     currentStage = stages[curIdx + 1];
     // reset page/filter for the next stage
-    page = 0;
+    page = 0n;
     filter = '';
     const fi = document.getElementById('filterInput');
     if (fi) fi.value = '';
@@ -102,6 +215,13 @@ function onSelectToken(token, btnEl) {
   }
   updateBreadcrumb();
   updateGenerateButtonState();
+  // auto-scroll to top of the items list when a selection is made
+  try {
+    const items = document.getElementById('itemsContainer');
+    if (items) items.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    console.error('browse.js: scrollIntoView failed', e);
+  }
 }
 
 function updateBreadcrumb() {
@@ -128,8 +248,8 @@ function updateBreadcrumb() {
             selectedEl[later] = null;
           }
         });
-        updateBreadcrumb();
-        page = 0;
+  updateBreadcrumb();
+  page = 0n;
         renderItems();
         updateGenerateButtonState();
       });
@@ -165,22 +285,55 @@ function updateGenerateButtonState() {
 
 function init() {
   const fi = document.getElementById('filterInput');
-  fi.addEventListener('input', (e) => {
-    filter = e.target.value || '';
-    page = 0;
-    renderItems();
-  });
-  document.getElementById('prevPage').addEventListener('click', () => {
-    if (page > 0) page--;
-    renderItems();
-  });
-  document.getElementById('nextPage').addEventListener('click', () => {
-    if ((page + 1) * PAGE_SIZE < TOTAL_TOKENS) page++;
-    renderItems();
-  });
-  document.getElementById('generateBtn').addEventListener('click', generateWav);
+  if (fi) {
+    fi.addEventListener('input', (e) => {
+      filter = e.target.value || '';
+      page = 0n;
+      renderItems();
+    });
+  }
+  // wire controls (uses helper to reduce duplication between top/bottom controls)
+  function addPageControls({ prevId, nextId, goId, inputId, allowInfiniteNext }) {
+    const prev = $(prevId);
+    const next = $(nextId);
+    const input = $(inputId);
+    const go = $(goId);
+    if (prev) prev.addEventListener('click', () => { if (page > 0n) { page = page - 1n; renderItems(); } });
+    if (next) next.addEventListener('click', () => {
+      const total = totalTokensBig();
+      if (total === null && allowInfiniteNext) { page = page + 1n; }
+      else if (total !== null) {
+        const nextStart = (page + 1n) * BigInt(pageSize);
+        if (nextStart < total) page = page + 1n;
+      }
+      renderItems();
+    });
+    if (go && input) {
+      go.addEventListener('click', () => {
+        const v = input.value && input.value.trim();
+        if (!v) return;
+        try {
+          const pn = BigInt(v);
+          if (pn <= 0n) return;
+          const target = pn - 1n;
+          page = clampPageForTotal(target);
+          renderItems();
+        } catch (e) {
+          // invalid input; ignore
+        }
+      });
+    }
+  }
+
+  addPageControls({ prevId: 'prevPage', nextId: 'nextPage', goId: 'goPage', inputId: 'pageInput', allowInfiniteNext: false });
+  addPageControls({ prevId: 'prevPageTop', nextId: 'nextPageTop', goId: 'goPageTop', inputId: 'pageInputTop', allowInfiniteNext: true });
+  // pageSize is fixed at 50 per design
+  const genBtn = document.getElementById('generateBtn');
+  if (genBtn) genBtn.addEventListener('click', generateWav);
   updateBreadcrumb();
-  renderItems();
+  try { renderItems(); } catch (e) { console.error('browse.js: renderItems failed', e); }
+  // ensure the generate button reflects current selections on load
+  try { updateGenerateButtonState(); } catch (e) { console.error('browse.js: updateGenerateButtonState failed', e); }
 }
 
 function toBase64Url(u8) {
@@ -291,4 +444,8 @@ async function generateWav() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', init);
+console.info('browse.js loaded');
+document.addEventListener('DOMContentLoaded', () => {
+  console.info('browse.js DOMContentLoaded');
+  try { init(); } catch (e) { console.error('browse.init error', e); }
+});

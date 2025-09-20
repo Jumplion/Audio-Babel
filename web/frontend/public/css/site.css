@@ -627,6 +627,32 @@ body.light .site-navbar .nav-links a {
   transform: translateY(-2px);
 }
 
+.option {
+  display: block;
+  /* vertical list */
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  margin: 6px 0;
+  border-radius: 6px;
+  background: var(--card-bg);
+  border: 1px solid var(--muted-border);
+  cursor: pointer;
+  text-align: center;
+  /* center-justify entries */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* prevent long tokens from wrapping over other items */
+}
+
+/* disabled button styling (generate button when inactive) */
+.btn:disabled,
+.btn.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .items-grid {
   gap: 12px;
 }

@@ -1,3 +1,11 @@
+/*
+  site.css
+  Purpose: global variables, base typography, themes, layout, common components and utilities.
+  Note: component-specific styles (sotb player, navbar) were extracted to their own files.
+  Shared animations used by components (spin, loading-shimmer) are defined in component files
+  (for now `css/sotb.css`). If you want truly global keyframes, move them back here.
+*/
+
 :root {
   --bg: #0f1720;
   --card: #0b1220;
@@ -6,32 +14,57 @@
   --btn: #0b78ff;
 }
 
+/* -----------------------------
+    Base (document-level defaults)
+   ----------------------------- */
 html,
 body {
   height: 100%;
   margin: 0;
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
 }
 
-/* Home page theme */
+h1 {
+  margin: 0 0 0px;
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+p.lead {
+  color: var(--muted);
+}
+
+/* -----------------------------
+    Themes (page-specific modifiers)
+   ----------------------------- */
 body.home {
   color: var(--accent);
 }
 
-/* Light page theme */
 body.light {
   color: #0f1720;
   background: linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%);
 }
 
+.home h1 {
+  color: #fff;
+}
+
+.light h1 {
+  color: #0b1220;
+}
+
+/* -----------------------------
+    Layout
+   ----------------------------- */
 .wrap {
   display: flex;
   align-items: flex-start;
-  /* align cards to the top instead of centered */
   justify-content: center;
   padding: 24px 16px;
-  /* reduce top padding now that content is top-aligned */
+  padding-top: 90px;
+  /* account for fixed navbar */
+  padding-bottom: 100px;
 }
 
 .card {
@@ -43,323 +76,20 @@ body.light {
   box-shadow: 0 6px 24px rgb(2 6 23 / 60%);
 }
 
-/* Light card variant for the light pages */
 .card.light {
   background: white;
   box-shadow: 0 6px 24px rgb(2 6 23 / 8%);
 }
 
-h1 {
-  margin: 0 0 0px;
-  font-size: 28px;
-  line-height: 1.1;
-}
-
-.home h1 {
-  color: #fff;
-}
-
-.light h1 {
-  color: #0b1220;
-}
-
-p.lead {
-  color: var(--muted);
-}
-
+/* -----------------------------
+    Components
+   ----------------------------- */
 .options {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.option {
-  background: linear-gradient(180deg,
-      rgb(255 255 255 / 2%),
-      rgb(255 255 255 / 1%));
-  padding: 14px 18px;
-  border-radius: 8px;
-  color: #e6f7ff;
-  text-decoration: none;
-  font-weight: 600;
-  border: 1px solid rgb(255 255 255 / 3%);
-}
-
-.option:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgb(2 6 23 / 60%);
-}
-
-footer {
-  margin-top: 20px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.btn {
-  display: inline-block;
-  padding: 12px 18px;
-  border-radius: 8px;
-  background: var(--btn);
-  color: white;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-/* Loading spinner + skeleton */
-.spinner {
-  /* unified spinner: default size and appearance; theme-specific overrides applied below */
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  box-sizing: border-box;
-  border: 2px solid rgb(0 0 0 / 8%);
-  border-top-color: var(--btn);
-  animation: spin 1s linear infinite;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* light theme spinner overrides and skeleton shimmer are still in site.css */
-body.light .spinner {
-  border: 2px solid rgb(255 255 255 / 15%);
-  border-top-color: #fff;
-}
-
-/* skeleton shimmer (animation defined in css/sotb.css) */
-.skeleton {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(90deg,
-      rgb(0 0 0 / 4%) 25%,
-      rgb(0 0 0 / 2%) 37%,
-      rgb(0 0 0 / 4%) 63%);
-  background-size: 400% 100%;
-  animation: shimmer 1.2s linear infinite;
-}
-
-.skeleton::after {
-  content: "";
-  position: absolute;
-  left: -150px;
-  top: 0;
-  bottom: 0;
-  width: 150px;
-  background: linear-gradient(90deg,
-      transparent,
-      rgb(255 255 255 / 4%),
-      transparent);
-  animation: loading-shimmer 1s infinite;
-}
-
-/* Navbar styles (shared fragment) */
-.site-navbar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 56px;
-  background: rgba(11, 18, 32, 0.95);
-  color: var(--accent);
-  display: flex;
-  align-items: center;
-  z-index: 10000;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.site-navbar .nav-inner {
-  max-width: 1100px;
-  margin: 0 auto;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 16px;
-}
-
-.site-navbar .nav-brand a {
-  color: var(--accent);
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.site-navbar .nav-links {
-  margin-left: auto;
-  display: flex;
-  gap: 12px;
-}
-
-.site-navbar .nav-links a {
-  color: var(--accent);
-  text-decoration: none;
-  padding: 8px 10px;
-  border-radius: 8px;
-}
-
-.site-navbar .nav-links a:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-/* Main content adjustments to account for fixed navbar */
-.wrap {
-  padding-top: 90px;
-  padding-bottom: 100px;
-}
-
-/* Index page: vertical centered links (not in a card) */
-body.home .index-links {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
-}
-
-.index-links a {
-  display: inline-block;
-  padding: 14px 20px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.02));
-  color: var(--accent);
-  text-decoration: none;
-  font-weight: 700;
-  width: 260px;
-  text-align: center;
-}
-
-.index-links a:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.6);
-}
-
-/* Light theme variants for navbar */
-body.light .site-navbar {
-  background: #fff;
-  color: #0b1220;
-  border-bottom-color: rgba(11, 18, 32, 0.04);
-}
-
-body.light .site-navbar .nav-links a {
-  color: #0b1220;
-}
-
-/* Active nav link */
-.site-navbar .nav-links a.active {
-  background: linear-gradient(90deg, var(--btn), #66a9ff);
-  color: #fff;
-  box-shadow: 0 6px 18px rgba(11, 120, 255, 0.12);
-}
-
-.site-navbar .nav-links a[aria-current="page"] {
-  outline: 2px solid rgba(255, 255, 255, 0.04);
-}
-
-.disabled {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-.btn.disabled {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-/* active tab */
-.btn.tab-active {
-  background: linear-gradient(90deg, var(--btn), #66a9ff);
-  color: #fff;
-  box-shadow: 0 8px 24px rgb(11 120 255 / 16%);
-  transform: translateY(-2px);
-  border: 1px solid rgb(255 255 255 / 8%);
-}
-
-.btn.tab-active:focus {
-  outline: 3px solid rgb(11 120 255 / 12%);
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-.top-controls {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.top-controls .group {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-/* Browse page: breadcrumb and stage indicator */
-#breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-#breadcrumb a {
-  color: var(--accent);
-  text-decoration: none;
-  background: transparent;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-}
-
-#breadcrumb a:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-#breadcrumb .crumb-inactive {
-  color: var(--muted);
-  background: transparent;
-  padding: 6px 10px;
-  border-radius: 8px;
-}
-
-/* Highlight the current active stage in breadcrumb */
-#breadcrumb .active-stage {
-  background: linear-gradient(90deg, var(--btn), #66a9ff);
-  color: #fff;
-  box-shadow: 0 6px 18px rgba(11, 120, 255, 0.12);
-  transform: translateY(-1px);
-}
-
-/* Stage pill indicator (displayed to the left of status) */
-.stage-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--accent);
-  font-weight: 700;
-}
-
-/* Option tiles */
 .option {
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.03);
@@ -389,29 +119,137 @@ body.light .site-navbar .nav-links a {
   transform: translateY(-2px);
 }
 
-.option {
+.option.fallback {
+  /* fallback listing styles (keeps older markup working) */
   display: block;
-  /* vertical list */
   width: 100%;
   box-sizing: border-box;
   padding: 10px 12px;
   margin: 6px 0;
   border-radius: 6px;
-  background: var(--card-bg);
-  border: 1px solid var(--muted-border);
-  cursor: pointer;
-  text-align: center;
-  /* center-justify entries */
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.03);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* prevent long tokens from wrapping over other items */
 }
 
-/* disabled button styling (generate button when inactive) */
+/* -----------------------------
+    Buttons & controls
+   ----------------------------- */
+
+.btn {
+  display: inline-block;
+  padding: 12px 18px;
+  border-radius: 8px;
+  background: var(--btn);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+}
+
 .btn:disabled,
 .btn.disabled {
   opacity: 0.5;
+  pointer-events: none;
+}
+
+.btn.tab-active {
+  background: linear-gradient(90deg, var(--btn), #66a9ff);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(11 120 255 / 16%);
+  transform: translateY(-2px);
+  border: 1px solid rgb(255 255 255 / 8%);
+}
+
+.btn.tab-active:focus {
+  outline: 3px solid rgb(11 120 255 / 12%);
+}
+
+.top-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.top-controls .group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* -----------------------------
+    Breadcrumbs (in Browse)
+   ----------------------------- */
+
+#breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#breadcrumb a {
+  color: var(--accent);
+  text-decoration: none;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+#breadcrumb a:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+#breadcrumb .crumb-inactive {
+  color: var(--muted);
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+#breadcrumb .active-stage {
+  background: linear-gradient(90deg, var(--btn), #66a9ff);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(11, 120, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.stage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.index-links a {
+  display: inline-block;
+  padding: 14px 20px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.02));
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+  width: 260px;
+  text-align: center;
+}
+
+.index-links a:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.6);
+}
+
+/* -----------------------------
+    Utilities & state helpers
+   ----------------------------- */
+.disabled {
+  opacity: 0.6;
   pointer-events: none;
 }
 
@@ -429,24 +267,55 @@ audio[controls] {
   background: transparent !important;
 }
 
-/* On some browsers CSS resets can hide native controls; ensure they remain visible */
-audio::-webkit-media-controls {
-  display: block !important;
-}
-
-audio::-webkit-media-controls-enclosure {
-  display: block !important;
-}
-
+audio::-webkit-media-controls,
+audio::-webkit-media-controls-enclosure,
 audio::-webkit-media-controls-panel {
   display: block !important;
 }
 
-/* Give audio a neutral background to make controls legible on dark/light themes */
 audio[controls] {
   background: rgba(0, 0, 0, 0.05);
   border-radius: 6px;
   padding: 6px;
 }
 
-/* End of file */
+/* Loading spinner + skeleton (uses keyframes defined in component CSS)
+   Note: @keyframes spin and loading-shimmer are defined in css/sotb.css to avoid duplication.
+*/
+.spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 2px solid rgba(0, 0, 0, 0.08);
+  border-top-color: var(--btn);
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+body.light .spinner {
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #fff;
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.04) 25%, rgba(0, 0, 0, 0.02) 37%, rgba(0, 0, 0, 0.04) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  left: -150px;
+  top: 0;
+  bottom: 0;
+  width: 150px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent);
+  animation: loading-shimmer 1s infinite;
+}
+
+/* End of cleaned site.css */

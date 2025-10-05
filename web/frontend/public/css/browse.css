@@ -1,0 +1,51 @@
+/* Styles extracted from browse.html inline attributes */
+#selectorArea .filterRow {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+#filterInput {
+    flex: 1;
+    padding: 8px;
+    min-width: 220px;
+}
+
+#selectorArea .controlsTop,
+#selectorArea .controlsBottom {
+    margin-bottom: 12px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.pageGroup {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.pageGroup input[type="text"] {
+    width: 120px;
+    padding: 6px;
+}
+
+#itemsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    align-items: center;
+}
+
+#resultContainer {
+    margin-bottom: 12px;
+}
+
+footer.card-footer {
+    margin-top: 18px;
+}

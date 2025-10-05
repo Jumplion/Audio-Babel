@@ -120,193 +120,6 @@ footer {
   vertical-align: middle;
 }
 
-/* Global player styles (mirrors body.home .sotb-player block) */
-.sotb-player {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgb(11 18 32 / 95%);
-  color: var(--accent);
-  border-top: 1px solid rgb(255 255 255 / 4%);
-  padding: 10px 14px;
-  box-shadow: 0 -6px 24px rgb(2 6 23 / 60%);
-  z-index: 9999;
-}
-
-.sotb-player-inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-.sotb-controls-left {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.sotb-controls-right {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin-left: auto;
-}
-
-.sotb-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: inherit;
-  padding: 8px 10px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.sotb-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.sotb-track {
-  min-width: 220px;
-  max-width: 480px;
-  overflow: hidden;
-}
-
-.sotb-track-title {
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sotb-track-meta {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.sotb-progress {
-  width: 200px;
-  height: 6px;
-  background: rgb(255 255 255 / 3%);
-  border-radius: 6px;
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.sotb-progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--btn), #66a9ff);
-  width: 0%;
-}
-
-.sotb-time {
-  font-size: 12px;
-  color: var(--muted);
-  min-width: 40px;
-  text-align: right;
-}
-
-/* Playlist drawer globally available */
-.sotb-playlist-drawer {
-  position: fixed;
-  right: 12px;
-  bottom: 76px;
-  width: 320px;
-  max-height: 60vh;
-  background: rgb(8 12 20 / 95%);
-  border: 1px solid rgb(255 255 255 / 4%);
-  padding: 10px;
-  border-radius: 10px;
-  box-shadow: 0 6px 24px rgb(2 6 23 / 60%);
-  overflow: auto;
-  display: none;
-  z-index: 10000;
-}
-
-.sotb-playlist-drawer[aria-hidden="false"] {
-  display: block;
-}
-
-.sotb-toast-container {
-  position: fixed;
-  right: 12px;
-  bottom: 140px;
-  z-index: 10001;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  pointer-events: none;
-}
-
-.sotb-toast {
-  pointer-events: auto;
-  background: rgb(10 14 20 / 95%);
-  color: var(--accent);
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid rgb(255 255 255 / 6%);
-  box-shadow: 0 6px 18px rgb(2 6 23 / 30%);
-  font-size: 13px;
-  opacity: 0;
-  transform: translateY(6px);
-  transition: opacity 180ms ease, transform 180ms ease;
-}
-
-.sotb-toast.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.sotb-playlist {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.sotb-playlist-item {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 8px;
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgb(255 255 255 / 1%), rgb(255 255 255 / 2%));
-}
-
-.sotb-playlist-item.dragging {
-  opacity: 0.5;
-}
-
-.sotb-playlist-item .meta {
-  font-size: 12px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sotb-playlist-item .handle {
-  cursor: grab;
-  padding: 6px;
-}
-
-@media (max-width:720px) {
-  .sotb-player-inner {
-    flex-wrap: wrap;
-  }
-
-  .sotb-progress {
-    width: 120px;
-  }
-}
-
-
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -317,13 +130,13 @@ footer {
   }
 }
 
-/* light theme spinner overrides */
+/* light theme spinner overrides and skeleton shimmer are still in site.css */
 body.light .spinner {
   border: 2px solid rgb(255 255 255 / 15%);
   border-top-color: #fff;
 }
 
-/* skeleton shimmer */
+/* skeleton shimmer (animation defined in css/sotb.css) */
 .skeleton {
   position: relative;
   overflow: hidden;
@@ -347,16 +160,6 @@ body.light .spinner {
       rgb(255 255 255 / 4%),
       transparent);
   animation: loading-shimmer 1s infinite;
-}
-
-@keyframes loading-shimmer {
-  from {
-    left: -150px;
-  }
-
-  to {
-    left: 100%;
-  }
 }
 
 /* Navbar styles (shared fragment) */

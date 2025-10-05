@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Audibel — Browse</title>
     <link rel="stylesheet" href="./css/site.css" />
+    <link rel="stylesheet" href="./css/browse.css" />
 </head>
 
 <body class="browse">
@@ -18,29 +19,27 @@
             <nav id="breadcrumb" aria-label="Breadcrumb" style="margin-bottom:12px"></nav>
 
             <section id="selectorArea">
-                <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
-                    <input id="filterInput" placeholder="Filter visible items (type to narrow)"
-                        style="flex:1; padding:8px; min-width:220px" />
+                <div class="filterRow">
+                    <input id="filterInput" placeholder="Filter visible items (type to narrow)" />
                 </div>
 
                 <!-- Generate button and status above the entries -->
-                <div style="margin-bottom:12px; display:flex; gap:12px; align-items:center">
+                <div id="generateArea" style="margin-bottom:12px; display:flex; gap:12px; align-items:center">
                     <button class="btn" id="generateBtn" disabled>Generate .wav</button>
                     <span id="statusMsg">Select genre → artist → album → track</span>
                 </div>
 
                 <!-- Result / player appears above the entries -->
-                <div id="resultContainer" style="margin-bottom:12px"></div>
+                <div id="resultContainer"></div>
 
                 <!-- Top pagination controls (below result, above list) -->
-                <div
-                    style="margin-bottom:12px; display:flex; gap:12px; align-items:center; justify-content:flex-start; flex-wrap:wrap">
-                    <div style="display:flex; gap:8px; align-items:center">
+                <div class="controlsTop">
+                    <div class="pageGroup">
                         <label for="pageInputTop" style="color:var(--muted); margin-right:6px">Page</label>
-                        <input id="pageInputTop" type="text" placeholder="1" style="width:120px; padding:6px" />
+                        <input id="pageInputTop" type="text" placeholder="1" />
                         <button class="btn" id="goPageTop">Go</button>
                     </div>
-                    <div style="display:flex; gap:8px; align-items:center">
+                    <div class="pageGroup">
                         <button class="btn" id="prevPageTop">Prev</button>
                         <button class="btn" id="nextPageTop">Next</button>
                     </div>
@@ -50,18 +49,16 @@
                 </div>
 
                 <!-- Items listed vertically in one column -->
-                <div id="itemsContainer"
-                    style="display:flex; flex-direction:column; gap:8px; width:100%; align-items:center"></div>
+                <div id="itemsContainer"></div>
 
                 <!-- Pagination controls moved to the bottom of the list -->
-                <div
-                    style="margin-top:12px; display:flex; gap:12px; align-items:center; justify-content:flex-start; flex-wrap:wrap">
-                    <div style="display:flex; gap:8px; align-items:center">
+                <div class="controlsBottom">
+                    <div class="pageGroup">
                         <label for="pageInput" style="color:var(--muted); margin-right:6px">Page</label>
-                        <input id="pageInput" type="text" placeholder="1" style="width:120px; padding:6px" />
+                        <input id="pageInput" type="text" placeholder="1" />
                         <button class="btn" id="goPage">Go</button>
                     </div>
-                    <div style="display:flex; gap:8px; align-items:center">
+                    <div class="pageGroup">
                         <button class="btn" id="prevPage">Prev</button>
                         <button class="btn" id="nextPage">Next</button>
                     </div>
@@ -70,9 +67,6 @@
                     </div>
                 </div>
             </section>
-
-            <footer style="margin-top:18px"><small>Browse genres, artists, albums and tracks. Selection order
-                    enforced.</small></footer>
         </main>
     </div>
 

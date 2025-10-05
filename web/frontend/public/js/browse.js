@@ -165,17 +165,26 @@ function renderItems() {
 }
 
 function updatePagerButtons() {
-  const prev = document.getElementById('prevPage');
-  const next = document.getElementById('nextPage');
-  prev.disabled = page <= 0n;
+  const prev = $('prevPage');
+  const next = $('nextPage');
+  const prevTop = $('prevPageTop');
+  const nextTop = $('nextPageTop');
+  if (prev) prev.disabled = page <= 0n;
+  if (prevTop) prevTop.disabled = page <= 0n;
   const total = totalTokensBig();
-  if (!next) return;
-  if (total === null) {
-    // infinite space: next is always enabled
-    next.disabled = false;
-  } else {
-    const nextStart = (page + 1n) * BigInt(pageSize);
-    next.disabled = nextStart >= total;
+  // if total is infinite both next buttons stay enabled; otherwise compute disabled for both
+  const nextDisabled = (total === null) ? false : (((page + 1n) * BigInt(pageSize)) >= total);
+  if (next) next.disabled = nextDisabled;
+  if (nextTop) nextTop.disabled = nextDisabled;
+  // sync page input displays
+  const pageInput = $('pageInput');
+  const pageInputTop = $('pageInputTop');
+  try {
+    const display = (page + 1n).toString();
+    if (pageInput) pageInput.value = display;
+    if (pageInputTop) pageInputTop.value = display;
+  } catch (e) {
+    // ignore
   }
 }
 
@@ -325,7 +334,7 @@ function init() {
     }
   }
 
-  addPageControls({ prevId: 'prevPage', nextId: 'nextPage', goId: 'goPage', inputId: 'pageInput', allowInfiniteNext: false });
+  addPageControls({ prevId: 'prevPage', nextId: 'nextPage', goId: 'goPage', inputId: 'pageInput', allowInfiniteNext: true });
   addPageControls({ prevId: 'prevPageTop', nextId: 'nextPageTop', goId: 'goPageTop', inputId: 'pageInputTop', allowInfiniteNext: true });
   // pageSize is fixed at 50 per design
   const genBtn = document.getElementById('generateBtn');

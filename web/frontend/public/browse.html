@@ -32,6 +32,18 @@
                 <!-- Result / player appears above the entries -->
                 <div id="resultContainer"></div>
 
+                <!-- Manual selection: single context-aware input for the active breadcrumb -->
+                <div class="manual-select">
+                    <div id="manualHeader" class="manual-header">Input genre...</div>
+                    <div class="manual-input-row">
+                        <input id="manualInput" placeholder="Type a value and press Apply" />
+                        <button class="btn" id="applyManual">Apply</button>
+                        <button class="btn" id="clearManual">Clear</button>
+                    </div>
+                </div>
+
+                <div class="browse-list-header">Or Browse the List</div>
+
                 <!-- Top pagination controls (below result, above list) -->
                 <div class="controlsTop">
                     <div class="pageGroup">
@@ -49,6 +61,7 @@
                 </div>
 
                 <!-- Items listed vertically in one column -->
+
                 <div id="itemsContainer"></div>
 
                 <!-- Pagination controls moved to the bottom of the list -->

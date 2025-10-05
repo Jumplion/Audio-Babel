@@ -10,16 +10,74 @@
 
 <body class="home">
   <div id="navContainer"></div>
-
   <div class="wrap home">
-    <div class="index-links">
-      <a href="./about.html">About</a>
-      <a href="./browse.html">Browse</a>
-      <a href="./random.html">Random</a>
-      <a href="./search.html">Search</a>
-      <a href="./fileSearch.html">Upload .wav</a>
-      <a href="./record.html">Record</a>
-    </div>
+    <main class="card">
+      <h1 style="text-align: center;">Welcome to Audibel</h1>
+      <div class="sub muted" style="text-align: center;">The Audio Library of Babel</div>
+      <p class="lead" style="text-align: center;">Get started by choosing one of the options below:</p>
+
+      <div class="index-links options">
+        <a class="option" href="./browse.html">Browse</a>
+        <a class="option" href="./random.html">Random</a>
+        <a class="option" href="./search.html">Search</a>
+        <a class="option" href="./fileSearch.html">Upload .wav</a>
+        <a class="option" href="./record.html">Record</a>
+      </div>
+    </main>
+  </div>
+
+  <div class="wrap">
+    <section class="card">
+      <h2>What is this site?</h2>
+      <p>
+        Audibel is inspired by the <a href="https://en.wikipedia.org/wiki/Library_of_Babel">Library of Babel</a>, a
+        thought
+        experiment by Jorge Luis Borges. It is a collection of all possible audio files that can be created with a given
+        set
+        of parameters.
+        It is also inspired by the <a href="https://libraryofbabel.info/">Library of Babel website</a> by Jonathan
+        Basile,
+        which implements the concept in a digital format.
+        The goal in this case is to do the same, but for audio files.
+      </p>
+
+      <h2>How does it work?</h2>
+      <p>
+        Every audio file is generated from a unique "address" that encodes the audio data. The address is a string of
+        characters that can be used to recreate the exact same audio file.
+        These addresses are read as a <a href="https://en.wikipedia.org/wiki/Base64">base64</a> number (specifically URL
+        Safe) and converted to binary. This represents the raw audio sample data, which then has a pre-determined <a
+          href="https://en.wikipedia.org/wiki/WAV">WAV</a> header appended at the end to create a valid audio file.
+        The .wav header is fixed, meaning all resulting audio files will have the same sample rate (44.1kHz), bit depth
+        (16-bit), and number of channels (mono).
+
+        Essentially, the index represent the specific sequence of audio samples that make up the sound.
+      </p>
+
+      <h2>Surfing the Audio .WAV</h2>
+      <p>
+        Given these parameters, we can calculate that there would be a total of 2^(44100*5*16) possible 5 second audio
+        files, which is approximately 10^(10^7) files. This far exceeds the estimated number of atoms in the observable
+        universe (approximately 10^80).
+        The vast majority of these audio files will be complete noise, but among them are also every
+        possible sound that can be represented within these parameters, including all music, speech, and other audio
+        recordings.
+      </p>
+
+      <h3>Glossary</h3>
+      <ul>
+        <li><b><a href="https://en.wikipedia.org/wiki/Sampling_(signal_processing)">Sample Rate</a></b>: The number of
+          samples of audio carried per second, measured in Hz or kHz. A higher sample
+          rate can capture more detail in the sound.</li>
+        <li><b><a href="https://en.wikipedia.org/wiki/Bit_depth">Bit Depth</a></b>: The number of bits of information in
+          each sample, which directly corresponds to the resolution
+          of each sample. A higher bit depth allows for a greater dynamic range and more accurate representation of the
+          sound.</li>
+        <li><b>Channels</b>: Refers to the number of separate audio signals or streams. Mono has one channel, while
+          stereo
+          has two (left and right).</li>
+      </ul>
+    </section>
   </div>
 
   <script type="module">

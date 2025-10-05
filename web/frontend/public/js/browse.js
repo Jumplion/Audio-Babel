@@ -162,6 +162,18 @@ function renderItems() {
   }
   updatePagerButtons();
   updatePageInfo();
+  // keep the single manual input in-sync with the active breadcrumb/stage
+  try {
+    const mh = $('manualHeader');
+    const mi = $('manualInput');
+    if (mh) mh.textContent = `Input ${currentStage}...`;
+    if (mi) {
+      mi.value = selection[currentStage] || '';
+      mi.placeholder = `Type a ${currentStage} and press Apply`;
+    }
+  } catch (e) {
+    // non-fatal
+  }
 }
 
 function updatePagerButtons() {
@@ -226,10 +238,12 @@ function onSelectToken(token, btnEl) {
   updateGenerateButtonState();
   // auto-scroll to top of the items list when a selection is made
   try {
-    const items = document.getElementById('itemsContainer');
-    if (items) items.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // scroll back up to the top of the page instead of focusing the items list
+    if (typeof window !== 'undefined' && window.scrollTo) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   } catch (e) {
-    console.error('browse.js: scrollIntoView failed', e);
+    console.error('browse.js: scrollTo failed', e);
   }
 }
 
@@ -339,8 +353,60 @@ function init() {
   // pageSize is fixed at 50 per design
   const genBtn = document.getElementById('generateBtn');
   if (genBtn) genBtn.addEventListener('click', generateWav);
+  // wire single context-aware manual input
+  const applyManual = $('applyManual');
+  const clearManual = $('clearManual');
+  const manualInput = $('manualInput');
+  const manualHeader = $('manualHeader');
+  function refreshManualUI() {
+    if (manualHeader) manualHeader.textContent = `Input ${currentStage}...`;
+    if (manualInput) manualInput.value = selection[currentStage] || '';
+    if (manualInput) manualInput.placeholder = `Type a ${currentStage} and press Apply`;
+  }
+  if (applyManual) applyManual.addEventListener('click', () => {
+    if (!manualInput) return;
+    const v = manualInput.value && manualInput.value.trim();
+    if (!v) return;
+    // set only the current stage, clear later stages, and advance
+    selection[currentStage] = v;
+    const curIdx = stages.indexOf(currentStage);
+    // clear later selections and UI
+    stages.slice(curIdx + 1).forEach((s) => { selection[s] = null; if (selectedEl[s]) { selectedEl[s].classList.remove('selected'); selectedEl[s] = null; } });
+    // update breadcrumb and state
+    updateBreadcrumb();
+    updateGenerateButtonState();
+    // advance to next stage if any
+    if (curIdx < stages.length - 1) {
+      currentStage = stages[curIdx + 1];
+    }
+    page = 0n;
+    renderItems();
+    refreshManualUI();
+  });
+  // Enter-key on manual input should act like Apply
+  if (manualInput) {
+    manualInput.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        if (applyManual) applyManual.click();
+      }
+    });
+  }
+  if (clearManual) clearManual.addEventListener('click', () => {
+    // clear current and later stages
+    const curIdx = stages.indexOf(currentStage);
+    stages.slice(curIdx).forEach((s) => { selection[s] = null; if (selectedEl[s]) { selectedEl[s].classList.remove('selected'); selectedEl[s] = null; } });
+    if (manualInput) manualInput.value = '';
+    updateBreadcrumb();
+    updateGenerateButtonState();
+    page = 0n;
+    renderItems();
+    refreshManualUI();
+  });
   updateBreadcrumb();
   try { renderItems(); } catch (e) { console.error('browse.js: renderItems failed', e); }
+  // initialize manual UI state
+  try { refreshManualUI(); } catch (e) { /* ignore */ }
   // ensure the generate button reflects current selections on load
   try { updateGenerateButtonState(); } catch (e) { console.error('browse.js: updateGenerateButtonState failed', e); }
 }

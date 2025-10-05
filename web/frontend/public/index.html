@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Audibel — Home</title>
+  <title>The Audio Library of Babel — Home</title>
   <link rel="stylesheet" href="./css/site.css" />
 </head>
 
@@ -12,9 +12,8 @@
   <div id="navContainer"></div>
   <div class="wrap home">
     <main class="card">
-      <h1 style="text-align: center;">Welcome to Audibel</h1>
-      <div class="sub muted" style="text-align: center;">The Audio Library of Babel</div>
-      <p class="lead" style="text-align: center;">Get started by choosing one of the options below:</p>
+      <h1 style="text-align: center;">Welcome to The Audio Library of Babel</h1>
+      <div class="sub muted" style="text-align: center;">...an infinite collection of all possible audio files...</div>
 
       <div class="index-links options">
         <a class="option" href="./browse.html">Browse</a>
@@ -28,17 +27,25 @@
 
   <div class="wrap">
     <section class="card">
+      <h2>Who made this thing?</h2>
+      <p>
+        Hey, my name's Tomer Braff. I'm a programmer, developer, game designer, actor, voice over artist, youtuber, all
+        around something-or-other. I got a portfolio site at <a href="https://tomerbraff.com">tomerbraff.com</a>, a <a
+          href="https://www.youtube.com/@woblewoble">YouTube channel</a> I sometimes do things with, and you can find on
+        all the usual places like <a href="https://x.com/TomerBraff">Twitter</a> and <a
+          href="https://www.linkedin.com/in/tomerbraff/">LinkedIn</a>. If you're curious or just want to chat, contact
+        me at <a href="mailto:tomerbraff+audiobabel@gmail.com">tomerbraff@gmail.com</a>.
+      </p>
       <h2>What is this site?</h2>
       <p>
-        Audibel is inspired by the <a href="https://en.wikipedia.org/wiki/Library_of_Babel">Library of Babel</a>, a
-        thought
-        experiment by Jorge Luis Borges. It is a collection of all possible audio files that can be created with a given
-        set
-        of parameters.
-        It is also inspired by the <a href="https://libraryofbabel.info/">Library of Babel website</a> by Jonathan
-        Basile,
-        which implements the concept in a digital format.
-        The goal in this case is to do the same, but for audio files.
+        The Audio Library of Babel (or Audibel) is inspired by the <a
+          href="https://en.wikipedia.org/wiki/Library_of_Babel">Library of Babel</a>, a
+        thought experiment by Jorge Luis Borges. It is a collection of all possible books that can be created with a
+        given
+        set of parameters. It is also inspired by the <a href="https://libraryofbabel.info/">Library of Babel
+          website</a> by Jonathan
+        Basile, which implements said concept in a digital format. The goal in this case is to do the same, but for
+        audio files.
       </p>
 
       <h2>How does it work?</h2>
@@ -66,6 +73,9 @@
 
       <h3>Glossary</h3>
       <ul>
+        <li><b>Audio Sample</b>: A single measurement of the amplitude of an audio signal at a specific point in time.
+          Audio
+          samples are typically measured in bits, with higher bit depths allowing for more precise measurements.</li>
         <li><b><a href="https://en.wikipedia.org/wiki/Sampling_(signal_processing)">Sample Rate</a></b>: The number of
           samples of audio carried per second, measured in Hz or kHz. A higher sample
           rate can capture more detail in the sound.</li>
@@ -76,6 +86,13 @@
         <li><b>Channels</b>: Refers to the number of separate audio signals or streams. Mono has one channel, while
           stereo
           has two (left and right).</li>
+        <li><b><a href="https://en.wikipedia.org/wiki/WAV">WAV</a></b>: A common audio file format that stores raw and,
+          importantly, <b>uncompressed</b> audio data
+          along with
+          metadata such as sample rate, bit depth, and number of channels.</li>
+        <li><b>Base64</b>: A method for encoding binary data (like audio files) into a string of ASCII characters, in
+          this case all uppercase letters [A-Z], lowercase letters [a-z], numbers [0-9], and the minus [-] and
+          underscore [_] symbols.</li>
       </ul>
     </section>
   </div>

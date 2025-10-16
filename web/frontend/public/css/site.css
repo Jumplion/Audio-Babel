@@ -88,6 +88,12 @@ body.light {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin: 24px 0;
+  width: 100%;
+  /* ensure centering in flex parent */
+  align-items: center;
+  justify-content: center;
+
 }
 
 .option {

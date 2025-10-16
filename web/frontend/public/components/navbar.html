@@ -12,16 +12,3 @@
         </div>
     </div>
 </nav>
-
-<script type="module">
-    // Initialize the player once when the navbar is injected.
-    import { loadPlayer } from '../js/player.js';
-    (async () => {
-        try {
-            // Attach player to body (or to a specific selector inside navbar if preferred)
-            window.__SOTB_PLAYER = await loadPlayer('body');
-        } catch (e) {
-            console.error('Player failed to load from navbar fragment', e);
-        }
-    })();
-</script>

@@ -6,7 +6,17 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>The Audio Library of Babel — Home</title>
   <link rel="stylesheet" href="./css/site.css" />
-  <link rel="stylesheet" href="./css/sotb.css" />
+  <!-- KaTeX CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+    integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
+  <!-- KaTeX JS -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+    integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8"
+    crossorigin="anonymous"></script>
+  <!-- KaTeX auto-render -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+    integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous"
+    onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
 </head>
 
 <body class="home">
@@ -64,9 +74,13 @@
 
       <h2>Surfing the Audio .WAV</h2>
       <p>
-        Given these parameters, we can calculate that there would be a total of 2^(44100*5*16) possible 5 second audio
-        files, which is approximately 10^(10^7) files. This far exceeds the estimated number of atoms in the observable
-        universe (approximately 10^80).
+        Given these parameters we can calculate that there would be a
+        total of $2^{44,100 \times 5 \times 16}=2^{3,528,000}$ possible 5-second audio files, which is approximately
+        $10^{10^7}=10^{10,000,000}$ files. This far exceeds the
+        estimated number of
+        atoms in the
+        observable
+        universe (approximately $10^{80}$).
         The vast majority of these audio files will be complete noise, but among them are also every
         possible sound that can be represented within these parameters, including all music, speech, and other audio
         recordings.

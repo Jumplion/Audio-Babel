@@ -1,11 +1,22 @@
 import { loadFragment } from './loadFragment.js';
 
 let resultFrag = null;
+
+/**
+ * Ensures the result fragment component is loaded.
+ * Loads result.html fragment into #resultContainer on first call, then caches it.
+ * @returns {Promise<Object>} Fragment helper object with get/getAll methods
+ */
 export async function ensureResultFrag() {
   if (!resultFrag) resultFrag = await loadFragment('#resultContainer', './components/result.html');
   return resultFrag;
 }
 
+/**
+ * Displays a JSON response containing audio metadata and WAV data.
+ * @param {Object} j - JSON response object with metadata and wavBase64 properties
+ * @param {string} [originalIndexB64] - Optional original index string to display
+ */
 export async function handleJsonResponse(j, originalIndexB64) {
   const frag = await ensureResultFrag();
   const indexDisplay = frag.get('#indexDisplay');

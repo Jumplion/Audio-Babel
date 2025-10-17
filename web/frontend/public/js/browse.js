@@ -1,4 +1,5 @@
 // browse.js - client-side browsing UI for genres/artists/albums/tracks
+import { encodeBase64Url } from './audioIndex.js';
 
 const alphabet = [];
 // order: a-z, A-Z, 0-9, -, _
@@ -411,15 +412,11 @@ function init() {
   try { updateGenerateButtonState(); } catch (e) { console.error('browse.js: updateGenerateButtonState failed', e); }
 }
 
-function toBase64Url(u8) {
-  let binary = '';
-  const len = u8.byteLength;
-  for (let i = 0; i < len; ++i) binary += String.fromCharCode(u8[i]);
-  let b64 = btoa(binary);
-  // convert to url-safe (replace +/ and remove =)
-  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
+/**
+ * Generates a WAV file from selected metadata tokens.
+ * Constructs a deterministic index from genre|artist|album|track,
+ * sends it to the reconstruction API, and displays the result.
+ */
 async function generateWav() {
   const btn = document.getElementById('generateBtn');
   btn.disabled = true;
@@ -430,7 +427,7 @@ async function generateWav() {
     // reconstruction will be influenced by the selection. Use pipe separators to avoid ambiguity.
     const text = `${selection.genre}|${selection.artist}|${selection.album}|${selection.track}`;
     const enc = new TextEncoder().encode(text);
-    const b64url = toBase64Url(enc);
+    const b64url = encodeBase64Url(enc);
 
     // Request metadata+wav as JSON so we can show cover art and metadata
     const resp = await fetch('/reconstruct?metadata=1', {

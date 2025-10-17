@@ -3,23 +3,10 @@ import { generateFromIndex, attachSearchInputFilter } from './search.js';
 import { uploadFile } from './fileUpload.js';
 import { createRecorder } from './recorder.js';
 import { handleJsonResponse } from './resultHandler.js';
+import { enableClientSideAPI } from './apiAdapter.js';
 
-function setActiveTabUI(tab) {
-  // Only update tab UI when tab buttons exist (single-page layout)
-  const tabRandom = document.getElementById('tabRandom');
-  const tabFile = document.getElementById('tabFile');
-  const tabRecord = document.getElementById('tabRecord');
-  const tabSearch = document.getElementById('tabSearch');
-  if (!tabRandom && !tabFile && !tabRecord) return;
-  if (tabRandom) tabRandom.classList.remove('tab-active');
-  if (tabFile) tabFile.classList.remove('tab-active');
-  if (tabRecord) tabRecord.classList.remove('tab-active');
-  if (tabSearch) tabSearch.classList.remove('tab-active');
-  if (tab === 'random' && tabRandom) tabRandom.classList.add('tab-active');
-  if (tab === 'file' && tabFile) tabFile.classList.add('tab-active');
-  if (tab === 'record' && tabRecord) tabRecord.classList.add('tab-active');
-  if (tab === 'search' && tabSearch) tabSearch.classList.add('tab-active');
-}
+// Enable client-side API processing (no server required!)
+enableClientSideAPI();
 
 function setLoading(on) {
   const spinner = document.getElementById('statusSpinner');
@@ -45,100 +32,78 @@ function setLoading(on) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const tabRandom = document.getElementById('tabRandom');
-  const tabFile = document.getElementById('tabFile');
-  const tabRecord = document.getElementById('tabRecord');
-  const panelRandom = document.getElementById('panelRandom');
-  const panelFile = document.getElementById('panelFile');
-  const panelSearch = document.getElementById('panelSearch');
-  const panelRecord = document.getElementById('panelRecord');
+  // Random page: Generate button
   const regenBtn = document.getElementById('regenBtn');
+  if (regenBtn) {
+    regenBtn.addEventListener('click', () => generateAndSend(regenBtn, handleJsonResponse, setLoading));
+  }
+
+  // Search page: Input and generate button
+  const searchInput = document.getElementById('searchInput');
+  const doSearchGenerate = document.getElementById('doSearchGenerate');
+  if (searchInput && doSearchGenerate) {
+    // Attach filtering to prevent invalid characters
+    attachSearchInputFilter(searchInput);
+    
+    // Generate button click handler
+    doSearchGenerate.addEventListener('click', () => {
+      generateFromIndex(searchInput, doSearchGenerate, handleJsonResponse, setLoading);
+    });
+    
+    // Enable/disable generate button based on input
+    const updateSearchButtonState = () => {
+      const value = searchInput.value.trim();
+      if (value.length > 0) {
+        doSearchGenerate.removeAttribute('disabled');
+      } else {
+        doSearchGenerate.setAttribute('disabled', '');
+      }
+    };
+    searchInput.addEventListener('input', updateSearchButtonState);
+    updateSearchButtonState(); // Set initial state
+  }
+
+  // File upload page: File input and upload button
   const fileInput = document.getElementById('fileInput');
   const doFileSearch = document.getElementById('doFileSearch');
-  const recordStartStop = document.getElementById('recordStartStop');
-  const uploadRecording = document.getElementById('uploadRecording');
-  const recordStatus = document.getElementById('recordStatus');
-  const recordPlayer = document.getElementById('recordPlayer');
-  const recordDuration = document.getElementById('recordDuration');
-
-  // Helper functions that operate only if relevant DOM exists
-  function showRandom() {
-    if (panelRandom) panelRandom.style.display = '';
-    if (panelSearch) panelSearch.style.display = 'none';
-    if (panelFile) panelFile.style.display = 'none';
-    if (panelRecord) panelRecord.style.display = 'none';
-    setActiveTabUI('random');
-  }
-  function showFile() {
-    if (panelRandom) panelRandom.style.display = 'none';
-    if (panelSearch) panelSearch.style.display = 'none';
-    if (panelFile) panelFile.style.display = '';
-    if (panelRecord) panelRecord.style.display = 'none';
-    setActiveTabUI('file');
-  }
-  function showSearch() {
-    if (panelRandom) panelRandom.style.display = 'none';
-    if (panelSearch) panelSearch.style.display = '';
-    if (panelFile) panelFile.style.display = 'none';
-    if (panelRecord) panelRecord.style.display = 'none';
-    setActiveTabUI('search');
-  }
-  function showRecord() {
-    if (panelRandom) panelRandom.style.display = 'none';
-    if (panelFile) panelFile.style.display = 'none';
-    if (panelRecord) panelRecord.style.display = '';
-    setActiveTabUI('record');
-  }
-
-  // Wire tab click handlers only if present (single-page layout)
-  if (tabRandom) tabRandom.addEventListener('click', showRandom);
-  const tabSearch = document.getElementById('tabSearch');
-  if (tabSearch) tabSearch.addEventListener('click', showSearch);
-  if (tabFile) tabFile.addEventListener('click', showFile);
-  if (tabRecord) tabRecord.addEventListener('click', showRecord);
-
-  // regen button (exists on random page or index)
-  if (regenBtn) regenBtn.addEventListener('click', () => generateAndSend(regenBtn, handleJsonResponse, setLoading));
-
-  // search input handling (exists on search page)
-  const searchInput = document.getElementById('searchInput');
-  if (searchInput) {
-    // attach filtering to prevent invalid characters
-    attachSearchInputFilter(searchInput);
-    const doSearchGenerateBtn = document.getElementById('doSearchGenerate');
-    if (doSearchGenerateBtn) {
-      doSearchGenerateBtn.addEventListener('click', () => generateFromIndex(searchInput, doSearchGenerateBtn, handleJsonResponse, setLoading));
-      // enable generate button only when input is non-empty
-      const updateSearchButtonState = () => {
-        if (!doSearchGenerateBtn) return;
-        const v = (searchInput && searchInput.value) ? searchInput.value.trim() : '';
-        if (v.length > 0) doSearchGenerateBtn.removeAttribute('disabled');
-        else doSearchGenerateBtn.setAttribute('disabled', '');
-      };
-      searchInput.addEventListener('input', updateSearchButtonState);
-      // set initial state
-      updateSearchButtonState();
-    }
-  }
-
-  // file upload handling (exists on fileSearch page)
-  if (doFileSearch) {
+  if (fileInput && doFileSearch) {
     doFileSearch.addEventListener('click', async () => {
-      const file = fileInput && fileInput.files && fileInput.files[0];
-      if (!file) return alert('Please select a .wav file first');
+      const file = fileInput.files?.[0];
+      if (!file) {
+        alert('Please select a .wav file first');
+        return;
+      }
       await uploadFile(file, handleJsonResponse, setLoading);
     });
   }
 
-  // recorder handling (exists on record page)
+  // Record page: Recording controls
+  const recordStartStop = document.getElementById('recordStartStop');
+  const uploadRecording = document.getElementById('uploadRecording');
+  const recordPlayer = document.getElementById('recordPlayer');
+  const recordStatus = document.getElementById('recordStatus');
+  const recordDuration = document.getElementById('recordDuration');
+  
   if (recordStartStop && recordPlayer && uploadRecording) {
-    const recorder = createRecorder({ recordPlayer, recordStatus, recordDurationEl: recordDuration, uploadRecording, setLoading, handleJsonResponse });
+    const recorder = createRecorder({
+      recordPlayer,
+      recordStatus,
+      recordDurationEl: recordDuration,
+      uploadRecording,
+      setLoading,
+      handleJsonResponse
+    });
+    
     let recording = false;
+    
     recordStartStop.addEventListener('click', async () => {
       try {
         if (!recording) {
           const hasDevice = await recorder.hasInputDevice();
-          if (!hasDevice) return alert('No audio input devices were detected. Please plug in or enable a microphone and try again.');
+          if (!hasDevice) {
+            alert('No audio input devices were detected. Please plug in or enable a microphone and try again.');
+            return;
+          }
           await recorder.startRecording();
           recording = true;
           recordStartStop.textContent = 'Stop Recording';
@@ -162,7 +127,4 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-
-  // default: if single-page panels are present show random, otherwise do nothing
-  if (panelRandom || panelSearch || panelFile || panelRecord) showRandom();
 });

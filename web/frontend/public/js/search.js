@@ -1,5 +1,6 @@
 import { isValidBase64Url } from './audioIndex.js';
 import { bytesToBase64 } from './utils.js';
+import { clientReconstruct } from './apiAdapter.js';
 
 /**
  * Generate audio from an index string
@@ -26,17 +27,8 @@ export async function generateFromIndex(inputEl, btnEl, handleJsonResponse, setL
   
   try {
     setLoading(true);
-    const resp = await fetch('/reconstruct?metadata=1', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ format: 'base64', data: b64 }),
-    });
-    
-    if (!resp.ok) {
-      throw new Error('Server error ' + resp.status);
-    }
-    
-    const result = await resp.json();
+    // Use client-side adapter instead of fetch
+    const result = await clientReconstruct(b64, 'base64');
     await handleJsonResponse(result, indexString);
   } catch (error) {
     console.error(error);

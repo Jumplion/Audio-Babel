@@ -1,5 +1,6 @@
 import { bytesToBase64 } from './utils.js';
 import { encodeBase64Url } from './audioIndex.js';
+import { clientReconstruct } from './apiAdapter.js';
 
 /**
  * Generate random audio data and send to API for processing
@@ -39,18 +40,8 @@ export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) 
     // Convert to standard base64 for API
     const b64 = bytesToBase64(randomBytes);
     
-    // Send to API
-    const resp = await fetch('/reconstruct?metadata=1', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ format: 'base64', data: b64 }),
-    });
-    
-    if (!resp.ok) {
-      throw new Error('Server error ' + resp.status);
-    }
-    
-    const result = await resp.json();
+    // Use client-side adapter instead of fetch
+    const result = await clientReconstruct(b64, 'base64');
     await handleJsonResponse(result, indexString);
   } catch (error) {
     console.error(error);

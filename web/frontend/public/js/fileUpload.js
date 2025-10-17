@@ -1,3 +1,5 @@
+import { clientSearchByFile } from './apiAdapter.js';
+
 /**
  * Upload a WAV file for indexing
  * @param {File} file - WAV file to upload
@@ -9,19 +11,10 @@ export async function uploadFile(file, handleJsonResponse, setLoading) {
     throw new Error('No file provided');
   }
   
-  const form = new FormData();
-  form.append('file', file, file.name);
-  
   try {
     setLoading(true);
-    const resp = await fetch('/search_by_file', { method: 'POST', body: form });
-    
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      throw new Error('Server error: ' + resp.status + '\n' + errorText);
-    }
-    
-    const result = await resp.json();
+    // Use client-side adapter instead of fetch
+    const result = await clientSearchByFile(file);
     await handleJsonResponse(result, result.indexBase64);
   } catch (error) {
     console.error(error);

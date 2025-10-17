@@ -3,10 +3,8 @@ import { generateFromIndex, attachSearchInputFilter } from './search.js';
 import { uploadFile } from './fileUpload.js';
 import { createRecorder } from './recorder.js';
 import { handleJsonResponse } from './resultHandler.js';
-import { enableClientSideAPI } from './apiAdapter.js';
 
-// Enable client-side API processing (no server required!)
-enableClientSideAPI();
+// Note: No longer using fetch interception - using direct function calls instead
 
 function setLoading(on) {
   const spinner = document.getElementById('statusSpinner');

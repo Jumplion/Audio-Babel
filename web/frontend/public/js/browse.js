@@ -1,4 +1,5 @@
 // browse.js - client-side browsing UI for genres/artists/albums/tracks
+// NOTE: Relies on main.js being loaded FIRST to enable client-side API (fetch interception)
 import { encodeBase64Url } from './audioIndex.js';
 
 const alphabet = [];

@@ -33,11 +33,18 @@ export async function reconstruct(requestBody) {
         const { format, data } = requestBody;
         
         if (format !== 'base64' && format !== 'base64url') {
-            throw new Error('Format: ' + format + ' - Only base64 format is supported');
+            throw new Error('Format: ' + format + ' - Only base64 and base64url formats are supported');
         }
 
-        // Convert from standard base64 to bytes
-        const indexBytes = base64ToBytes(data);
+        // Convert to bytes based on format
+        let indexBytes;
+        if (format === 'base64url') {
+            // Use decodeBase64Url for URL-safe base64
+            indexBytes = decodeBase64Url(data);
+        } else {
+            // Use base64ToBytes for standard base64
+            indexBytes = base64ToBytes(data);
+        }
         
         // Convert bytes to URL-safe base64 (the actual index format)
         const urlSafeIndex = encodeBase64Url(indexBytes);

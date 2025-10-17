@@ -1,6 +1,8 @@
-// nav.js
-// Exports highlightActiveNav(containerSelector) which finds the nav links inside
-// the injected navbar and sets the active class based on current location.
+/**
+ * Highlights the active navigation link based on the current page pathname.
+ * Sets 'active' class and aria-current="page" on matching links.
+ * @param {string} [containerSelector='#navContainer'] - CSS selector for the nav container
+ */
 export function highlightActiveNav(containerSelector = '#navContainer') {
   try {
     const container = document.querySelector(containerSelector);

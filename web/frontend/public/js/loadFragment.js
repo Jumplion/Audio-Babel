@@ -1,6 +1,10 @@
-// loadFragment(containerSelector, fragmentPath)
-// Fetches an HTML fragment and injects it into the container element.
-// Returns an object with a `get` helper to resolve elements inside the injected fragment.
+/**
+ * Loads an HTML fragment from a URL and injects it into a container element.
+ * Handles inline and external scripts within the fragment.
+ * @param {string} containerSelector - CSS selector for the target container
+ * @param {string} fragmentPath - Path to the HTML fragment file
+ * @returns {Promise<Object>} Fragment helper with get()/getAll() methods and container reference
+ */
 export async function loadFragment(containerSelector, fragmentPath) {
   const container = document.querySelector(containerSelector);
   if (!container) throw new Error("Container not found: " + containerSelector);

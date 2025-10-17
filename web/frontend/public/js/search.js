@@ -1,19 +1,29 @@
-import { toBase64 } from './utils.js';
+import { isValidBase64Url } from './audioIndex.js';
+import { bytesToBase64 } from './utils.js';
 
-function isValidIndexString(s) {
-  return /^[A-Za-z0-9_-]*$/.test(s);
-}
-
+/**
+ * Generate audio from an index string
+ * @param {HTMLElement} inputEl - Input element containing the index
+ * @param {HTMLElement} btnEl - Button element (unused but kept for consistency)
+ * @param {Function} handleJsonResponse - Callback for handling response
+ * @param {Function} setLoading - Callback for loading state
+ */
 export async function generateFromIndex(inputEl, btnEl, handleJsonResponse, setLoading) {
-  const raw = inputEl.value || '';
-  if (!isValidIndexString(raw)) {
+  const indexString = inputEl.value || '';
+  
+  // Validate index characters (A-Z, a-z, 0-9, -, _)
+  if (!isValidBase64Url(indexString)) {
     alert('Invalid characters in index. Only A-Z, a-z, 0-9, - and _ are allowed.');
     return;
   }
-  // convert the string to bytes (ASCII/UTF-8 single-byte for allowed chars)
-  const buf = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; ++i) buf[i] = raw.charCodeAt(i) & 0xff;
-  const b64 = toBase64(buf.buffer);
+  
+  // Convert index string to bytes for API
+  const indexBytes = new Uint8Array(indexString.length);
+  for (let i = 0; i < indexString.length; i++) {
+    indexBytes[i] = indexString.charCodeAt(i) & 0xff;
+  }
+  const b64 = bytesToBase64(indexBytes);
+  
   try {
     setLoading(true);
     const resp = await fetch('/reconstruct?metadata=1', {
@@ -21,12 +31,16 @@ export async function generateFromIndex(inputEl, btnEl, handleJsonResponse, setL
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ format: 'base64', data: b64 }),
     });
-    if (!resp.ok) throw new Error('Server error ' + resp.status);
-    const j = await resp.json();
-    await handleJsonResponse(j, b64);
-  } catch (e) {
-    console.error(e);
-    alert('Error: ' + String(e));
+    
+    if (!resp.ok) {
+      throw new Error('Server error ' + resp.status);
+    }
+    
+    const result = await resp.json();
+    await handleJsonResponse(result, indexString);
+  } catch (error) {
+    console.error(error);
+    alert('Error: ' + error.message);
   } finally {
     setLoading(false);
   }

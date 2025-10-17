@@ -1,6 +1,7 @@
 // browse.js - client-side browsing UI for genres/artists/albums/tracks
-// NOTE: Relies on main.js being loaded FIRST to enable client-side API (fetch interception)
+// NOTE: Uses client-side API adapter for direct function calls (no fetch interception)
 import { encodeBase64Url } from './audioIndex.js';
+import { clientReconstruct } from './apiAdapter.js';
 
 const alphabet = [];
 // order: a-z, A-Z, 0-9, -, _
@@ -430,26 +431,8 @@ async function generateWav() {
     const enc = new TextEncoder().encode(text);
     const b64url = encodeBase64Url(enc);
 
-    // Request metadata+wav as JSON so we can show cover art and metadata
-    const resp = await fetch('/reconstruct?metadata=1', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ format: 'base64url', data: b64url }),
-    });
-
-    if (!resp.ok) {
-      const j = await resp.json().catch(() => null);
-      status.textContent = `Server error: ${resp.status}${j && j.error ? ' - ' + j.error : ''}`;
-      btn.disabled = false;
-      return;
-    }
-
-    const j = await resp.json().catch(() => null);
-    if (!j) {
-      status.textContent = 'Server returned unexpected response';
-      btn.disabled = false;
-      return;
-    }
+    // Use client-side adapter instead of fetch
+    const j = await clientReconstruct(b64url, 'base64url');
 
     // j.metadata: { genre, artist, album, track, cover }
     // j.wavBase64: base64 of WAV

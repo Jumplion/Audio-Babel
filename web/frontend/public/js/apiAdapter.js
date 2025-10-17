@@ -1,11 +1,10 @@
 /**
  * apiAdapter.js
  * 
- * Client-side adapter that replaces server API calls with direct
- * JavaScript processing using audioIndex.js module.
+ * Client-side adapter that provides the same interface as server API endpoints,
+ * but processes everything in the browser using direct function calls.
  * 
- * This module provides the same interface as the server API endpoints,
- * but processes everything in the browser.
+ * NO FETCH INTERCEPTION - just direct function calls for simplicity and reliability.
  */
 
 import {
@@ -148,65 +147,37 @@ export async function searchByFile(formData) {
 }
 
 /**
- * Fetch wrapper that intercepts API calls and routes to client-side functions
- * This can be used as a drop-in replacement for fetch() in existing code
+ * Client-side reconstruct function - call this directly instead of fetch('/reconstruct')
+ * 
+ * @param {string} base64Data - Base64 or base64url encoded index data
+ * @param {string} format - Either 'base64' or 'base64url'
+ * @returns {Promise<Object>} Result object with indexBase64, wavBase64, and metadata
  */
-export async function clientSideFetch(url, options = {}) {
-    // Parse the URL
-    const urlObj = new URL(url, window.location.origin);
-    const pathname = urlObj.pathname;
-    
-    // Route to appropriate handler
-    if (pathname === '/reconstruct' || pathname.endsWith('/reconstruct')) {
-        if (options.method === 'POST' && options.body) {
-            const requestBody = JSON.parse(options.body);
-            const result = await reconstruct(requestBody);
-            
-            // Return a Response-like object
-            return {
-                ok: true,
-                status: 200,
-                json: async () => result,
-                text: async () => JSON.stringify(result)
-            };
-        }
-    } else if (pathname === '/search_by_file' || pathname.endsWith('/search_by_file')) {
-        if (options.method === 'POST' && options.body) {
-            const result = await searchByFile(options.body);
-            
-            return {
-                ok: true,
-                status: 200,
-                json: async () => result,
-                text: async () => JSON.stringify(result)
-            };
-        }
+export async function clientReconstruct(base64Data, format = 'base64') {
+    try {
+        const requestBody = { format, data: base64Data };
+        return await reconstruct(requestBody);
+    } catch (error) {
+        console.error('Error in clientReconstruct:', error);
+        throw error;
     }
-    
-    // Fallback to real fetch for other URLs
-    return fetch(url, options);
 }
 
 /**
- * Initialize client-side API by replacing global fetch
- * Call this once at app startup to enable client-side processing
+ * Client-side search by file function - call this directly instead of fetch('/search_by_file')
+ * 
+ * @param {File} file - WAV file to process
+ * @returns {Promise<Object>} Result object with index, wav, metadata, and audio properties
  */
-export function enableClientSideAPI() {
-    // Store original fetch
-    window._originalFetch = window.fetch;
-    
-    // Replace with our adapter
-    window.fetch = clientSideFetch;
-    
-    console.log('Client-side API enabled - no server required!');
-}
-
-/**
- * Restore original fetch (for debugging)
- */
-export function disableClientSideAPI() {
-    if (window._originalFetch) {
-        window.fetch = window._originalFetch;
-        console.log('Client-side API disabled - using server');
+export async function clientSearchByFile(file) {
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        return await searchByFile(formData);
+    } catch (error) {
+        console.error('Error in clientSearchByFile:', error);
+        throw error;
     }
 }
+
+console.log('✅ apiAdapter.js loaded - direct function call mode (no fetch interception)');

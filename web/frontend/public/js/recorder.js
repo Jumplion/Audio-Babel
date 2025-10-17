@@ -1,3 +1,5 @@
+import { clientSearchByFile } from './apiAdapter.js';
+
 /**
  * Format duration in milliseconds to MM:SS
  * @param {number} ms - Duration in milliseconds
@@ -101,17 +103,13 @@ export function createRecorder({ recordPlayer, recordStatus, recordDurationEl, u
 
   async function uploadRecorded() {
     if (!recordedBlob) throw new Error('No recording available');
-    const form = new FormData();
-    form.append('file', recordedBlob, 'recording.webm');
+    // Convert blob to File object for clientSearchByFile
+    const file = new File([recordedBlob], 'recording.webm', { type: recordedBlob.type });
     try {
       setLoading(true);
-      const resp = await fetch('/search_by_file', { method: 'POST', body: form });
-      if (!resp.ok) {
-        const txt = await resp.text();
-        throw new Error('Server error: ' + resp.status + '\n' + txt);
-      }
-      const j = await resp.json();
-      await handleJsonResponse(j, j.indexBase64);
+      // Use client-side adapter instead of fetch
+      const result = await clientSearchByFile(file);
+      await handleJsonResponse(result, result.indexBase64);
     } finally {
       setLoading(false);
     }

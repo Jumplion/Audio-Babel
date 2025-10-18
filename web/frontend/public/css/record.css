@@ -1,0 +1,38 @@
+/**
+ * Styles specific to the record.html page
+ */
+
+.record .record-controls {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.record #recordStatus {
+    margin-left: 6px;
+}
+
+.record #recordDuration {
+    margin-left: 8px;
+}
+
+.record .record-player-container {
+    margin-top: 8px;
+}
+
+.record #recordPlayer {
+    max-width: 100%;
+}
+
+.record #statusLine {
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.record #statusSpinner {
+    display: none;
+}

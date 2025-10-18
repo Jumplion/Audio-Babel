@@ -1,0 +1,22 @@
+/**
+ * Styles specific to the random.html page
+ */
+
+.random #regenBtn {
+    margin-bottom: 12px;
+}
+
+.random .btn-description {
+    margin-top: 8px;
+}
+
+.random #statusLine {
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.random #statusSpinner {
+    display: none;
+}

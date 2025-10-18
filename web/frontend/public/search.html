@@ -7,6 +7,7 @@
     <title>Audibel — Search Index</title>
     <link rel="stylesheet" href="./css/site.css" />
     <link rel="stylesheet" href="./css/resultHandler.css" />
+    <link rel="stylesheet" href="./css/search.css" />
 </head>
 
 <body class="search">
@@ -15,23 +16,21 @@
     <div class="wrap">
         <main class="card">
             <h1>Search Index</h1>
-            <div style="margin-bottom:12px">
+            <div class="search-container">
                 <label for="searchInput">Enter an index string (A-Z, a-z, 0-9, - and _):</label>
-                <textarea id="searchInput" rows="1"
-                    style="display: block; margin-top: 6px; width: 100%; overflow: hidden; resize: none;"
-                    placeholder="Type index here..."></textarea>
-                <div style="margin-top: 8px">
+                <textarea id="searchInput" rows="1" placeholder="Type index here..."></textarea>
+                <div class="search-actions">
                     <button class="btn" id="doSearchGenerate" disabled>Generate from index</button>
                 </div>
-                <p style="margin-top: 8px">
+                <p class="search-help">
                     <small>Only characters A-Z a-z 0-9 - and _ are allowed. The string will be used directly as the
                         index
                         bytes.</small>
                 </p>
             </div>
 
-            <div id="statusLine" style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
-                <span id="statusMsg">Ready</span><span id="statusSpinner" style="display: none" class="spinner"></span>
+            <div id="statusLine">
+                <span id="statusMsg">Ready</span><span id="statusSpinner" class="spinner"></span>
             </div>
             <div id="resultContainer"></div>
 

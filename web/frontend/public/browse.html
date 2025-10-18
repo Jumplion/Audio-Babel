@@ -17,7 +17,7 @@
         <main class="card">
             <h1>Browse</h1>
 
-            <nav id="breadcrumb" aria-label="Breadcrumb" style="margin-bottom:12px"></nav>
+            <nav id="breadcrumb" aria-label="Breadcrumb"></nav>
 
             <section id="selectorArea">
                 <div class="filterRow">
@@ -25,7 +25,7 @@
                 </div>
 
                 <!-- Generate button and status above the entries -->
-                <div id="generateArea" style="margin-bottom:12px; display:flex; gap:12px; align-items:center">
+                <div id="generateArea">
                     <button class="btn" id="generateBtn" disabled>Generate .wav</button>
                     <span id="statusMsg">Select genre → artist → album → track</span>
                 </div>
@@ -48,7 +48,7 @@
                 <!-- Top pagination controls (below result, above list) -->
                 <div class="controlsTop">
                     <div class="pageGroup">
-                        <label for="pageInputTop" style="color:var(--muted); margin-right:6px">Page</label>
+                        <label for="pageInputTop">Page</label>
                         <input id="pageInputTop" type="text" placeholder="1" />
                         <button class="btn" id="goPageTop">Go</button>
                     </div>
@@ -56,8 +56,8 @@
                         <button class="btn" id="prevPageTop">Prev</button>
                         <button class="btn" id="nextPageTop">Next</button>
                     </div>
-                    <div style="margin-left:12px;">
-                        <span id="pageInfoTop" style="color:var(--muted)"></span>
+                    <div class="page-info-container">
+                        <span id="pageInfoTop"></span>
                     </div>
                 </div>
 
@@ -68,7 +68,7 @@
                 <!-- Pagination controls moved to the bottom of the list -->
                 <div class="controlsBottom">
                     <div class="pageGroup">
-                        <label for="pageInput" style="color:var(--muted); margin-right:6px">Page</label>
+                        <label for="pageInput">Page</label>
                         <input id="pageInput" type="text" placeholder="1" />
                         <button class="btn" id="goPage">Go</button>
                     </div>
@@ -76,8 +76,8 @@
                         <button class="btn" id="prevPage">Prev</button>
                         <button class="btn" id="nextPage">Next</button>
                     </div>
-                    <div style="margin-left:12px;">
-                        <span id="pageInfo" style="color:var(--muted)"></span>
+                    <div class="page-info-container">
+                        <span id="pageInfo"></span>
                     </div>
                 </div>
             </section>

@@ -1,0 +1,11 @@
+/**
+ * Styles specific to the index.html (home) page
+ */
+
+.home h1 {
+    text-align: center;
+}
+
+.home .sub.muted {
+    text-align: center;
+}

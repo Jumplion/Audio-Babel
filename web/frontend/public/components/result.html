@@ -1,36 +1,23 @@
-<section id="result" style="margin-top: 16px; display: none">
+<section id="result">
   <h3>Index (base64)</h3>
-  <pre id="indexDisplay" style="
-      white-space: break-spaces;
-      overflow: auto;
-      max-height: 160px;
-      padding: 8px;
-      background: #f6f8fa;
-      border-radius: 6px;
-    "></pre>
-  <div id="metadata" style="display: none; margin-bottom: 12px">
-    <img id="coverImg" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="cover" style="
-        width: 128px;
-        height: 128px;
-        float: left;
-        margin-right: 12px;
-        border-radius: 6px;
-      " />
-    <div style="overflow: hidden">
+  <pre id="indexDisplay"></pre>
+  <div id="metadata">
+    <img id="coverImg" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="cover" />
+    <div class="metadata-content">
       <div><strong>Genre:</strong> <span id="metaGenre"></span></div>
       <div><strong>Artist:</strong> <span id="metaArtist"></span></div>
       <div><strong>Album:</strong> <span id="metaAlbum"></span></div>
       <div><strong>Track:</strong> <span id="metaTrack"></span></div>
     </div>
-    <div style="clear: both"></div>
+    <div class="metadata-clearfix"></div>
   </div>
   <h3>Audio</h3>
-  <audio id="audioPlayer" controls="controls" style="width: 100%"></audio>
+  <audio id="audioPlayer" controls="controls"></audio>
   <p>
     <a id="downloadLink" href="#" download="reconstructed.wav">Download WAV</a>
   </p>
-  <div id="similarContainer" style="margin-top:12px; display:none">
+  <div id="similarContainer">
     <h4>Similar indices</h4>
-    <ul id="similarList" style="list-style:none; padding:0; margin:0; display:flex; gap:8px; flex-wrap:wrap"></ul>
+    <ul id="similarList"></ul>
   </div>
 </section>

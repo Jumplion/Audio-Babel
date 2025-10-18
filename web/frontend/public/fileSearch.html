@@ -7,6 +7,7 @@
     <title>Audibel — Upload .wav</title>
     <link rel="stylesheet" href="./css/site.css" />
     <link rel="stylesheet" href="./css/resultHandler.css" />
+    <link rel="stylesheet" href="./css/fileSearch.css" />
 </head>
 
 <body class="file-search">
@@ -15,20 +16,19 @@
     <div class="wrap">
         <main class="card">
             <h1>Upload .wav</h1>
-            <div style="margin-bottom:12px">
+            <div class="upload-container">
                 <label for="fileInput">Select a .wav file to upload:</label>
-                <input id="fileInput" type="file" accept="audio/wav,audio/x-wav,.wav"
-                    style="display: block; margin-top: 6px" />
-                <div style="margin-top: 8px">
+                <input id="fileInput" type="file" accept="audio/wav,audio/x-wav,.wav" />
+                <div class="upload-actions">
                     <button class="btn" id="doFileSearch">Upload &amp; Extract</button>
                 </div>
-                <p style="margin-top: 8px">
+                <p class="upload-help">
                     <small>Uploaded files must be under server's size limit.</small>
                 </p>
             </div>
 
-            <div id="statusLine" style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
-                <span id="statusMsg">Ready</span><span id="statusSpinner" style="display: none" class="spinner"></span>
+            <div id="statusLine">
+                <span id="statusMsg">Ready</span><span id="statusSpinner" class="spinner"></span>
             </div>
             <div id="resultContainer"></div>
 

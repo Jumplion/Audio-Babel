@@ -7,6 +7,7 @@
     <title>Audibel — Random Index</title>
     <link rel="stylesheet" href="./css/site.css" />
     <link rel="stylesheet" href="./css/resultHandler.css" />
+    <link rel="stylesheet" href="./css/random.css" />
 </head>
 
 <body class="random">
@@ -15,14 +16,15 @@
     <div class="wrap">
         <main class="card">
             <h1>Generate Random Index</h1>
-            <div style="margin-bottom:12px">
+            <div>
                 <button class="btn" id="regenBtn">Generate Random Index</button>
-                <p style="margin-top:8px"><small>Clicking the button will generate a random index size between 64 KB and
+                <p class="btn-description"><small>Clicking the button will generate a random index size between 64 KB
+                        and
                         5 MB (server max 60 MB).</small></p>
             </div>
 
-            <div id="statusLine" style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
-                <span id="statusMsg">Ready</span><span id="statusSpinner" style="display: none" class="spinner"></span>
+            <div id="statusLine">
+                <span id="statusMsg">Ready</span><span id="statusSpinner" class="spinner"></span>
             </div>
             <div id="resultContainer"></div>
 

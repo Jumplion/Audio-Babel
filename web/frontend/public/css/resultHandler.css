@@ -24,3 +24,57 @@
     font-size: 12px;
     white-space: pre-wrap;
 }
+
+/* Result component styles (from result.html) */
+#result {
+    margin-top: 16px;
+    display: none;
+}
+
+#indexDisplay {
+    white-space: break-spaces;
+    overflow: auto;
+    max-height: 160px;
+    padding: 8px;
+    background: #f6f8fa;
+    border-radius: 6px;
+}
+
+#metadata {
+    display: none;
+    margin-bottom: 12px;
+}
+
+#coverImg {
+    width: 128px;
+    height: 128px;
+    float: left;
+    margin-right: 12px;
+    border-radius: 6px;
+}
+
+.metadata-content {
+    overflow: hidden;
+}
+
+.metadata-clearfix {
+    clear: both;
+}
+
+#audioPlayer {
+    width: 100%;
+}
+
+#similarContainer {
+    margin-top: 12px;
+    display: none;
+}
+
+#similarList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}

@@ -88,3 +88,30 @@ footer.card-footer {
     color: var(--muted);
     font-size: 18px;
 }
+
+/* Breadcrumb navigation */
+#breadcrumb {
+    margin-bottom: 12px;
+}
+
+/* Generate area */
+#generateArea {
+    margin-bottom: 12px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+/* Pagination labels and info */
+.pageGroup label {
+    color: var(--muted);
+    margin-right: 6px;
+}
+
+.page-info-container {
+    margin-left: 12px;
+}
+
+.page-info-container span {
+    color: var(--muted);
+}

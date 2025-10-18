@@ -41,10 +41,9 @@ function makeMetadataExpandable(element, fullText, truncatedText, fieldName) {
   // Create a unique ID for the expanded view
   const expandedId = `expanded-${fieldName}`;
   
-  // Set initial truncated text
+  // Set initial truncated text and apply expandable styling
   element.textContent = truncatedText;
-  element.style.cursor = 'pointer';
-  element.style.userSelect = 'none';
+  element.classList.add('metadata-expandable');
   element.title = 'Click to expand/collapse';
   
   // Add click handler
@@ -59,20 +58,7 @@ function makeMetadataExpandable(element, fullText, truncatedText, fieldName) {
       // Create expanded view
       const expandedDiv = document.createElement('div');
       expandedDiv.id = expandedId;
-      expandedDiv.style.cssText = `
-        margin-top: 8px;
-        margin-bottom: 8px;
-        padding: 8px;
-        border: 1px solid var(--muted, #ccc);
-        border-radius: 4px;
-        max-height: 150px;
-        overflow-y: auto;
-        overflow-x: auto;
-        word-break: break-all;
-        font-family: monospace;
-        font-size: 12px;
-        white-space: pre-wrap;
-      `;
+      expandedDiv.className = 'metadata-expanded';
       expandedDiv.textContent = fullText;
       
       // Insert after the element

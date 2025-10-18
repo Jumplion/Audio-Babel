@@ -15,15 +15,15 @@
 
     <div class="wrap">
         <main class="card">
-            <h1>Upload .wav</h1>
+            <h1>Extract Index</h1>
             <div class="upload-container">
-                <label for="fileInput">Select a .wav file to upload:</label>
+                <label for="fileInput">Select a .wav file to extract the index from:</label>
                 <input id="fileInput" type="file" accept="audio/wav,audio/x-wav,.wav" />
                 <div class="upload-actions">
-                    <button class="btn" id="doFileSearch">Upload &amp; Extract</button>
+                    <button class="btn" id="doFileSearch">Extract</button>
                 </div>
                 <p class="upload-help">
-                    <small>Uploaded files must be under server's size limit.</small>
+                    <small>Recommended to limit files to 10 MB, but you do you.</small>
                 </p>
             </div>
 
@@ -31,10 +31,6 @@
                 <span id="statusMsg">Ready</span><span id="statusSpinner" class="spinner"></span>
             </div>
             <div id="resultContainer"></div>
-
-            <footer>
-                <small>Upload a WAV to extract an index and reconstruct.</small>
-            </footer>
         </main>
     </div>
 

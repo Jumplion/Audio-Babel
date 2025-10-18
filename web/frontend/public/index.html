@@ -31,7 +31,7 @@
         <a class="option" href="./browse.html">Browse</a>
         <a class="option" href="./random.html">Random</a>
         <a class="option" href="./search.html">Search</a>
-        <a class="option" href="./fileSearch.html">Upload .wav</a>
+        <a class="option" href="./fileSearch.html">Extract</a>
         <a class="option" href="./record.html">Record</a>
       </div>
     </main>
@@ -113,6 +113,11 @@
     </section>
   </div>
 
+  <script type="module">
+    import { loadFragment } from './js/loadFragment.js';
+    import { highlightActiveNav } from './js/nav.js';
+    (async () => { await loadFragment('#navContainer', './components/navbar.html'); highlightActiveNav('#navContainer'); })();
+  </script>
   <script type="module" src="./js/main.js?v=4"></script>
 </body>
 

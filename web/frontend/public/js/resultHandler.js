@@ -3,6 +3,22 @@ import { loadFragment } from './loadFragment.js';
 let resultFrag = null;
 
 /**
+ * Truncate a string if it exceeds maxLength, showing first and last parts with ellipsis
+ * @param {string} str - String to truncate
+ * @param {number} maxLength - Maximum length before truncation (default: 30)
+ * @returns {string} Truncated string with ellipsis if needed
+ */
+function truncateString(str, maxLength = 30) {
+  if (!str || str.length <= maxLength) return str;
+  
+  // Show first 40% and last 40% of the string with "..." in middle
+  const partLength = Math.floor(maxLength * 0.4);
+  const start = str.substring(0, partLength);
+  const end = str.substring(str.length - partLength);
+  return `${start}...${end}`;
+}
+
+/**
  * Ensures the result fragment component is loaded.
  * Loads result.html fragment into #resultContainer on first call, then caches it.
  * @returns {Promise<Object>} Fragment helper object with get/getAll methods
@@ -10,6 +26,60 @@ let resultFrag = null;
 export async function ensureResultFrag() {
   if (!resultFrag) resultFrag = await loadFragment('#resultContainer', './components/result.html');
   return resultFrag;
+}
+
+/**
+ * Create a clickable metadata element that can expand to show full text
+ * @param {HTMLElement} element - The metadata element
+ * @param {string} fullText - The complete metadata string
+ * @param {string} truncatedText - The truncated version to display initially
+ * @param {string} fieldName - Name of the field (e.g., 'genre', 'artist')
+ */
+function makeMetadataExpandable(element, fullText, truncatedText, fieldName) {
+  if (!element || !fullText) return;
+  
+  // Create a unique ID for the expanded view
+  const expandedId = `expanded-${fieldName}`;
+  
+  // Set initial truncated text
+  element.textContent = truncatedText;
+  element.style.cursor = 'pointer';
+  element.style.userSelect = 'none';
+  element.title = 'Click to expand/collapse';
+  
+  // Add click handler
+  element.addEventListener('click', () => {
+    const existingExpanded = document.getElementById(expandedId);
+    
+    if (existingExpanded) {
+      // Remove expanded view
+      existingExpanded.remove();
+      element.textContent = truncatedText;
+    } else {
+      // Create expanded view
+      const expandedDiv = document.createElement('div');
+      expandedDiv.id = expandedId;
+      expandedDiv.style.cssText = `
+        margin-top: 8px;
+        margin-bottom: 8px;
+        padding: 8px;
+        border: 1px solid var(--muted, #ccc);
+        border-radius: 4px;
+        max-height: 150px;
+        overflow-y: auto;
+        overflow-x: auto;
+        word-break: break-all;
+        font-family: monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+      `;
+      expandedDiv.textContent = fullText;
+      
+      // Insert after the element
+      element.parentNode.insertBefore(expandedDiv, element.nextSibling);
+      element.textContent = truncatedText + ' ▼';
+    }
+  });
 }
 
 /**
@@ -22,19 +92,38 @@ export async function handleJsonResponse(j, originalIndexB64) {
   const indexDisplay = frag.get('#indexDisplay');
   const resultEl = frag.get('#result');
 
-  // show index
-  if (indexDisplay) indexDisplay.textContent = originalIndexB64 || j.indexBase64 || '';
+  // show index (truncated if very long)
+  const indexToShow = originalIndexB64 || j.indexBase64 || '';
+  if (indexDisplay) {
+    indexDisplay.textContent = indexToShow;
+    indexDisplay.title = indexToShow; // Full index on hover
+  }
 
-  // metadata
+  // metadata with expandable sections
   if (j.metadata) {
     const g = frag.get('#metaGenre');
     const a = frag.get('#metaArtist');
     const al = frag.get('#metaAlbum');
     const t = frag.get('#metaTrack');
-    if (g) g.textContent = j.metadata.genre || '';
-    if (a) a.textContent = j.metadata.artist || '';
-    if (al) al.textContent = j.metadata.album || '';
-    if (t) t.textContent = j.metadata.track || '';
+    
+    // Make each metadata field expandable
+    if (g) {
+      const genreText = j.metadata.genre || '';
+      makeMetadataExpandable(g, genreText, truncateString(genreText, 30), 'genre');
+    }
+    if (a) {
+      const artistText = j.metadata.artist || '';
+      makeMetadataExpandable(a, artistText, truncateString(artistText, 30), 'artist');
+    }
+    if (al) {
+      const albumText = j.metadata.album || '';
+      makeMetadataExpandable(al, albumText, truncateString(albumText, 30), 'album');
+    }
+    if (t) {
+      const trackText = j.metadata.track || '';
+      makeMetadataExpandable(t, trackText, truncateString(trackText, 30), 'track');
+    }
+    
     const cover = frag.get('#coverImg');
     const metadataEl = frag.get('#metadata');
     if (cover && j.metadata.cover) {

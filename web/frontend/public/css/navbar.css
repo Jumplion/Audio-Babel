@@ -5,12 +5,13 @@
     right: 0;
     top: 0;
     height: 56px;
-    background: rgba(11, 18, 32, 0.95);
+    background: rgba(30, 36, 51, 0.95);
     color: var(--accent);
     display: flex;
     align-items: center;
     z-index: 10000;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
 }
 
 .site-navbar .nav-inner {
@@ -43,18 +44,18 @@
 }
 
 .site-navbar .nav-links a:hover {
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 /* Active nav link */
 .site-navbar .nav-links a.active {
     background: linear-gradient(90deg, var(--btn), #66a9ff);
     color: #fff;
-    box-shadow: 0 6px 18px rgba(11, 120, 255, 0.12);
+    box-shadow: 0 2px 8px rgba(59, 143, 255, 0.3);
 }
 
 .site-navbar .nav-links a[aria-current="page"] {
-    outline: 2px solid rgba(255, 255, 255, 0.04);
+    outline: 2px solid rgba(255, 255, 255, 0.08);
 }
 
 /* End navbar.css */

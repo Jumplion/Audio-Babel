@@ -64,17 +64,3 @@
 #audioPlayer {
     width: 100%;
 }
-
-#similarContainer {
-    margin-top: 12px;
-    display: none;
-}
-
-#similarList {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}

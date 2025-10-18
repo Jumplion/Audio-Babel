@@ -78,7 +78,7 @@ export async function handleJsonResponse(j, originalIndexB64) {
   const indexDisplay = frag.get('#indexDisplay');
   const resultEl = frag.get('#result');
 
-  // show index (truncated if very long)
+  // show index
   const indexToShow = originalIndexB64 || j.indexBase64 || '';
   if (indexDisplay) {
     indexDisplay.textContent = indexToShow;
@@ -134,5 +134,5 @@ export async function handleJsonResponse(j, originalIndexB64) {
     if (downloadLink) downloadLink.href = url;
   }
 
-  if (resultEl) resultEl.style.display = '';
+  if (resultEl) resultEl.style.display = 'block';
 }

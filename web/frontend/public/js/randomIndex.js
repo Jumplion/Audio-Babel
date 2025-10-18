@@ -44,7 +44,7 @@ export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) 
     const result = await clientReconstruct(b64, 'base64');
     await handleJsonResponse(result, indexString);
   } catch (error) {
-    console.error(error);
+    console.error('Error generating random index:', error);
     alert('Error: ' + error.message);
   } finally {
     setLoading(false);

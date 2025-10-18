@@ -46,17 +46,6 @@
     background: rgba(255, 255, 255, 0.02);
 }
 
-/* Light theme variants for navbar */
-body.light .site-navbar {
-    background: #fff;
-    color: #0b1220;
-    border-bottom-color: rgba(11, 18, 32, 0.04);
-}
-
-body.light .site-navbar .nav-links a {
-    color: #0b1220;
-}
-
 /* Active nav link */
 .site-navbar .nav-links a.active {
     background: linear-gradient(90deg, var(--btn), #66a9ff);
@@ -68,5 +57,4 @@ body.light .site-navbar .nav-links a {
     outline: 2px solid rgba(255, 255, 255, 0.04);
 }
 
-/* keep a note that navbar styles live here */
 /* End navbar.css */

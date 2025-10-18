@@ -34,25 +34,6 @@ p.lead {
   color: var(--muted);
 }
 
-/* -----------------------------
-    Themes (page-specific modifiers)
-   ----------------------------- */
-body.home {
-  color: var(--accent);
-}
-
-body.light {
-  color: #0f1720;
-  background: linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%);
-}
-
-.home h1 {
-  color: #fff;
-}
-
-.light h1 {
-  color: #0b1220;
-}
 
 /* -----------------------------
     Layout
@@ -74,11 +55,6 @@ body.light {
   max-width: 640px;
   width: 100%;
   box-shadow: 0 6px 24px rgb(2 6 23 / 60%);
-}
-
-.card.light {
-  background: white;
-  box-shadow: 0 6px 24px rgb(2 6 23 / 8%);
 }
 
 /* -----------------------------
@@ -261,28 +237,6 @@ body.light {
 
 .items-grid {
   gap: 12px;
-}
-
-/* Ensure native audio controls are visible and usable across pages */
-audio,
-audio[controls] {
-  display: block !important;
-  max-width: 100% !important;
-  width: 100% !important;
-  margin-top: 8px !important;
-  background: transparent !important;
-}
-
-audio::-webkit-media-controls,
-audio::-webkit-media-controls-enclosure,
-audio::-webkit-media-controls-panel {
-  display: block !important;
-}
-
-audio[controls] {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 6px;
-  padding: 6px;
 }
 
 /* Loading spinner + skeleton (uses keyframes defined in component CSS)

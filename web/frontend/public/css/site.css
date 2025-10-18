@@ -1,36 +1,106 @@
 /*
   site.css
   Purpose: global variables, base typography, themes, layout, common components and utilities.
-  Note: component-specific styles (sotb player, navbar) were extracted to their own files.
-  Shared animations used by components (spin, loading-shimmer) are defined in component files
-  (for now `css/sotb.css`). If you want truly global keyframes, move them back here.
 */
 
 :root {
-  --bg: #0f1720;
-  --card: #0b1220;
-  --accent: #9ad3ff;
-  --muted: #9aa6b2;
-  --btn: #0b78ff;
+  --bg: #1a1f2e;
+  --bg-gradient: linear-gradient(180deg, #1a1f2e 0%, #252b3d 100%);
+  --card: #1e2433;
+  --card-hover: #252d3f;
+  --card-border: rgba(255, 255, 255, 0.08);
+  --accent: #6eb5ff;
+  --accent-dim: #5a9dd9;
+  --text: #e8ecf1;
+  --text-dim: #c5cdd8;
+  --muted: #8b95a5;
+  --btn: #3b8fff;
+  --btn-hover: #5ba0ff;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
 /* -----------------------------
     Base (document-level defaults)
    ----------------------------- */
-html,
-body {
+html {
   height: 100%;
   margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  background: linear-gradient(180deg, #1a1f2e 0%, #252b3d 50%, #2a3346 100%);
+  background-attachment: fixed;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 h1 {
-  margin: 0 0 0px;
-  font-size: 28px;
-  line-height: 1.1;
+  margin: 0 0 16px;
+  font-size: 32px;
+  line-height: 1.2;
+  color: var(--text);
+  font-weight: 700;
+}
+
+h2 {
+  margin: 24px 0 12px;
+  font-size: 24px;
+  line-height: 1.3;
+  color: var(--text);
+  font-weight: 600;
+}
+
+h3 {
+  margin: 20px 0 8px;
+  font-size: 20px;
+  line-height: 1.4;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+h4 {
+  margin: 16px 0 8px;
+  font-size: 18px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+p {
+  margin: 0 0 12px;
+  color: var(--text-dim);
 }
 
 p.lead {
+  color: var(--muted);
+  font-size: 18px;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--btn-hover);
+}
+
+small {
+  color: var(--muted);
+}
+
+.sub {
+  font-size: 18px;
+  margin-bottom: 24px;
+}
+
+.muted {
   color: var(--muted);
 }
 
@@ -49,12 +119,14 @@ p.lead {
 }
 
 .card {
-  background: rgb(255 255 255 / 2%);
+  background: var(--card);
+  border: 1px solid var(--card-border);
   border-radius: 12px;
   padding: 40px 32px;
   max-width: 640px;
   width: 100%;
-  box-shadow: 0 6px 24px rgb(2 6 23 / 60%);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(10px);
 }
 
 /* -----------------------------
@@ -74,31 +146,36 @@ p.lead {
 
 .option {
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.03);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
-  padding: 12px;
+  border: 1px solid var(--card-border);
+  background: rgba(30, 36, 51, 0.6);
+  padding: 16px 20px;
   text-align: center;
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--accent);
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 16px;
+  transition: all 0.2s ease;
 }
 
 .option:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.6);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  background: var(--card-hover);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .option:disabled {
-  opacity: 0.45;
-  cursor: default;
-  filter: grayscale(20%);
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(40%);
 }
 
 .option.selected {
   background: linear-gradient(90deg, var(--btn), #66a9ff);
   color: #fff;
-  box-shadow: 0 10px 28px rgba(11, 120, 255, 0.14);
+  box-shadow: 0 4px 16px rgba(11, 120, 255, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
   transform: translateY(-2px);
+  border-color: transparent;
 }
 
 .option.fallback {
@@ -106,14 +183,21 @@ p.lead {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  padding: 10px 12px;
-  margin: 6px 0;
-  border-radius: 6px;
-  background: var(--card);
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  padding: 12px 16px;
+  margin: 8px 0;
+  border-radius: 8px;
+  background: rgba(30, 36, 51, 0.6);
+  border: 1px solid var(--card-border);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--text-dim);
+  transition: all 0.2s ease;
+}
+
+.option.fallback:hover {
+  background: var(--card-hover);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 /* -----------------------------
@@ -122,30 +206,49 @@ p.lead {
 
 .btn {
   display: inline-block;
-  padding: 12px 18px;
+  padding: 10px 20px;
   border-radius: 8px;
   background: var(--btn);
   color: #fff;
   text-decoration: none;
   font-weight: 600;
+  font-size: 15px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--btn-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(11, 120, 255, 0.4);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn:disabled,
 .btn.disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   pointer-events: none;
+  cursor: not-allowed;
+  filter: grayscale(30%);
 }
 
 .btn.tab-active {
   background: linear-gradient(90deg, var(--btn), #66a9ff);
   color: #fff;
-  box-shadow: 0 8px 24px rgba(11 120 255 / 16%);
-  transform: translateY(-2px);
-  border: 1px solid rgb(255 255 255 / 8%);
+  box-shadow: 0 4px 16px rgba(11, 120, 255, 0.3);
+  transform: translateY(-1px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .btn.tab-active:focus {
-  outline: 3px solid rgb(11 120 255 / 12%);
+  outline: 2px solid rgba(11, 120, 255, 0.5);
+  outline-offset: 2px;
 }
 
 .top-controls {
@@ -175,56 +278,65 @@ p.lead {
 #breadcrumb a {
   color: var(--accent);
   text-decoration: none;
-  background: transparent;
-  padding: 6px 10px;
+  background: rgba(30, 36, 51, 0.4);
+  padding: 8px 12px;
   border-radius: 8px;
-  border: 1px solid transparent;
+  border: 1px solid var(--card-border);
+  transition: all 0.2s ease;
 }
 
 #breadcrumb a:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(30, 36, 51, 0.7);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 #breadcrumb .crumb-inactive {
   color: var(--muted);
   background: transparent;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 8px;
 }
 
 #breadcrumb .active-stage {
   background: linear-gradient(90deg, var(--btn), #66a9ff);
   color: #fff;
-  box-shadow: 0 6px 18px rgba(11, 120, 255, 0.12);
-  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(11, 120, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .stage-pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(30, 36, 51, 0.5);
+  border: 1px solid var(--card-border);
   color: var(--accent);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .index-links a {
   display: inline-block;
-  padding: 14px 20px;
+  padding: 16px 24px;
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.02));
+  background: rgba(30, 36, 51, 0.6);
+  border: 1px solid var(--card-border);
   color: var(--accent);
   text-decoration: none;
-  font-weight: 700;
+  font-weight: 600;
   width: 260px;
   text-align: center;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .index-links a:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.6);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  background: var(--card-hover);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--btn-hover);
 }
 
 /* -----------------------------
@@ -247,24 +359,24 @@ p.lead {
   height: 16px;
   border-radius: 50%;
   box-sizing: border-box;
-  border: 2px solid rgba(0, 0, 0, 0.08);
-  border-top-color: var(--btn);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent);
   animation: spin 1s linear infinite;
   display: inline-block;
   vertical-align: middle;
 }
 
 body.light .spinner {
-  border: 2px solid rgba(255, 255, 255, 0.15);
-  border-top-color: #fff;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-top-color: var(--btn);
 }
 
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.04) 25%, rgba(0, 0, 0, 0.02) 37%, rgba(0, 0, 0, 0.04) 63%);
-  background-size: 400% 100%;
-  animation: shimmer 1.2s linear infinite;
+  background: rgba(11, 18, 32, 0.3);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
 }
 
 .skeleton::after {
@@ -274,8 +386,66 @@ body.light .spinner {
   top: 0;
   bottom: 0;
   width: 150px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent);
-  animation: loading-shimmer 1s infinite;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  animation: loading-shimmer 1.5s infinite;
+}
+
+/* Keyframe animations */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes loading-shimmer {
+  to {
+    left: 100%;
+  }
+}
+
+/* Form inputs */
+input[type="text"],
+input[type="file"],
+textarea,
+select {
+  background: rgba(30, 36, 51, 0.6);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 15px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+input[type="text"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--btn);
+  box-shadow: 0 0 0 3px rgba(59, 143, 255, 0.15);
+  background: var(--card-hover);
+}
+
+input[type="text"]::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+}
+
+label {
+  color: var(--text-dim);
+  font-weight: 500;
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* Footer */
+footer {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--card-border);
+  color: var(--muted);
+  font-size: 14px;
 }
 
 /* End of cleaned site.css */

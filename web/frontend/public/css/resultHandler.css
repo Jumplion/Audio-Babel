@@ -7,54 +7,83 @@
 .metadata-expandable {
     cursor: pointer;
     user-select: none;
+    transition: color 0.2s ease;
+}
+
+.metadata-expandable:hover {
+    color: var(--btn-hover);
 }
 
 /* Expanded metadata view - scrollable container for full text */
 .metadata-expanded {
     margin-top: 8px;
     margin-bottom: 8px;
-    padding: 8px;
-    border: 1px solid var(--muted, #ccc);
-    border-radius: 4px;
+    padding: 12px;
+    background: rgba(30, 36, 51, 0.7);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
     max-height: 150px;
     overflow-y: auto;
     overflow-x: auto;
     word-break: break-all;
-    font-family: monospace;
-    font-size: 12px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
     white-space: pre-wrap;
+    color: var(--text-dim);
+    box-shadow: var(--shadow-sm);
 }
 
 /* Result component styles (from result.html) */
 #result {
-    margin-top: 16px;
+    margin-top: 24px;
     display: none;
 }
 
 #indexDisplay {
     white-space: break-spaces;
     overflow: auto;
-    max-height: 160px;
-    padding: 8px;
-    background: #f6f8fa;
-    border-radius: 6px;
+    max-height: 180px;
+    padding: 12px;
+    background: rgba(30, 36, 51, 0.7);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    box-shadow: var(--shadow-sm);
 }
 
 #metadata {
     display: none;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
+    padding: 16px;
+    background: rgba(30, 36, 51, 0.4);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
 }
 
 #coverImg {
     width: 128px;
     height: 128px;
     float: left;
-    margin-right: 12px;
-    border-radius: 6px;
+    margin-right: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--card-border);
+    box-shadow: var(--shadow-sm);
 }
 
 .metadata-content {
     overflow: hidden;
+}
+
+.metadata-content>div {
+    margin-bottom: 8px;
+    color: var(--text-dim);
+}
+
+.metadata-content strong {
+    color: var(--text);
+    margin-right: 8px;
 }
 
 .metadata-clearfix {
@@ -63,4 +92,6 @@
 
 #audioPlayer {
     width: 100%;
+    border-radius: 8px;
+    margin-top: 8px;
 }

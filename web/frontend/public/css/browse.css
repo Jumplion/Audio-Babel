@@ -1,21 +1,26 @@
-/* Styles extracted from browse.html inline attributes */
+/* Styles for browse.html page */
 #selectorArea .filterRow {
     display: flex;
     gap: 12px;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 16px;
     flex-wrap: wrap;
 }
 
 #filterInput {
     flex: 1;
-    padding: 8px;
+    padding: 10px 12px;
     min-width: 220px;
 }
 
 #selectorArea .controlsTop,
 #selectorArea .controlsBottom {
-    margin-bottom: 12px;
+    margin-bottom: 16px;
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(30, 36, 51, 0.4);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
     display: flex;
     gap: 12px;
     align-items: center;
@@ -30,36 +35,43 @@
 }
 
 .pageGroup input[type="text"] {
-    width: 120px;
-    padding: 6px;
+    width: 100px;
+    padding: 8px 10px;
 }
 
 #itemsContainer {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
     align-items: center;
+    margin: 16px 0;
 }
 
 #resultContainer {
-    margin-bottom: 12px;
+    margin-bottom: 20px;
 }
 
 footer.card-footer {
-    margin-top: 18px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--card-border);
 }
 
 /* Manual selection inputs */
 .manual-select {
-    margin: 10px 0;
+    margin: 16px 0;
+    padding: 16px;
+    background: rgba(30, 36, 51, 0.4);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
 }
 
 .manual-header {
     font-weight: 600;
-    color: var(--muted);
-    font-size: 18px;
-    margin-bottom: 6px;
+    color: var(--text-dim);
+    font-size: 16px;
+    margin-bottom: 8px;
 }
 
 .manual-input-row {
@@ -70,23 +82,19 @@ footer.card-footer {
 }
 
 .manual-input-row input {
-    padding: 8px;
+    padding: 10px 12px;
     min-width: 220px;
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    background: transparent;
-    color: inherit;
-}
-
-.manual-input-row .btn {
-    padding: 6px 10px;
+    flex: 1;
 }
 
 .browse-list-header {
-    margin-top: 12px;
-    margin-bottom: 8px;
-    color: var(--muted);
+    margin-top: 20px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    color: var(--text-dim);
     font-size: 18px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--card-border);
 }
 
 /* Breadcrumb navigation */
@@ -104,8 +112,9 @@ footer.card-footer {
 
 /* Pagination labels and info */
 .pageGroup label {
-    color: var(--muted);
+    color: var(--text-dim);
     margin-right: 6px;
+    font-weight: 500;
 }
 
 .page-info-container {
@@ -114,4 +123,5 @@ footer.card-footer {
 
 .page-info-container span {
     color: var(--muted);
+    font-size: 14px;
 }

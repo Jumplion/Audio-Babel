@@ -7,6 +7,7 @@
     <title>Audibel — Record</title>
     <link rel="stylesheet" href="./css/site.css" />
     <link rel="stylesheet" href="./css/resultHandler.css" />
+    <link rel="stylesheet" href="./css/record.css" />
 </head>
 
 <body class="record">
@@ -18,18 +19,18 @@
             <p>
                 <small>Record audio from your microphone and upload it for index extraction.</small>
             </p>
-            <div style="margin-top: 8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+            <div class="record-controls">
                 <button class="btn" id="recordStartStop">Start Recording</button>
                 <button class="btn" id="uploadRecording" disabled>Upload &amp; Extract</button>
-                <span id="recordStatus" style="margin-left:6px">Idle</span>
-                <span id="recordDuration" style="margin-left:8px">00:00</span>
+                <span id="recordStatus">Idle</span>
+                <span id="recordDuration">00:00</span>
             </div>
-            <div style="margin-top:8px">
-                <audio id="recordPlayer" controls style="max-width:100%"></audio>
+            <div class="record-player-container">
+                <audio id="recordPlayer" controls></audio>
             </div>
 
-            <div id="statusLine" style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
-                <span id="statusMsg">Ready</span><span id="statusSpinner" style="display: none" class="spinner"></span>
+            <div id="statusLine">
+                <span id="statusMsg">Ready</span><span id="statusSpinner" class="spinner"></span>
             </div>
             <div id="resultContainer"></div>
 

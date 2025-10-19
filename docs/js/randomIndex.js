@@ -15,6 +15,7 @@ export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) 
     // Default values: 64KB and ~5MB
     const DEFAULT_MIN_KB = 64;
     const DEFAULT_MAX_KB = 5120; // 5MB
+    const HARD_MAX_KB = 61440; // 60 MB - hard limit
     
     // Get custom values from input fields if specified
     const minSizeInput = document.getElementById('minSize');
@@ -33,8 +34,14 @@ export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) 
     if (minKB >= maxKB) {
       throw new Error('Minimum size must be less than maximum size');
     }
+    if (minKB > HARD_MAX_KB) {
+      throw new Error(`Minimum size cannot exceed ${HARD_MAX_KB} KB (60 MB)`);
+    }
+    if (maxKB > HARD_MAX_KB) {
+      throw new Error(`Maximum size cannot exceed ${HARD_MAX_KB} KB (60 MB)`);
+    }
     
-    // Convert to bytes (no upper limit enforced)
+    // Convert to bytes
     const MIN_SIZE = minKB * 1024;
     const MAX_SIZE = maxKB * 1024;
     

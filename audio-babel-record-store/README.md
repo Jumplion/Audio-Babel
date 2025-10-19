@@ -1,6 +1,31 @@
 # Audio Babel Record Store
 
-Welcome to the Audio Babel Record Store project! This web application emulates a record store theme, organizing content into a structure of Rooms (Hexagons), Walls (Artists), Shelves (Longboxes), and Books (Tracks). Below are the details regarding the project structure, setup instructions, and usage guidelines.
+A web-based navigation system for the Library of Babel audio indexing system, structured like a record store.
+
+## Overview
+
+The Audio Babel Record Store maps audio indexes to a hierarchical structure inspired by Jorge Luis Borges' Library of Babel:
+
+- **Rooms** (Hexagons) represent **Genres**
+- **Walls** (4 per room) represent **Artists**
+- **Shelves** (20 per wall, like record store longboxes) represent **Albums**
+- **Tracks** (32 per shelf, like records) represent individual audio files
+
+Each room can hold **2,560 tracks** (4 × 20 × 32).
+
+## Audio Constraints
+
+To ensure manageable index sizes and consistent behavior:
+
+- **Maximum Duration**: 2 minutes (120 seconds)
+- **Format**: WAV (PCM)
+- **Sample Rate**: 44,100 Hz (CD quality)
+- **Bit Depth**: 16-bit
+- **Channels**: Mono
+
+These constraints ensure manageable index sizes (~14 MB base64 encoded).
+
+For detailed documentation on the index architecture, see [`INDEX_ARCHITECTURE.md`](./INDEX_ARCHITECTURE.md).
 
 ## Project Structure
 

@@ -1,0 +1,55 @@
+.nav-room {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    background-color: #f8f8f8;
+    border: 2px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s;
+}
+
+.nav-room:hover {
+    transform: scale(1.05);
+}
+
+.room-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.room-hexagon {
+    width: 100px;
+    height: 100px;
+    background-color: #e0e0e0;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.room-hexagon:hover {
+    background-color: #d0d0d0;
+}
+
+.room-content {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.room-link {
+    text-decoration: none;
+    color: #007bff;
+    font-weight: bold;
+}
+
+.room-link:hover {
+    text-decoration: underline;
+}

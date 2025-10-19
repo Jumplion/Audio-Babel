@@ -1,6 +1,6 @@
 # Speaker of Babel — Build & Run
 
-This repository contains a C++ audio-indexing library (`cpp/`), a small CLI example, unit tests, and a minimal web frontend + Node server under `web/`.
+This repository contains a C++ audio-indexing library (`cpp/`), a small CLI example, unit tests, and a web frontend under `docs/` (configured for GitHub Pages).
 
 This README provides concise, actionable instructions for building and running the native C++ project and the web components on Windows (PowerShell) and for MSYS2/MinGW users.
 
@@ -53,30 +53,27 @@ cmake -G "MinGW Makefiles" ..
 mingw32-make -j4
 ```
 
-## Web frontend and server (Node)
+## Web frontend (GitHub Pages)
 
-The web UI and a lightweight Node server live in `web/frontend` and `web/server`.
+The web UI lives in `docs/` and is configured for GitHub Pages deployment.
 
-Prerequisites
-
-- Node.js (18+ recommended) and npm
-
-Start the server (development)
+To test locally:
 
 ```powershell
-cd web/server
-npm install
-npm start
+cd docs
+python -m http.server 8080
 ```
 
-Start the frontend (if applicable)
+Then open <http://localhost:8080> in your browser.
 
-```powershell
-cd web/frontend
-npm install
-# Start the frontend dev server if available (repo frontend may vary)
-npm run dev
-```
+### GitHub Pages Setup
+
+1. Go to your repository Settings → Pages
+2. Under "Source", select "Deploy from a branch"
+3. Under "Branch", select `main` and `/docs` folder
+4. Click "Save"
+
+Your site will be available at `https://[username].github.io/[repository-name]/`
 
 ## Troubleshooting & tips
 

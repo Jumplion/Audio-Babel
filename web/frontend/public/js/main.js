@@ -30,10 +30,93 @@ function setLoading(on) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Random page: Generate button
+  // Random page: Generate button and input validation
   const regenBtn = document.getElementById('regenBtn');
   if (regenBtn) {
     regenBtn.addEventListener('click', () => generateAndSend(regenBtn, handleJsonResponse, setLoading));
+    
+    // Set up input validation for random page size inputs
+    const minSizeInput = document.getElementById('minSize');
+    const maxSizeInput = document.getElementById('maxSize');
+    const minSizeWarning = document.getElementById('minSizeWarning');
+    const maxSizeWarning = document.getElementById('maxSizeWarning');
+    const rangeError = document.getElementById('rangeError');
+    
+    if (minSizeInput && maxSizeInput && minSizeWarning && maxSizeWarning && rangeError) {
+      const RECOMMENDED_MAX_KB = 61440; // 60 MB
+      const WARNING_THRESHOLD_KB = 102400; // 100 MB
+      
+      function validateInputs() {
+        let hasWarning = false;
+        let hasError = false;
+        
+        const minValue = parseInt(minSizeInput.value, 10);
+        const maxValue = parseInt(maxSizeInput.value, 10);
+        
+        // Check min size warnings
+        if (minSizeInput.value && !isNaN(minValue)) {
+          if (minValue > WARNING_THRESHOLD_KB) {
+            minSizeWarning.textContent = `⚠ Warning: ${minValue} KB is very large and may cause performance issues`;
+            minSizeWarning.style.display = 'block';
+            minSizeInput.classList.add('warning');
+            hasWarning = true;
+          } else if (minValue > RECOMMENDED_MAX_KB) {
+            minSizeWarning.textContent = `⚠ Warning: ${minValue} KB exceeds recommended maximum (60 MB)`;
+            minSizeWarning.style.display = 'block';
+            minSizeInput.classList.add('warning');
+            hasWarning = true;
+          } else {
+            minSizeWarning.style.display = 'none';
+            minSizeInput.classList.remove('warning');
+          }
+        } else {
+          minSizeWarning.style.display = 'none';
+          minSizeInput.classList.remove('warning');
+        }
+        
+        // Check max size warnings
+        if (maxSizeInput.value && !isNaN(maxValue)) {
+          if (maxValue > WARNING_THRESHOLD_KB) {
+            maxSizeWarning.textContent = `⚠ Warning: ${maxValue} KB is very large and may cause performance issues`;
+            maxSizeWarning.style.display = 'block';
+            maxSizeInput.classList.add('warning');
+            hasWarning = true;
+          } else if (maxValue > RECOMMENDED_MAX_KB) {
+            maxSizeWarning.textContent = `⚠ Warning: ${maxValue} KB exceeds recommended maximum (60 MB)`;
+            maxSizeWarning.style.display = 'block';
+            maxSizeInput.classList.add('warning');
+            hasWarning = true;
+          } else {
+            maxSizeWarning.style.display = 'none';
+            maxSizeInput.classList.remove('warning');
+          }
+        } else {
+          maxSizeWarning.style.display = 'none';
+          maxSizeInput.classList.remove('warning');
+        }
+        
+        // Check if min >= max
+        if (minSizeInput.value && maxSizeInput.value && !isNaN(minValue) && !isNaN(maxValue)) {
+          if (minValue >= maxValue) {
+            rangeError.style.display = 'block';
+            minSizeInput.classList.add('error');
+            maxSizeInput.classList.add('error');
+            hasError = true;
+          } else {
+            rangeError.style.display = 'none';
+            minSizeInput.classList.remove('error');
+            maxSizeInput.classList.remove('error');
+          }
+        } else {
+          rangeError.style.display = 'none';
+          minSizeInput.classList.remove('error');
+          maxSizeInput.classList.remove('error');
+        }
+      }
+      
+      minSizeInput.addEventListener('input', validateInputs);
+      maxSizeInput.addEventListener('input', validateInputs);
+    }
   }
 
   // Search page: Input and generate button

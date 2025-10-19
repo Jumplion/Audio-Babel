@@ -12,9 +12,33 @@ export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) 
   try {
     setLoading(true);
     
-    // Generate random size between 64KB and ~5MB
-    const MIN_SIZE = 65536; // 64KB
-    const MAX_SIZE = 5242880; // ~5MB
+    // Default values: 64KB and ~5MB
+    const DEFAULT_MIN_KB = 64;
+    const DEFAULT_MAX_KB = 5120; // 5MB
+    
+    // Get custom values from input fields if specified
+    const minSizeInput = document.getElementById('minSize');
+    const maxSizeInput = document.getElementById('maxSize');
+    
+    const minKB = minSizeInput?.value ? parseInt(minSizeInput.value, 10) : DEFAULT_MIN_KB;
+    const maxKB = maxSizeInput?.value ? parseInt(maxSizeInput.value, 10) : DEFAULT_MAX_KB;
+    
+    // Validate min and max
+    if (isNaN(minKB) || minKB < 1) {
+      throw new Error('Minimum size must be at least 1 KB');
+    }
+    if (isNaN(maxKB) || maxKB < 1) {
+      throw new Error('Maximum size must be at least 1 KB');
+    }
+    if (minKB >= maxKB) {
+      throw new Error('Minimum size must be less than maximum size');
+    }
+    
+    // Convert to bytes (no upper limit enforced)
+    const MIN_SIZE = minKB * 1024;
+    const MAX_SIZE = maxKB * 1024;
+    
+    // Generate random size between custom or default range
     const size = Math.floor(Math.random() * (MAX_SIZE - MIN_SIZE + 1)) + MIN_SIZE;
     
     // Generate random bytes

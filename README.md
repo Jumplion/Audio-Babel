@@ -1,4 +1,4 @@
-# Speaker of Babel — Build & Run
+# Audio Babel — Build & Run
 
 This repository contains a C++ audio-indexing library (`cpp/`), a small CLI example, unit tests, and a web frontend under `docs/` (configured for GitHub Pages).
 

@@ -15,13 +15,13 @@
 
     <div class="wrap">
         <main class="card">
-            <h1>Record Audio</h1>
+            <h1>Record</h1>
             <p>
-                <small>Record audio from your microphone and upload it for index extraction.</small>
+                <small>Record audio from your microphone and extract the index.</small>
             </p>
             <div class="record-controls">
                 <button class="btn" id="recordStartStop">Start Recording</button>
-                <button class="btn" id="uploadRecording" disabled>Upload &amp; Extract</button>
+                <button class="btn" id="uploadRecording" disabled>Extract</button>
                 <span id="recordStatus">Idle</span>
                 <span id="recordDuration">00:00</span>
             </div>
@@ -33,10 +33,6 @@
                 <span id="statusMsg">Ready</span><span id="statusSpinner" class="spinner"></span>
             </div>
             <div id="resultContainer"></div>
-
-            <footer>
-                <small>Record audio from your microphone and upload for extraction.</small>
-            </footer>
         </main>
     </div>
 

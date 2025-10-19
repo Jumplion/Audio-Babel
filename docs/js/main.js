@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rangeError = document.getElementById('rangeError');
     
     if (minSizeInput && maxSizeInput && minSizeWarning && maxSizeWarning && rangeError) {
+      const HARD_MAX_KB = 61440; // 60 MB - hard limit
       const RECOMMENDED_MAX_KB = 61440; // 60 MB
       const WARNING_THRESHOLD_KB = 102400; // 100 MB
       
@@ -55,44 +56,68 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Check min size warnings
         if (minSizeInput.value && !isNaN(minValue)) {
-          if (minValue > WARNING_THRESHOLD_KB) {
+          if (minValue > HARD_MAX_KB) {
+            minSizeWarning.textContent = `⚠ Error: ${minValue} KB exceeds maximum allowed (60 MB)`;
+            minSizeWarning.style.display = 'block';
+            minSizeWarning.style.color = '#ff4444';
+            minSizeInput.classList.add('error');
+            hasError = true;
+          } else if (minValue > WARNING_THRESHOLD_KB) {
             minSizeWarning.textContent = `⚠ Warning: ${minValue} KB is very large and may cause performance issues`;
             minSizeWarning.style.display = 'block';
+            minSizeWarning.style.color = '#ffaa00';
             minSizeInput.classList.add('warning');
+            minSizeInput.classList.remove('error');
             hasWarning = true;
           } else if (minValue > RECOMMENDED_MAX_KB) {
             minSizeWarning.textContent = `⚠ Warning: ${minValue} KB exceeds recommended maximum (60 MB)`;
             minSizeWarning.style.display = 'block';
+            minSizeWarning.style.color = '#ffaa00';
             minSizeInput.classList.add('warning');
+            minSizeInput.classList.remove('error');
             hasWarning = true;
           } else {
             minSizeWarning.style.display = 'none';
             minSizeInput.classList.remove('warning');
+            minSizeInput.classList.remove('error');
           }
         } else {
           minSizeWarning.style.display = 'none';
           minSizeInput.classList.remove('warning');
+          minSizeInput.classList.remove('error');
         }
         
         // Check max size warnings
         if (maxSizeInput.value && !isNaN(maxValue)) {
-          if (maxValue > WARNING_THRESHOLD_KB) {
+          if (maxValue > HARD_MAX_KB) {
+            maxSizeWarning.textContent = `⚠ Error: ${maxValue} KB exceeds maximum allowed (60 MB)`;
+            maxSizeWarning.style.display = 'block';
+            maxSizeWarning.style.color = '#ff4444';
+            maxSizeInput.classList.add('error');
+            hasError = true;
+          } else if (maxValue > WARNING_THRESHOLD_KB) {
             maxSizeWarning.textContent = `⚠ Warning: ${maxValue} KB is very large and may cause performance issues`;
             maxSizeWarning.style.display = 'block';
+            maxSizeWarning.style.color = '#ffaa00';
             maxSizeInput.classList.add('warning');
+            maxSizeInput.classList.remove('error');
             hasWarning = true;
           } else if (maxValue > RECOMMENDED_MAX_KB) {
             maxSizeWarning.textContent = `⚠ Warning: ${maxValue} KB exceeds recommended maximum (60 MB)`;
             maxSizeWarning.style.display = 'block';
+            maxSizeWarning.style.color = '#ffaa00';
             maxSizeInput.classList.add('warning');
+            maxSizeInput.classList.remove('error');
             hasWarning = true;
           } else {
             maxSizeWarning.style.display = 'none';
             maxSizeInput.classList.remove('warning');
+            maxSizeInput.classList.remove('error');
           }
         } else {
           maxSizeWarning.style.display = 'none';
           maxSizeInput.classList.remove('warning');
+          maxSizeInput.classList.remove('error');
         }
         
         // Check if min >= max

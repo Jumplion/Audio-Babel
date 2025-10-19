@@ -28,14 +28,14 @@
                 <div class="options-content">
                     <div class="form-group">
                         <label for="minSize">Minimum Size (KB):</label>
-                        <input type="number" id="minSize" min="1" placeholder="64" />
-                        <small>Default: 64 KB</small>
+                        <input type="number" id="minSize" min="1" max="61440" placeholder="64" />
+                        <small>Default: 64 KB, Max: 61440 KB (60 MB)</small>
                         <small class="warning" id="minSizeWarning" style="display: none; color: #ffaa00;"></small>
                     </div>
                     <div class="form-group">
                         <label for="maxSize">Maximum Size (KB):</label>
-                        <input type="number" id="maxSize" min="1" placeholder="5120" />
-                        <small>Default: 5120 KB (5 MB)</small>
+                        <input type="number" id="maxSize" min="1" max="61440" placeholder="5120" />
+                        <small>Default: 5120 KB (5 MB), Max: 61440 KB (60 MB)</small>
                         <small class="warning" id="maxSizeWarning" style="display: none; color: #ffaa00;"></small>
                     </div>
                     <div class="form-group" id="rangeError" style="display: none;">

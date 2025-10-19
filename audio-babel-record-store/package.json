@@ -1,0 +1,27 @@
+{
+  "name": "audio-babel-record-store",
+  "version": "1.0.0",
+  "description": "A web project emulating a record store theme with a unique indexing system for genres, artists, albums, and tracks.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "build": "echo 'Build step can be added here'",
+    "test": "echo 'Test step can be added here'"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "nodemon": "^2.0.7"
+  },
+  "devDependencies": {
+    "eslint": "^7.32.0"
+  },
+  "keywords": [
+    "record store",
+    "music",
+    "web",
+    "indexing"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

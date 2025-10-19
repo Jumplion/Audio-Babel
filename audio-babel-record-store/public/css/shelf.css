@@ -1,0 +1,60 @@
+.nav-shelf {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.shelf-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.shelf-album {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 10px 0;
+    text-align: center;
+}
+
+.album-cover {
+    width: 150px;
+    height: 150px;
+    border-radius: 8px;
+    margin-bottom: 5px;
+    transition: transform 0.2s;
+}
+
+.album-cover:hover {
+    transform: scale(1.05);
+}
+
+.album-name {
+    font-size: 18px;
+    color: #555;
+}
+
+.track-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 20px 0 0 0;
+}
+
+.track-item {
+    padding: 5px 0;
+    font-size: 16px;
+    color: #666;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.track-item:hover {
+    color: #333;
+}

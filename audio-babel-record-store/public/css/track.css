@@ -1,0 +1,46 @@
+.nav-track {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    transition: transform 0.2s;
+}
+
+.nav-track:hover {
+    transform: scale(1.02);
+}
+
+.track-title {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #333;
+}
+
+.track-artist {
+    font-size: 1.2em;
+    color: #666;
+}
+
+.track-album {
+    font-size: 1em;
+    color: #999;
+}
+
+.track-controls {
+    margin-top: 12px;
+}
+
+.track-button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.track-button:hover {
+    background-color: #0056b3;
+}

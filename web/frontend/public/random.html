@@ -23,6 +23,27 @@
                         5 MB (server max 60 MB).</small></p>
             </div>
 
+            <details class="advanced-options">
+                <summary>Advanced Options</summary>
+                <div class="options-content">
+                    <div class="form-group">
+                        <label for="minSize">Minimum Size (KB):</label>
+                        <input type="number" id="minSize" min="1" placeholder="64" />
+                        <small>Default: 64 KB</small>
+                        <small class="warning" id="minSizeWarning" style="display: none; color: #ffaa00;"></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="maxSize">Maximum Size (KB):</label>
+                        <input type="number" id="maxSize" min="1" placeholder="5120" />
+                        <small>Default: 5120 KB (5 MB)</small>
+                        <small class="warning" id="maxSizeWarning" style="display: none; color: #ffaa00;"></small>
+                    </div>
+                    <div class="form-group" id="rangeError" style="display: none;">
+                        <small style="color: #ff4444;">⚠ Minimum size must be less than maximum size</small>
+                    </div>
+                </div>
+            </details>
+
             <div id="statusLine">
                 <span id="statusMsg">Ready</span><span id="statusSpinner" class="spinner"></span>
             </div>

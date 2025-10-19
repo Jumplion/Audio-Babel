@@ -69,20 +69,106 @@ function makeMetadataExpandable(element, fullText, truncatedText, fieldName) {
 }
 
 /**
+ * Create a clickable index display that downloads and opens the full index in a new tab
+ * @param {HTMLElement} indexDisplay - The index display element
+ * @param {string} fullIndex - The complete index string
+ */
+function makeIndexClickable(indexDisplay, fullIndex) {
+  if (!indexDisplay || !fullIndex) return;
+  
+  // Remove any existing click handlers by cloning the element
+  const newIndexDisplay = indexDisplay.cloneNode(false);
+  indexDisplay.parentNode.replaceChild(newIndexDisplay, indexDisplay);
+  
+  // Truncate the display text
+  const maxDisplayLength = 200;
+  const truncated = fullIndex.length > maxDisplayLength
+    ? fullIndex.substring(0, 100) + '...' + fullIndex.substring(fullIndex.length - 100)
+    : fullIndex;
+  
+  newIndexDisplay.textContent = truncated;
+  newIndexDisplay.classList.add('index-clickable');
+  newIndexDisplay.title = 'Click to download and view full index';
+  
+  // Add click handler
+  newIndexDisplay.addEventListener('click', () => {
+    // Create a blob with the full index
+    const blob = new Blob([fullIndex], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create a temporary download link
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = 'audio-index.txt';
+    
+    // Trigger download
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    
+    // Open in new tab
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Audio Index</title>
+          <style>
+            body {
+              font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+              background: #1a1f2e;
+              color: #e0e0e0;
+              padding: 20px;
+              margin: 0;
+            }
+            pre {
+              white-space: pre-wrap;
+              word-break: break-all;
+              background: #0f1419;
+              padding: 20px;
+              border-radius: 8px;
+              border: 1px solid #2a3f5f;
+              line-height: 1.5;
+            }
+            h1 {
+              color: #64b5f6;
+              margin-bottom: 20px;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Audio Index</h1>
+          <pre>${fullIndex}</pre>
+        </body>
+        </html>
+      `);
+      newWindow.document.close();
+    }
+    
+    // Clean up the blob URL after a short delay
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  });
+  
+  return newIndexDisplay;
+}
+
+/**
  * Displays a JSON response containing audio metadata and WAV data.
  * @param {Object} j - JSON response object with metadata and wavBase64 properties
  * @param {string} [originalIndexB64] - Optional original index string to display
  */
 export async function handleJsonResponse(j, originalIndexB64) {
   const frag = await ensureResultFrag();
-  const indexDisplay = frag.get('#indexDisplay');
+  let indexDisplay = frag.get('#indexDisplay');
   const resultEl = frag.get('#result');
 
-  // show index
+  // show index with truncation and click-to-download functionality
   const indexToShow = originalIndexB64 || j.indexBase64 || '';
-  if (indexDisplay) {
-    indexDisplay.textContent = indexToShow;
-    indexDisplay.title = indexToShow; // Full index on hover
+  if (indexDisplay && indexToShow) {
+    indexDisplay = makeIndexClickable(indexDisplay, indexToShow);
   }
 
   // metadata with expandable sections

@@ -7,8 +7,6 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "example": "node examples/usage-example.js",
-    "build": "echo 'Build step can be added here'",
     "test": "echo 'Test step can be added here'"
   },
   "dependencies": {

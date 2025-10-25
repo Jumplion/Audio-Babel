@@ -107,6 +107,40 @@ class AudioIndex {
     static auto indexToAudioData(const boost::multiprecision::cpp_int& index) -> AudioData;
 
     // ---------------------
+    // Alternate Index Format (Sample-based Base64)
+    // ---------------------
+
+    /**
+     * Convert 16-bit audio samples to a base64 string representation where each
+     * sample is encoded as exactly 3 base64 characters using simple base-64 number
+     * conversion (like converting decimal to hexadecimal, but using base 64).
+     * 
+     * Each 16-bit sample (0-65,535) is converted to a 3-digit base-64 number.
+     * Since 64^3 = 262,144 > 65,535, three characters are sufficient to represent
+     * all possible 16-bit values.
+     * 
+     * Example: Sample value 1 → "AAB" (0*64^2 + 0*64 + 1 = 1)
+     * 
+     * @param audioData Audio data to convert (must be 16-bit)
+     * @returns Base64 string with 3 characters per sample
+     * @throws std::runtime_error if bit depth is not 16
+     */
+    static auto audioDataToSampleBase64(const AudioData& audioData) -> std::string;
+
+    /**
+     * Reconstruct AudioData from a sample-based base64 string created by
+     * audioDataToSampleBase64. Each group of 3 base64 characters represents
+     * one 16-bit sample using simple base-64 to decimal conversion.
+     * 
+     * @param base64String Base64 string with 3 characters per sample
+     * @param sampleRate Sample rate in Hz (default 44100)
+     * @param numChannels Number of channels (default 1 for mono)
+     * @returns Audio data reconstructed from the base64 string
+     * @throws std::invalid_argument if string length is not divisible by 3
+     */
+    static auto sampleBase64ToAudioData(const std::string& base64String, uint32_t sampleRate = 44100, uint16_t numChannels = 1) -> AudioData;
+
+    // ---------------------
     // Debug / diagnostics
     // ---------------------
     struct DebugInfo {

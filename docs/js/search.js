@@ -1,6 +1,15 @@
-import { isValidBase64Url } from './audioIndex.js';
-import { bytesToBase64 } from './utils.js';
-import { clientReconstruct } from './apiAdapter.js';
+import { isValidBase64Url, calculateDuration } from './audioIndex.js';
+import AudioIndexWASM from './audioIndexWasm.js';
+
+// Initialize WASM module (lazy-loaded)
+let wasmModule = null;
+async function getWasmModule() {
+    if (!wasmModule) {
+        wasmModule = new AudioIndexWASM();
+        await wasmModule.initialize();
+    }
+    return wasmModule;
+}
 
 /**
  * Generate audio from an index string
@@ -18,17 +27,54 @@ export async function generateFromIndex(inputEl, btnEl, handleJsonResponse, setL
     return;
   }
   
-  // Convert index string to bytes for API
-  const indexBytes = new Uint8Array(indexString.length);
-  for (let i = 0; i < indexString.length; i++) {
-    indexBytes[i] = indexString.charCodeAt(i) & 0xff;
+  // Validate length is divisible by 3 (sample-based format requirement)
+  if (indexString.length % 3 !== 0) {
+    alert('Invalid index length. Sample-based indexes must have length divisible by 3 (3 characters per sample).');
+    return;
   }
-  const b64 = bytesToBase64(indexBytes);
   
   try {
     setLoading(true);
-    // Use client-side adapter instead of fetch
-    const result = await clientReconstruct(b64, 'base64');
+    
+    // Use WASM for sample-based format (only format supported)
+    const wasm = await getWasmModule();
+    
+    // Decode the sample-based base64
+    const pcmData = wasm.decodeFromSampleBase64(indexString);
+    
+    // Calculate duration
+    const duration = calculateDuration(pcmData.length, 44100, 16, 1);
+    
+    // Create result object
+    const result = {
+      indexBase64: indexString,
+      metadata: {
+        genre: 'decoded',
+        artist: 'search',
+        album: `${duration.toFixed(2)}s`,
+        track: `${(indexString.length / 1024).toFixed(2)} KB`,
+        cover: ''
+      },
+      sampleRate: 44100,
+      numChannels: 1,
+      dataSize: pcmData.length,
+      duration: duration
+    };
+    
+    // Generate WAV for playback
+    const wavBlob = wasm.samplesToWav(pcmData, 44100, 16, 1);
+    const wavArrayBuffer = await wavBlob.arrayBuffer();
+    const wavBytes = new Uint8Array(wavArrayBuffer);
+    
+    // Convert to base64 for audio player
+    let wavBase64 = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < wavBytes.length; i += chunkSize) {
+      const chunk = wavBytes.subarray(i, i + chunkSize);
+      wavBase64 += String.fromCharCode.apply(null, chunk);
+    }
+    result.wavBase64 = btoa(wavBase64);
+    
     await handleJsonResponse(result, indexString);
   } catch (error) {
     console.error(error);

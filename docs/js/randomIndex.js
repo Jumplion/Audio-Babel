@@ -1,6 +1,15 @@
-import { bytesToBase64 } from './utils.js';
-import { encodeBase64Url } from './audioIndex.js';
-import { clientReconstruct } from './apiAdapter.js';
+import AudioIndexWASM from './audioIndexWasm.js';
+import { calculateDuration } from './audioIndex.js';
+
+// Initialize WASM module (lazy-loaded)
+let wasmModule = null;
+async function getWasmModule() {
+    if (!wasmModule) {
+        wasmModule = new AudioIndexWASM();
+        await wasmModule.initialize();
+    }
+    return wasmModule;
+}
 
 /**
  * Generate random audio data and send to API for processing
@@ -41,14 +50,14 @@ export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) 
       throw new Error(`Maximum size cannot exceed ${HARD_MAX_KB} KB (60 MB)`);
     }
     
-    // Convert to bytes
-    const MIN_SIZE = minKB * 1024;
-    const MAX_SIZE = maxKB * 1024;
+    // Convert to bytes (must be even number for 16-bit samples)
+    const MIN_SIZE = Math.floor((minKB * 1024) / 2) * 2;
+    const MAX_SIZE = Math.floor((maxKB * 1024) / 2) * 2;
     
     // Generate random size between custom or default range
-    const size = Math.floor(Math.random() * (MAX_SIZE - MIN_SIZE + 1)) + MIN_SIZE;
+    const size = Math.floor(Math.random() * ((MAX_SIZE - MIN_SIZE) / 2 + 1)) * 2 + MIN_SIZE;
     
-    // Generate random bytes
+    // Generate random bytes (PCM data)
     const randomBytes = new Uint8Array(size);
     if (window.crypto?.getRandomValues) {
       // Use secure random generation in chunks
@@ -65,15 +74,44 @@ export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) 
       }
     }
     
-    // Convert to URL-safe base64 for the index
-    const indexString = encodeBase64Url(randomBytes);
+    // Use WASM for sample-based encoding
+    const wasm = await getWasmModule();
+    const sampleBase64 = wasm.encodeToSampleBase64(randomBytes, 44100, 1);
     
-    // Convert to standard base64 for API
-    const b64 = bytesToBase64(randomBytes);
+    // Calculate duration
+    const duration = calculateDuration(randomBytes.length, 44100, 16, 1);
     
-    // Use client-side adapter instead of fetch
-    const result = await clientReconstruct(b64, 'base64');
-    await handleJsonResponse(result, indexString);
+    // Create result object
+    const result = {
+      indexBase64: sampleBase64,
+      metadata: {
+        genre: 'random',
+        artist: 'generated',
+        album: `${duration.toFixed(2)}s`,
+        track: `${(sampleBase64.length / 1024).toFixed(2)} KB`,
+        cover: ''
+      },
+      sampleRate: 44100,
+      numChannels: 1,
+      dataSize: randomBytes.length,
+      duration: duration
+    };
+    
+    // Generate WAV for playback
+    const wavBlob = wasm.samplesToWav(randomBytes, 44100, 16, 1);
+    const wavArrayBuffer = await wavBlob.arrayBuffer();
+    const wavBytes = new Uint8Array(wavArrayBuffer);
+    
+    // Convert to base64 for audio player
+    let wavBase64 = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < wavBytes.length; i += chunkSize) {
+      const chunk = wavBytes.subarray(i, i + chunkSize);
+      wavBase64 += String.fromCharCode.apply(null, chunk);
+    }
+    result.wavBase64 = btoa(wavBase64);
+    
+    await handleJsonResponse(result, result.indexBase64);
   } catch (error) {
     console.error('Error generating random index:', error);
     alert('Error: ' + error.message);
@@ -81,3 +119,4 @@ export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) 
     setLoading(false);
   }
 }
+

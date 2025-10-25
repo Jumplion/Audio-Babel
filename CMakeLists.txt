@@ -59,4 +59,12 @@ if(EXISTS ${EXTRACT_SRC})
     target_include_directories(extract_index_cli PRIVATE ${CPP_ROOT}/include)
 endif()
 
+# Sample-based base64 CLI (alternate index format)
+set(SAMPLE_BASE64_SRC "${CPP_ROOT}/tools/sample_base64_cli.cpp")
+if(EXISTS ${SAMPLE_BASE64_SRC})
+    add_executable(sample_base64_cli ${SAMPLE_BASE64_SRC})
+    target_link_libraries(sample_base64_cli PRIVATE audiolib)
+    target_include_directories(sample_base64_cli PRIVATE ${CPP_ROOT}/include)
+endif()
+
 message(STATUS "Project configured: ${PROJECT_NAME}")

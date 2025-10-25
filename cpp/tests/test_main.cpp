@@ -354,7 +354,7 @@ auto main(int argc, char** argv) -> int {
 
     runner.add("Base64Url: alphabet and edge-case roundtrip", [&runner]() -> bool {
         const std::string name = "Base64Url: alphabet and edge-case roundtrip";
-        bool ok = true;
+        bool              ok   = true;
         using AudioBabel::Utilities::encodeBase64Url;
         using AudioBabel::Utilities::decodeBase64Url;
 
@@ -363,14 +363,14 @@ auto main(int argc, char** argv) -> int {
 
         // Empty input roundtrip
         std::vector<uint8_t> in0;
-        std::string s0 = encodeBase64Url(in0);
-        auto out0 = decodeBase64Url(s0);
+        std::string          s0   = encodeBase64Url(in0);
+        auto                 out0 = decodeBase64Url(s0);
         ok &= RUN_CHECK(runner, name, out0.empty(), "empty roundtrip");
 
         // Single byte roundtrip
-        std::vector<uint8_t> in1 = {0xFF};
-        std::string s1 = encodeBase64Url(in1);
-        auto out1 = decodeBase64Url(s1);
+        std::vector<uint8_t> in1  = {0xFF};
+        std::string          s1   = encodeBase64Url(in1);
+        auto                 out1 = decodeBase64Url(s1);
         ok &= RUN_CHECK(runner, name, out1 == in1, "single-byte roundtrip");
 
         return ok;
@@ -1876,6 +1876,157 @@ auto main(int argc, char** argv) -> int {
         }
         // cleanup handled by TempFile destructor
         return RUN_CHECK(runner, name, threw, "declared data chunk larger than actual should cause extractor to fail/throw");
+    });
+
+    // ------------------ Sample-based Base64 Encoding Tests ------------------
+    runner.add("AudioIndex: audioDataToSampleBase64 basic encoding", [&runner]() -> bool {
+        const std::string    name      = "AudioIndex: audioDataToSampleBase64 basic encoding";
+        std::vector<int32_t> samples   = {0, 1, -1, 100, -100, 32767, -32768};
+        auto                 audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
+
+        try {
+            std::string base64 = AudioIndex::audioDataToSampleBase64(audioData);
+
+            // Each sample should be encoded as exactly 3 base64 characters
+            size_t expected_length = samples.size() * 3;
+            bool   ok              = RUN_CHECK(runner, name, base64.length() == expected_length, "encoded length is 3 chars per sample");
+
+            // Verify all characters are valid base64
+            ok &= RUN_CHECK(runner, name, AudioBabel::Utilities::isValidBase64Url(base64), "all characters are valid base64");
+
+            return ok;
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            return false;
+        }
+    });
+
+    runner.add("AudioIndex: sampleBase64ToAudioData basic decoding", [&runner]() -> bool {
+        const std::string name = "AudioIndex: sampleBase64ToAudioData basic decoding";
+
+        try {
+            // Create a simple base64 string (3 samples = 9 characters)
+            // We'll use known values that we can verify
+            std::string base64 = "AABAACAAD"; // Should decode to samples: 1, 2, 3
+
+            auto audioData = AudioIndex::sampleBase64ToAudioData(base64, 44100, 1);
+
+            bool ok = true;
+            ok &= RUN_CHECK(runner, name, audioData.sample_rate == 44100, "sample rate is 44100");
+            ok &= RUN_CHECK(runner, name, audioData.bit_rate == 16, "bit rate is 16");
+            ok &= RUN_CHECK(runner, name, audioData.num_channels == 1, "num channels is 1");
+            ok &= RUN_CHECK(runner, name, audioData.num_frames == 3, "num frames is 3 (9 chars / 3)");
+            ok &= RUN_CHECK(runner, name, audioData.samples.size() == 6, "samples size is 6 bytes (3 samples × 2 bytes)");
+
+            return ok;
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            return false;
+        }
+    });
+
+    runner.add("AudioIndex: sampleBase64 roundtrip with known values", [&runner]() -> bool {
+        const std::string    name      = "AudioIndex: sampleBase64 roundtrip with known values";
+        std::vector<int32_t> samples   = {0, 1, -1, 100, -100, 1000, -1000, 32767, -32768};
+        auto                 audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
+
+        try {
+            // Encode to base64
+            std::string base64 = AudioIndex::audioDataToSampleBase64(audioData);
+
+            // Decode back to audio data
+            auto audioData2 = AudioIndex::sampleBase64ToAudioData(base64, 44100, 1);
+
+            bool ok = true;
+            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == audioData.sample_rate, "sample_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == audioData.bit_rate, "bit_rate match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_channels == audioData.num_channels, "num_channels match");
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == audioData.num_frames, "num_frames match");
+            ok &= RUN_CHECK(runner, name, audioData2.samples.size() == audioData.samples.size(), "samples size match");
+            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content match");
+
+            return ok;
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            return false;
+        }
+    });
+
+    runner.add("AudioIndex: sampleBase64 edge values (min/max 16-bit)", [&runner]() -> bool {
+        const std::string    name      = "AudioIndex: sampleBase64 edge values (min/max 16-bit)";
+        std::vector<int32_t> samples   = {-32768, -32767, 0, 32766, 32767};
+        auto                 audioData = AudioIndex::extractAudioDataFromSamples(samples, 48000, 16);
+
+        try {
+            std::string base64     = AudioIndex::audioDataToSampleBase64(audioData);
+            auto        audioData2 = AudioIndex::sampleBase64ToAudioData(base64, 48000, 1);
+
+            bool ok = true;
+            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "edge values preserved");
+
+            return ok;
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            return false;
+        }
+    });
+
+    runner.add("AudioIndex: sampleBase64 rejects non-16-bit audio", [&runner]() -> bool {
+        const std::string    name        = "AudioIndex: sampleBase64 rejects non-16-bit audio";
+        std::vector<int32_t> samples     = {0, 100, -100};
+        auto                 audioData32 = AudioIndex::extractAudioDataFromSamples(samples, 44100, 32);
+        auto                 audioData8  = AudioIndex::extractAudioDataFromSamples(samples, 44100, 8);
+
+        bool threw32 = false;
+        bool threw8  = false;
+
+        try {
+            AudioIndex::audioDataToSampleBase64(audioData32);
+        } catch (const std::runtime_error&) {
+            threw32 = true;
+        }
+
+        try {
+            AudioIndex::audioDataToSampleBase64(audioData8);
+        } catch (const std::runtime_error&) {
+            threw8 = true;
+        }
+
+        bool ok = true;
+        ok &= RUN_CHECK(runner, name, threw32, "32-bit audio rejected");
+        ok &= RUN_CHECK(runner, name, threw8, "8-bit audio rejected");
+
+        return ok;
+    });
+
+    runner.add("AudioIndex: sampleBase64 rejects invalid length", [&runner]() -> bool {
+        const std::string name = "AudioIndex: sampleBase64 rejects invalid length";
+
+        bool threw = false;
+        try {
+            // String length not divisible by 3
+            std::string invalidBase64 = "AAAA"; // 4 characters (not divisible by 3)
+            AudioIndex::sampleBase64ToAudioData(invalidBase64, 44100, 1);
+        } catch (const std::invalid_argument&) {
+            threw = true;
+        }
+
+        return RUN_CHECK(runner, name, threw, "invalid length rejected");
+    });
+
+    runner.add("AudioIndex: sampleBase64 rejects invalid characters", [&runner]() -> bool {
+        const std::string name = "AudioIndex: sampleBase64 rejects invalid characters";
+
+        bool threw = false;
+        try {
+            // Invalid base64 character '='
+            std::string invalidBase64 = "AA=";
+            AudioIndex::sampleBase64ToAudioData(invalidBase64, 44100, 1);
+        } catch (const std::invalid_argument&) {
+            threw = true;
+        }
+
+        return RUN_CHECK(runner, name, threw, "invalid characters rejected");
     });
 
     // ------------------ Integration: round-trip Test Audio files ------------------

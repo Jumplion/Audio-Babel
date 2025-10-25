@@ -483,4 +483,119 @@ void AudioIndex::writeIndexToFile(const boost::multiprecision::cpp_int& index, c
     FileWriters::writeIndexToFile(index, outDir, filename);
 }
 
+// ---------------------------------------------------------------------------
+// Alternate Index Format: Sample-based Base64 encoding
+// ---------------------------------------------------------------------------
+
+auto AudioIndex::audioDataToSampleBase64(const AudioIndex::AudioData& audioData) -> std::string {
+    // Validate that we have 16-bit audio
+    if (audioData.bit_rate != 16) {
+        std::ostringstream ss;
+        ss << "audioDataToSampleBase64 requires 16-bit audio, got " << audioData.bit_rate << " bits";
+        throw std::runtime_error(ss.str());
+    }
+
+    const size_t bytes_per_sample = 2; // 16 bits = 2 bytes
+    const size_t total_samples    = audioData.num_frames * audioData.num_channels;
+
+    if (audioData.samples.size() != total_samples * bytes_per_sample) {
+        std::ostringstream ss;
+        ss << "Sample buffer size mismatch: expected " << (total_samples * bytes_per_sample) << " bytes, got " << audioData.samples.size();
+        throw std::runtime_error(ss.str());
+    }
+
+    // Each 16-bit sample will be encoded as 3 base64 characters
+    // 16-bit range: 0-65,535
+    // Base64 capacity: 64^3 = 262,144 (sufficient for all 16-bit values)
+    std::string result;
+    result.reserve(total_samples * 3); // 3 base64 chars per sample
+
+    const char*        b64_alpha = Utilities::BASE64_URL_ALPHA;
+    constexpr uint16_t BASE      = 64;
+    constexpr uint16_t BASE_SQ   = BASE * BASE; // 4096
+
+    for (size_t i = 0; i < total_samples; ++i) {
+        // Read 16-bit sample from little-endian byte array
+        size_t   offset    = i * bytes_per_sample;
+        uint16_t sample_le = static_cast<uint16_t>(audioData.samples[offset]) | (static_cast<uint16_t>(audioData.samples[offset + 1]) << 8);
+
+        // Treat as unsigned 16-bit value (0-65535)
+        uint16_t value = sample_le;
+
+        // Convert to base-64 representation with 3 digits (most to least significant)
+        // Similar to converting a decimal number to hexadecimal, but using base 64
+        uint16_t digit0 = value / BASE_SQ;          // Most significant digit
+        uint16_t digit1 = (value % BASE_SQ) / BASE; // Middle digit
+        uint16_t digit2 = value % BASE;             // Least significant digit
+
+        result.push_back(b64_alpha[digit0]);
+        result.push_back(b64_alpha[digit1]);
+        result.push_back(b64_alpha[digit2]);
+    }
+
+    return result;
+}
+
+auto AudioIndex::sampleBase64ToAudioData(const std::string& base64String, uint32_t sampleRate, uint16_t numChannels) -> AudioIndex::AudioData {
+    // Validate input length (must be divisible by 3)
+    if (base64String.length() % 3 != 0) {
+        std::ostringstream ss;
+        ss << "Invalid base64 string length: " << base64String.length() << " (must be divisible by 3)";
+        throw std::invalid_argument(ss.str());
+    }
+
+    // Validate that all characters are valid base64
+    if (!Utilities::isValidBase64Url(base64String)) {
+        throw std::invalid_argument("Invalid base64 characters in input string");
+    }
+
+    // Build reverse lookup table for base64 decoding
+    static const std::array<int8_t, 256> rev = []() {
+        std::array<int8_t, 256> table{};
+        table.fill(-1);
+        const char* alpha = Utilities::BASE64_URL_ALPHA;
+        for (size_t i = 0; i < 64; ++i) {
+            table[static_cast<unsigned char>(alpha[i])] = static_cast<int8_t>(i);
+        }
+        return table;
+    }();
+
+    const size_t total_samples    = base64String.length() / 3;
+    const size_t bytes_per_sample = 2; // 16-bit = 2 bytes
+
+    constexpr uint16_t BASE    = 64;
+    constexpr uint16_t BASE_SQ = BASE * BASE; // 4096
+
+    AudioData audioData{};
+    audioData.sample_rate  = sampleRate;
+    audioData.bit_rate     = 16;
+    audioData.num_channels = numChannels;
+    audioData.audio_format = PCM_FORMAT_CODE;
+    audioData.num_frames   = total_samples / numChannels;
+    audioData.samples.resize(total_samples * bytes_per_sample);
+
+    for (size_t i = 0; i < total_samples; ++i) {
+        size_t base64_offset = i * 3;
+
+        // Decode 3 base64 characters back to 16-bit value
+        int8_t digit0 = rev[static_cast<unsigned char>(base64String[base64_offset])];     // Most significant
+        int8_t digit1 = rev[static_cast<unsigned char>(base64String[base64_offset + 1])]; // Middle
+        int8_t digit2 = rev[static_cast<unsigned char>(base64String[base64_offset + 2])]; // Least significant
+
+        if (digit0 < 0 || digit1 < 0 || digit2 < 0) {
+            throw std::invalid_argument("Invalid base64 character encountered during decoding");
+        }
+
+        // Convert from base-64 to decimal: value = digit0*64^2 + digit1*64 + digit2
+        uint16_t value = static_cast<uint16_t>(digit0) * BASE_SQ + static_cast<uint16_t>(digit1) * BASE + static_cast<uint16_t>(digit2);
+
+        // Write as little-endian bytes
+        size_t sample_offset                 = i * bytes_per_sample;
+        audioData.samples[sample_offset]     = static_cast<uint8_t>(value & 0xFF);
+        audioData.samples[sample_offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+    }
+
+    return audioData;
+}
+
 } // namespace AudioBabel

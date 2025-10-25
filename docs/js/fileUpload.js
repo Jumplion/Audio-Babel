@@ -1,5 +1,7 @@
 import AudioIndexWASM from './audioIndexWasm.js';
 import { calculateDuration } from './audioIndex.js';
+import { parseWavFile } from './wavUtils.js';
+import { bytesToBase64Chunked } from './utils.js';
 
 // Initialize WASM module (lazy-loaded)
 let wasmModule = null;
@@ -28,41 +30,9 @@ export async function uploadFile(file, handleJsonResponse, setLoading) {
     // Use WASM for sample-based format
     const wasm = await getWasmModule();
     
-    // Read file as ArrayBuffer
+    // Read file as ArrayBuffer and parse WAV
     const arrayBuffer = await file.arrayBuffer();
-    const view = new DataView(arrayBuffer);
-    
-    // Parse WAV header to find data chunk
-    let offset = 12; // Skip RIFF/WAVE header
-    let pcmData = null;
-    let sampleRate = 44100;
-    let numChannels = 1;
-    
-    while (offset < view.byteLength - 8) {
-      const chunkId = String.fromCharCode(
-        view.getUint8(offset),
-        view.getUint8(offset + 1),
-        view.getUint8(offset + 2),
-        view.getUint8(offset + 3)
-      );
-      const chunkSize = view.getUint32(offset + 4, true);
-      offset += 8;
-      
-      if (chunkId === 'fmt ') {
-        sampleRate = view.getUint32(offset + 4, true);
-        numChannels = view.getUint16(offset + 2, true);
-        offset += chunkSize;
-      } else if (chunkId === 'data') {
-        pcmData = new Uint8Array(arrayBuffer, offset, chunkSize);
-        break;
-      } else {
-        offset += chunkSize + (chunkSize & 1);
-      }
-    }
-    
-    if (!pcmData) {
-      throw new Error('No data chunk found in WAV file');
-    }
+    const { pcmData, sampleRate, numChannels, bitDepth } = parseWavFile(arrayBuffer);
     
     // Encode to sample-based base64 using WASM
     const sampleBase64 = wasm.encodeToSampleBase64(pcmData, sampleRate, numChannels);
@@ -91,14 +61,8 @@ export async function uploadFile(file, handleJsonResponse, setLoading) {
     const wavArrayBuffer = await wavBlob.arrayBuffer();
     const wavBytes = new Uint8Array(wavArrayBuffer);
     
-    // Convert to base64 for audio player
-    let wavBase64 = '';
-    const chunkSize = 0x8000;
-    for (let i = 0; i < wavBytes.length; i += chunkSize) {
-      const chunk = wavBytes.subarray(i, i + chunkSize);
-      wavBase64 += String.fromCharCode.apply(null, chunk);
-    }
-    result.wavBase64 = btoa(wavBase64);
+    // Convert to base64 for audio player using shared utility
+    result.wavBase64 = bytesToBase64Chunked(wavBytes);
     
     await handleJsonResponse(result, result.indexBase64);
   } catch (error) {

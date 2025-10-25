@@ -1,15 +1,10 @@
 // This code implements the `-sMODULARIZE` settings by taking the generated
 // JS program code (INNER_JS_CODE) and wrapping it in a factory function.
 
-// Single threaded MINIMAL_RUNTIME programs do not need access to
-// document.currentScript, so a simple export declaration is enough.
-var AudioIndexModule = (() => {
-  // When MODULARIZE this JS may be executed later,
-  // after document.currentScript is gone, so we save it.
-  // In EXPORT_ES6 mode we can just use 'import.meta.url'.
-  var _scriptName = globalThis.document?.currentScript?.src;
-  return async function(moduleArg = {}) {
-    var moduleRtn;
+// When targetting node and ES6 we use `await import ..` in the generated code
+// so the outer function needs to be marked as async.
+async function AudioIndexModule(moduleArg = {}) {
+  var moduleRtn;
 
 // include: shell.js
 // include: minimum_runtime_check.js
@@ -75,6 +70,15 @@ var ENVIRONMENT_IS_WORKER = !!globalThis.WorkerGlobalScope;
 var ENVIRONMENT_IS_NODE = globalThis.process?.versions?.node && globalThis.process?.type != 'renderer';
 var ENVIRONMENT_IS_SHELL = !ENVIRONMENT_IS_WEB && !ENVIRONMENT_IS_NODE && !ENVIRONMENT_IS_WORKER;
 
+if (ENVIRONMENT_IS_NODE) {
+  // When building an ES module `require` is not normally available.
+  // We need to use `createRequire()` to construct the require()` function.
+  const { createRequire } = await import('module');
+  /** @suppress{duplicate} */
+  var require = createRequire(import.meta.url);
+
+}
+
 // --pre-jses are emitted after the Module integration code, so that they can
 // refer to Module (if they choose; they can also define Module)
 
@@ -85,12 +89,7 @@ var quit_ = (status, toThrow) => {
   throw toThrow;
 };
 
-if (typeof __filename != 'undefined') { // Node
-  _scriptName = __filename;
-} else
-if (ENVIRONMENT_IS_WORKER) {
-  _scriptName = self.location.href;
-}
+var _scriptName = import.meta.url;
 
 // `/` should be present at the end if `scriptDirectory` is not empty
 var scriptDirectory = '';
@@ -112,7 +111,9 @@ if (ENVIRONMENT_IS_NODE) {
   // the complexity of lazy-loading.
   var fs = require('fs');
 
-  scriptDirectory = __dirname + '/';
+  if (_scriptName.startsWith('file:')) {
+    scriptDirectory = require('path').dirname(require('url').fileURLToPath(_scriptName)) + '/';
+  }
 
 // include: node_shell_read.js
 readBinary = (filename) => {
@@ -449,7 +450,7 @@ function updateMemoryViews() {
   var b = wasmMemory.buffer;
   HEAP8 = new Int8Array(b);
   HEAP16 = new Int16Array(b);
-  HEAPU8 = new Uint8Array(b);
+  Module['HEAPU8'] = HEAPU8 = new Uint8Array(b);
   HEAPU16 = new Uint16Array(b);
   HEAP32 = new Int32Array(b);
   HEAPU32 = new Uint32Array(b);
@@ -574,7 +575,11 @@ function createExportWrapper(name, nargs) {
 var wasmBinaryFile;
 
 function findWasmBinary() {
+  if (Module['locateFile']) {
     return locateFile('audio-index.wasm');
+  }
+  // Use bundler-friendly `new URL(..., import.meta.url)` pattern; works in browsers too.
+  return new URL('audio-index.wasm', import.meta.url).href;
 }
 
 function getBinarySync(file) {
@@ -2413,6 +2418,18 @@ async function createWasm() {
 
 
 
+
+  
+  
+  var stringToNewUTF8 = (str) => {
+      var size = lengthBytesUTF8(str) + 1;
+      var ret = _malloc(size);
+      if (ret) stringToUTF8(str, ret, size);
+      return ret;
+    };
+  
+  var allocateUTF8 = (...args) => stringToNewUTF8(...args);
+
   var incrementExceptionRefcount = (ptr) => ___cxa_increment_exception_refcount(ptr);
 
   var decrementExceptionRefcount = (ptr) => ___cxa_decrement_exception_refcount(ptr);
@@ -2495,6 +2512,8 @@ Module['FS_createPreloadedFile'] = FS.createPreloadedFile;
   Module['cwrap'] = cwrap;
   Module['setValue'] = setValue;
   Module['getValue'] = getValue;
+  Module['UTF8ToString'] = UTF8ToString;
+  Module['allocateUTF8'] = allocateUTF8;
   var missingLibrarySymbols = [
   'writeI53ToI64',
   'writeI53ToI64Clamped',
@@ -2552,7 +2571,6 @@ Module['FS_createPreloadedFile'] = FS.createPreloadedFile;
   'intArrayFromString',
   'intArrayToString',
   'stringToAscii',
-  'stringToNewUTF8',
   'registerKeyEventCallback',
   'maybeCStringToJsString',
   'findEventTarget',
@@ -2651,7 +2669,6 @@ Module['FS_createPreloadedFile'] = FS.createPreloadedFile;
   'allocate',
   'writeStringToMemory',
   'writeAsciiToMemory',
-  'allocateUTF8',
   'allocateUTF8OnStack',
   'demangle',
   'stackTrace',
@@ -2709,7 +2726,6 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'HEAPF32',
   'HEAPF64',
   'HEAP8',
-  'HEAPU8',
   'HEAP16',
   'HEAPU16',
   'HEAP32',
@@ -2750,7 +2766,6 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'PATH_FS',
   'UTF8Decoder',
   'UTF8ArrayToString',
-  'UTF8ToString',
   'stringToUTF8Array',
   'stringToUTF8',
   'lengthBytesUTF8',
@@ -2762,6 +2777,7 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'UTF32ToString',
   'stringToUTF32',
   'lengthBytesUTF32',
+  'stringToNewUTF8',
   'stringToUTF8OnStack',
   'writeArrayToMemory',
   'JSEvents',
@@ -3663,16 +3679,9 @@ for (const prop of Object.keys(Module)) {
 
 
 
-    return moduleRtn;
-  };
-})();
+  return moduleRtn;
+}
 
 // Export using a UMD style export, or ES6 exports if selected
-if (typeof exports === 'object' && typeof module === 'object') {
-  module.exports = AudioIndexModule;
-  // This default export looks redundant, but it allows TS to import this
-  // commonjs style module.
-  module.exports.default = AudioIndexModule;
-} else if (typeof define === 'function' && define['amd'])
-  define([], () => AudioIndexModule);
+export default AudioIndexModule;
 

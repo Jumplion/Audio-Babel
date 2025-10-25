@@ -179,6 +179,66 @@ int calculateAudioSize(int durationSeconds, int sampleRate, int bitDepth, int ch
     return bytes;
 }
 
+/**
+ * Convert 16-bit audio samples to sample-based base64 (3 chars per sample)
+ * Returns base64 string
+ */
+EMSCRIPTEN_KEEPALIVE
+char* audioSamplesToSampleBase64(const uint8_t* samples, int sampleCount, int sampleRate, int channels) {
+    try {
+        // Create AudioData structure
+        AudioIndex::AudioData audioData{};
+        audioData.sample_rate  = static_cast<uint32_t>(sampleRate);
+        audioData.bit_rate     = 16; // Only 16-bit supported
+        audioData.num_channels = static_cast<uint16_t>(channels);
+        audioData.audio_format = 1; // PCM
+        audioData.num_frames   = sampleCount / channels;
+
+        // Copy samples
+        audioData.samples.resize(sampleCount * 2); // 16-bit = 2 bytes per sample
+        memcpy(audioData.samples.data(), samples, sampleCount * 2);
+
+        // Encode to sample-based base64
+        std::string base64 = AudioIndex::audioDataToSampleBase64(audioData);
+
+        char* result = (char*) malloc(base64.length() + 1);
+        strcpy(result, base64.c_str());
+        return result;
+
+    } catch (const std::exception& e) {
+        std::string error  = "error:" + std::string(e.what());
+        char*       result = (char*) malloc(error.length() + 1);
+        strcpy(result, error.c_str());
+        return result;
+    }
+}
+
+/**
+ * Convert sample-based base64 string back to audio samples
+ * Returns audio sample data
+ */
+EMSCRIPTEN_KEEPALIVE
+uint8_t* sampleBase64ToAudioSamples(const char* base64String, int sampleRate, int channels, int* outLength) {
+    try {
+        std::string base64Str(base64String);
+
+        // Decode from sample-based base64
+        AudioIndex::AudioData audioData =
+            AudioIndex::sampleBase64ToAudioData(base64Str, static_cast<uint32_t>(sampleRate), static_cast<uint16_t>(channels));
+
+        // Return sample data
+        *outLength      = static_cast<int>(audioData.samples.size());
+        uint8_t* result = (uint8_t*) malloc(*outLength);
+        memcpy(result, audioData.samples.data(), *outLength);
+
+        return result;
+
+    } catch (const std::exception& e) {
+        *outLength = 0;
+        return nullptr;
+    }
+}
+
 } // extern "C"
 
 // Embind bindings for class-based API
@@ -192,4 +252,8 @@ EMSCRIPTEN_BINDINGS(audio_index_module) {
     function("generateRandom", &generateRandomIndex, allow_raw_pointers());
     function("validate", &validateBase64Index, allow_raw_pointers());
     function("calculateSize", &calculateAudioSize);
+
+    // Sample-based base64 functions
+    function("audioToSampleBase64", &audioSamplesToSampleBase64, allow_raw_pointers());
+    function("sampleBase64ToAudio", &sampleBase64ToAudioSamples, allow_raw_pointers());
 }

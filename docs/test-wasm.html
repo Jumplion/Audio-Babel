@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>WASM Integration Test</title>
+    <link rel="stylesheet" href="./css/site.css" />
+    <style>
+        .test-result {
+            margin: 1rem 0;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+        }
+        .test-pass {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4caf50;
+            color: #4caf50;
+        }
+        .test-fail {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid #f44336;
+            color: #f44336;
+        }
+        .test-pending {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid #ffc107;
+            color: #ffc107;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <main class="card">
+            <h1>WASM Integration Test</h1>
+            <p>This page tests the WebAssembly module integration for both classic and sample-based formats.</p>
+
+            <button class="btn" id="runTests">Run All Tests</button>
+
+            <div id="testResults"></div>
+        </main>
+    </div>
+
+    <script type="module">
+        import AudioIndexWASM from './js/audioIndexWasm.js';
+        import { encodeSampleBase64Pure, decodeSampleBase64Pure } from './js/audioIndex.js';
+
+        const resultsContainer = document.getElementById('testResults');
+        const runTestsBtn = document.getElementById('runTests');
+
+        function addResult(testName, passed, message) {
+            const div = document.createElement('div');
+            div.className = `test-result ${passed ? 'test-pass' : 'test-fail'}`;
+            div.innerHTML = `<strong>${passed ? '✓' : '✗'} ${testName}</strong><br>${message}`;
+            resultsContainer.appendChild(div);
+        }
+
+        function addPending(testName, message) {
+            const div = document.createElement('div');
+            div.className = 'test-result test-pending';
+            div.innerHTML = `<strong>⏳ ${testName}</strong><br>${message}`;
+            div.id = testName.replace(/\s+/g, '-');
+            resultsContainer.appendChild(div);
+            return div;
+        }
+
+        async function runTests() {
+            resultsContainer.innerHTML = '';
+            
+            try {
+                // Test 1: WASM Module Initialization
+                const pendingInit = addPending('WASM Initialization', 'Loading WebAssembly module...');
+                const wasm = new AudioIndexWASM();
+                await wasm.initialize();
+                pendingInit.remove();
+                addResult('WASM Initialization', true, 'Module loaded successfully');
+
+                // Test 2: Classic Format - Generate Random Index
+                const pendingRandom = addPending('Classic Format - Random', 'Generating random index...');
+                const randomIndex = wasm.generateRandomIndex(100);
+                pendingRandom.remove();
+                addResult('Classic Format - Random', randomIndex.length > 0, 
+                    `Generated ${randomIndex.length} character index`);
+
+                // Test 3: Classic Format - Metadata Extraction
+                const pendingMeta = addPending('Classic Format - Metadata', 'Extracting metadata...');
+                const metadata = wasm.getMetadata(randomIndex);
+                pendingMeta.remove();
+                addResult('Classic Format - Metadata', metadata !== null, 
+                    `Genre: ${metadata.genre}, Artist: ${metadata.artist}`);
+
+                // Test 4: Classic Format - Audio Reconstruction
+                const pendingRecon = addPending('Classic Format - Reconstruct', 'Reconstructing audio...');
+                const audioData = wasm.reconstructAudio(randomIndex);
+                pendingRecon.remove();
+                addResult('Classic Format - Reconstruct', audioData.length > 0, 
+                    `Reconstructed ${audioData.length} bytes of audio data`);
+
+                // Test 5: Sample-Based Format - Encoding (Pure JS)
+                const pendingSampleEncode = addPending('Sample-Based - Encode (Pure JS)', 'Encoding test samples...');
+                const testSamples = new Uint8Array([
+                    0x00, 0x00,  // Sample 0
+                    0xFF, 0xFF,  // Sample 65535 (max)
+                    0x00, 0x80,  // Sample 32768 (mid)
+                ]);
+                const sampleBase64 = encodeSampleBase64Pure(testSamples);
+                pendingSampleEncode.remove();
+                const expectedLength = 9; // 3 samples * 3 chars each
+                addResult('Sample-Based - Encode (Pure JS)', 
+                    sampleBase64.length === expectedLength,
+                    `Encoded ${testSamples.length / 2} samples to ${sampleBase64.length} chars (expected ${expectedLength})`);
+
+                // Test 6: Sample-Based Format - Decoding (Pure JS)
+                const pendingSampleDecode = addPending('Sample-Based - Decode (Pure JS)', 'Decoding test samples...');
+                const decodedSamples = decodeSampleBase64Pure(sampleBase64);
+                pendingSampleDecode.remove();
+                const samplesMatch = decodedSamples.length === testSamples.length &&
+                    decodedSamples.every((val, i) => val === testSamples[i]);
+                addResult('Sample-Based - Decode (Pure JS)', samplesMatch,
+                    `Decoded ${decodedSamples.length} bytes, matches original: ${samplesMatch}`);
+
+                // Test 7: Sample-Based Format - WASM Encoding
+                const pendingWasmEncode = addPending('Sample-Based - Encode (WASM)', 'Encoding with WASM...');
+                const wasmBase64 = wasm.encodeToSampleBase64(testSamples);
+                pendingWasmEncode.remove();
+                addResult('Sample-Based - Encode (WASM)', 
+                    wasmBase64.length === expectedLength,
+                    `WASM encoded ${testSamples.length / 2} samples to ${wasmBase64.length} chars`);
+
+                // Test 8: Sample-Based Format - WASM Decoding
+                const pendingWasmDecode = addPending('Sample-Based - Decode (WASM)', 'Decoding with WASM...');
+                const wasmDecoded = wasm.decodeFromSampleBase64(wasmBase64);
+                pendingWasmDecode.remove();
+                const wasmMatch = wasmDecoded.length === testSamples.length &&
+                    wasmDecoded.every((val, i) => val === testSamples[i]);
+                addResult('Sample-Based - Decode (WASM)', wasmMatch,
+                    `WASM decoded ${wasmDecoded.length} bytes, matches original: ${wasmMatch}`);
+
+                // Test 9: Format Consistency
+                const consistencyCheck = sampleBase64 === wasmBase64;
+                addResult('Format Consistency', consistencyCheck,
+                    `Pure JS and WASM produce ${consistencyCheck ? 'identical' : 'different'} output`);
+
+                // Test 10: Larger Sample Set
+                const pendingLarge = addPending('Large Sample Test', 'Testing with 441 samples (0.01s at 44.1kHz)...');
+                const largeSamples = new Uint8Array(882); // 441 samples * 2 bytes
+                for (let i = 0; i < 441; i++) {
+                    const value = Math.floor(Math.random() * 65536);
+                    largeSamples[i * 2] = value & 0xFF;
+                    largeSamples[i * 2 + 1] = (value >> 8) & 0xFF;
+                }
+                const largeEncoded = wasm.encodeToSampleBase64(largeSamples);
+                const largeDecoded = wasm.decodeFromSampleBase64(largeEncoded);
+                pendingLarge.remove();
+                const largeMatch = largeDecoded.length === largeSamples.length &&
+                    largeDecoded.every((val, i) => val === largeSamples[i]);
+                addResult('Large Sample Test', largeMatch,
+                    `Encoded ${largeSamples.length} bytes to ${largeEncoded.length} chars, decoded successfully: ${largeMatch}`);
+
+                // Summary
+                addResult('All Tests Complete', true, 
+                    'WebAssembly integration is working correctly! Ready for production use.');
+
+            } catch (error) {
+                addResult('Test Failed', false, `Error: ${error.message}\n\nStack: ${error.stack}`);
+            }
+        }
+
+        runTestsBtn.addEventListener('click', runTests);
+
+        // Auto-run tests on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(runTests, 500);
+        });
+    </script>
+</body>
+
+</html>

@@ -46,99 +46,6 @@ class AudioIndexWASM {
     }
 
     /**
-     * Get metadata from a base64 index (CLASSIC FORMAT)
-     * @param {string} base64Index - URL-safe base64 index
-     * @returns {object} Metadata object with genre, artist, album, track, cover
-     */
-    getMetadata(base64Index) {
-        this._ensureInitialized();
-
-        try {
-            // Call C++ function
-            const resultPtr = this.module._getMetadataFromBase64(
-                this.module.allocateUTF8(base64Index)
-            );
-
-            // Convert C string to JavaScript string
-            const jsonStr = this.module.UTF8ToString(resultPtr);
-            
-            // Free the C string
-            this.module._free(resultPtr);
-
-            // Parse JSON
-            const metadata = JSON.parse(jsonStr);
-
-            if (metadata.error) {
-                throw new Error(metadata.error);
-            }
-
-            return metadata;
-        } catch (error) {
-            console.error('Error getting metadata:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Reconstruct audio from a base64 index (CLASSIC FORMAT)
-     * @param {string} base64Index - URL-safe base64 index
-     * @returns {Uint8Array} Audio sample data
-     */
-    reconstructAudio(base64Index) {
-        this._ensureInitialized();
-
-        try {
-            // Allocate output length variable
-            const lengthPtr = this.module._malloc(4);
-
-            // Call C++ function
-            const dataPtr = this.module._reconstructAudioFromBase64(
-                this.module.allocateUTF8(base64Index),
-                lengthPtr
-            );
-
-            // Get the length
-            const length = this.module.getValue(lengthPtr, 'i32');
-            this.module._free(lengthPtr);
-
-            if (length === 0 || !dataPtr) {
-                throw new Error('Failed to reconstruct audio');
-            }
-
-            // Copy data to JavaScript array
-            const audioData = new Uint8Array(length);
-            audioData.set(this.module.HEAPU8.subarray(dataPtr, dataPtr + length));
-
-            // Free the C memory
-            this.module._free(dataPtr);
-
-            return audioData;
-        } catch (error) {
-            console.error('Error reconstructing audio:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Generate a random base64 index for exploration (CLASSIC FORMAT)
-     * @param {number} length - Target length of the index
-     * @returns {string} Random base64 index
-     */
-    generateRandomIndex(length = 100) {
-        this._ensureInitialized();
-
-        try {
-            const resultPtr = this.module._generateRandomIndex(length);
-            const index = this.module.UTF8ToString(resultPtr);
-            this.module._free(resultPtr);
-            return index;
-        } catch (error) {
-            console.error('Error generating random index:', error);
-            throw error;
-        }
-    }
-
-    /**
      * Validate a base64 index string
      * @param {string} base64Index - Index to validate
      * @returns {boolean} True if valid
@@ -244,12 +151,12 @@ class AudioIndexWASM {
     }
 
     // ========================================
-    // NEW: SAMPLE-BASED BASE64 FUNCTIONS
+    // SAMPLE-BASED BASE64 FUNCTIONS (Primary Format)
     // ========================================
 
     /**
      * Encode 16-bit audio samples to sample-based base64 (3 chars per sample)
-     * NEW INDEX FORMAT
+     * This is the primary index format used throughout the application
      * @param {Uint8Array} samples - Raw 16-bit PCM samples (little-endian)
      * @param {number} sampleRate - Sample rate (default: 44100)
      * @param {number} channels - Number of channels (default: 1)
@@ -295,7 +202,7 @@ class AudioIndexWASM {
 
     /**
      * Decode sample-based base64 string back to audio samples
-     * NEW INDEX FORMAT
+     * This is the primary index format used throughout the application
      * @param {string} base64String - Base64 string with 3 characters per sample
      * @param {number} sampleRate - Sample rate (default: 44100)
      * @param {number} channels - Number of channels (default: 1)
@@ -339,7 +246,7 @@ class AudioIndexWASM {
     }
 
     /**
-     * Calculate the expected base64 size for given audio parameters (NEW FORMAT)
+     * Calculate the expected base64 size for given audio parameters
      * @param {number} durationSeconds - Duration in seconds
      * @param {number} sampleRate - Sample rate (default: 44100)
      * @param {number} channels - Number of channels (default: 1)

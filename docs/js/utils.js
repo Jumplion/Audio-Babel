@@ -43,3 +43,39 @@ export function bytesToBase64(bytes) {
   }
   return btoa(binaryString);
 }
+
+/**
+ * Convert Uint8Array to base64 in chunks (for large data)
+ * More efficient for large arrays, prevents stack overflow
+ * @param {Uint8Array} bytes - Bytes to encode
+ * @param {number} chunkSize - Size of chunks (default: 0x8000)
+ * @returns {string} Standard base64 string
+ */
+export function bytesToBase64Chunked(bytes, chunkSize = 0x8000) {
+  let binaryString = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binaryString += String.fromCharCode.apply(null, chunk);
+  }
+  return btoa(binaryString);
+}
+
+/**
+ * Encode text to URL-safe base64 (for sample-based indexes)
+ * @param {string} text - Text to encode
+ * @returns {string} URL-safe base64 string (A-Z, a-z, 0-9, -, _)
+ */
+export function textToBase64Url(text) {
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(text);
+  
+  // Convert to standard base64
+  let binaryString = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binaryString += String.fromCharCode(bytes[i]);
+  }
+  const base64 = btoa(binaryString);
+  
+  // Convert to URL-safe base64 (replace +/= with -_)
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}

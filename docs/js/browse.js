@@ -1,7 +1,17 @@
 // browse.js - client-side browsing UI for genres/artists/albums/tracks
-// NOTE: Uses client-side API adapter for direct function calls (no fetch interception)
-import { encodeBase64Url } from './audioIndex.js';
-import { clientReconstruct } from './apiAdapter.js';
+import AudioIndexWASM from './audioIndexWasm.js';
+import { calculateDuration } from './audioIndex.js';
+import { bytesToBase64Chunked, textToBase64Url } from './utils.js';
+
+// Initialize WASM module (lazy-loaded)
+let wasmModule = null;
+async function getWasmModule() {
+    if (!wasmModule) {
+        wasmModule = new AudioIndexWASM();
+        await wasmModule.initialize();
+    }
+    return wasmModule;
+}
 
 const alphabet = [];
 // order: a-z, A-Z, 0-9, -, _
@@ -417,7 +427,7 @@ function init() {
 /**
  * Generates a WAV file from selected metadata tokens.
  * Constructs a deterministic index from genre|artist|album|track,
- * sends it to the reconstruction API, and displays the result.
+ * uses WASM to decode and create audio, then displays the result.
  */
 async function generateWav() {
   const btn = document.getElementById('generateBtn');
@@ -425,71 +435,72 @@ async function generateWav() {
   const status = document.getElementById('statusMsg');
   status.textContent = 'Generating...';
   try {
-    // Construct a simple payload embedding the selected tokens so the server's deterministic
-    // reconstruction will be influenced by the selection. Use pipe separators to avoid ambiguity.
+    // Construct a text payload from selected tokens (pipe-separated)
     const text = `${selection.genre}|${selection.artist}|${selection.album}|${selection.track}`;
-    const enc = new TextEncoder().encode(text);
-    const b64url = encodeBase64Url(enc);
+    const b64url = textToBase64Url(text);
 
-    // Use client-side adapter instead of fetch
-    const j = await clientReconstruct(b64url, 'base64url');
+    // Use WASM to decode the index into audio samples
+    const wasm = await getWasmModule();
+    const pcmData = wasm.decodeFromSampleBase64(b64url, 44100, 1);
+    
+    // Calculate duration
+    const duration = calculateDuration(pcmData.length, 44100, 16, 1);
+    
+    // Create metadata for display
+    const metadata = {
+      genre: selection.genre,
+      artist: selection.artist,
+      album: selection.album,
+      track: selection.track,
+      cover: '' // No cover for browse-generated audio
+    };
+    
+    // Generate WAV blob for playback
+    const wavBlob = wasm.samplesToWav(pcmData, 44100, 16, 1);
+    const wavArrayBuffer = await wavBlob.arrayBuffer();
+    const wavBytes = new Uint8Array(wavArrayBuffer);
+    const wavBase64 = bytesToBase64Chunked(wavBytes);
 
-    // j.metadata: { genre, artist, album, track, cover }
-    // j.wavBase64: base64 of WAV
+    // Display results
     const rc = document.getElementById('resultContainer');
     rc.innerHTML = '';
 
-    // cover may already be data:image/png;base64,...
-    if (j.metadata && j.metadata.cover) {
-      const img = document.createElement('img');
-      img.src = j.metadata.cover;
-      img.alt = `${j.metadata.track} cover`;
-      img.style.width = '128px';
-      img.style.height = '128px';
-      img.style.borderRadius = '8px';
-      img.style.objectFit = 'cover';
-      img.style.display = 'inline-block';
-      img.style.marginRight = '12px';
-      rc.appendChild(img);
-    }
-
-    if (j.metadata) {
-      const metaDiv = document.createElement('div');
-      metaDiv.style.display = 'inline-block';
-      metaDiv.style.verticalAlign = 'top';
-      metaDiv.innerHTML = `
-        <div style="font-weight:700">${escapeHtml(j.metadata.track || '')}</div>
-        <div style="color:var(--muted)">${escapeHtml(j.metadata.artist || '')} — ${escapeHtml(j.metadata.album || '')}</div>
-        <div style="margin-top:6px; color:var(--muted); font-size:13px">genre: ${escapeHtml(j.metadata.genre || '')}</div>
+    // Metadata display
+    const metaDiv = document.createElement('div');
+    metaDiv.style.display = 'inline-block';
+    metaDiv.style.verticalAlign = 'top';
+    metaDiv.innerHTML = `
+        <div style="font-weight:700">${escapeHtml(metadata.track)}</div>
+        <div style="color:var(--muted)">${escapeHtml(metadata.artist)} — ${escapeHtml(metadata.album)}</div>
+        <div style="margin-top:6px; color:var(--muted); font-size:13px">genre: ${escapeHtml(metadata.genre)}</div>
+        <div style="margin-top:6px; color:var(--muted); font-size:13px">duration: ${duration.toFixed(2)}s</div>
       `;
-      rc.appendChild(metaDiv);
-    }
+    rc.appendChild(metaDiv);
 
-    if (j.wavBase64) {
-      const wavB64 = j.wavBase64;
-      const byteChars = atob(wavB64);
-      const len = byteChars.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; ++i) bytes[i] = byteChars.charCodeAt(i);
-      const blob = new Blob([bytes], { type: 'audio/wav' });
-      const url = URL.createObjectURL(blob);
+    // Audio player
+    const byteChars = atob(wavBase64);
+    const len = byteChars.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; ++i) bytes[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
 
-      const audio = document.createElement('audio');
-      audio.controls = true;
-      audio.src = url;
-      audio.style.display = 'block';
-      audio.style.marginTop = '12px';
-      rc.appendChild(audio);
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.src = url;
+    audio.style.display = 'block';
+    audio.style.marginTop = '12px';
+    rc.appendChild(audio);
 
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${(j.metadata && j.metadata.genre) || selection.genre}_${(j.metadata && j.metadata.artist) || selection.artist}_${(j.metadata && j.metadata.album) || selection.album}_${(j.metadata && j.metadata.track) || selection.track}.wav`;
-      a.textContent = 'Download .wav';
-      a.style.display = 'inline-block';
-      a.style.marginLeft = '12px';
-      a.className = 'btn';
-      rc.appendChild(a);
-    }
+    // Download link
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${metadata.genre}_${metadata.artist}_${metadata.album}_${metadata.track}.wav`;
+    a.textContent = 'Download .wav';
+    a.style.display = 'inline-block';
+    a.style.marginLeft = '12px';
+    a.className = 'btn';
+    rc.appendChild(a);
 
     status.textContent = 'Generated';
   } catch (err) {

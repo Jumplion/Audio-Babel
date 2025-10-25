@@ -1,5 +1,6 @@
 import AudioIndexWASM from './audioIndexWasm.js';
 import { calculateDuration } from './audioIndex.js';
+import { bytesToBase64Chunked } from './utils.js';
 
 // Initialize WASM module (lazy-loaded)
 let wasmModule = null;
@@ -102,14 +103,8 @@ export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) 
     const wavArrayBuffer = await wavBlob.arrayBuffer();
     const wavBytes = new Uint8Array(wavArrayBuffer);
     
-    // Convert to base64 for audio player
-    let wavBase64 = '';
-    const chunkSize = 0x8000;
-    for (let i = 0; i < wavBytes.length; i += chunkSize) {
-      const chunk = wavBytes.subarray(i, i + chunkSize);
-      wavBase64 += String.fromCharCode.apply(null, chunk);
-    }
-    result.wavBase64 = btoa(wavBase64);
+    // Convert to base64 for audio player using shared utility
+    result.wavBase64 = bytesToBase64Chunked(wavBytes);
     
     await handleJsonResponse(result, result.indexBase64);
   } catch (error) {

@@ -15,6 +15,8 @@
 #include <vector>
 
 #include "AudioIndex.h"
+#include "IndexMetadata.h"
+#include "LibraryPosition.h"
 #include "Utilities.h"
 #ifndef M_PI
 #    define M_PI 3.14159265358979323846
@@ -917,6 +919,175 @@ auto main(int argc, char** argv) -> int {
             runner.failMsg(name, std::string("exception: ") + e.what());
             ok = false;
         }
+        return ok;
+    });
+
+    // ------------------ LibraryPosition Tests ------------------
+    runner.add("LibraryPosition: calculateLibraryPosition with small index", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: calculateLibraryPosition with small index";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+        try {
+            cpp_int index = 42;
+            auto    pos   = calculateLibraryPosition(index);
+
+            // index 42 should be in room 0 (since 42 < 9600)
+            // wall = (42 / 2400) % 4 = 0
+            // shelf = (42 / 480) % 5 = 0
+            // album = (42 / 15) % 32 = 2
+            // track = 42 % 15 = 12
+            ok &= RUN_CHECK(runner, name, pos.room == 0, "room is 0");
+            ok &= RUN_CHECK(runner, name, pos.wall == 0, "wall is 0");
+            ok &= RUN_CHECK(runner, name, pos.shelf == 0, "shelf is 0");
+            ok &= RUN_CHECK(runner, name, pos.album == 2, "album is 2");
+            ok &= RUN_CHECK(runner, name, pos.track == 12, "track is 12");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("LibraryPosition: reconstructIndexFromPosition roundtrip", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: reconstructIndexFromPosition roundtrip";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+        try {
+            cpp_int original_index = 12345;
+            auto    pos            = calculateLibraryPosition(original_index);
+            cpp_int reconstructed  = reconstructIndexFromPosition(pos);
+
+            ok &= RUN_CHECK(runner, name, original_index == reconstructed, "index roundtrip successful");
+            ok &= RUN_CHECK(runner, name, pos.room == 1, "correct room");
+            ok &= RUN_CHECK(runner, name, pos.wall == 1, "correct wall");
+            ok &= RUN_CHECK(runner, name, pos.shelf == 0, "correct shelf");
+            ok &= RUN_CHECK(runner, name, pos.album == 23, "correct album");
+            ok &= RUN_CHECK(runner, name, pos.track == 0, "correct track");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("LibraryPosition: position at room boundary", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: position at room boundary";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+        try {
+            cpp_int index = 9600; // First index in room 1
+            auto    pos   = calculateLibraryPosition(index);
+
+            ok &= RUN_CHECK(runner, name, pos.room == 1, "room is 1");
+            ok &= RUN_CHECK(runner, name, pos.wall == 0, "wall is 0");
+            ok &= RUN_CHECK(runner, name, pos.shelf == 0, "shelf is 0");
+            ok &= RUN_CHECK(runner, name, pos.album == 0, "album is 0");
+            ok &= RUN_CHECK(runner, name, pos.track == 0, "track is 0");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("LibraryPosition: large index roundtrip", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: large index roundtrip";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+        try {
+            cpp_int index         = 50000;
+            auto    pos           = calculateLibraryPosition(index);
+            cpp_int reconstructed = reconstructIndexFromPosition(pos);
+
+            ok &= RUN_CHECK(runner, name, index == reconstructed, "large index roundtrip successful");
+            ok &= RUN_CHECK(runner, name, pos.room == 5, "correct room (5)");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("LibraryPosition: IndexMetadata includes position field", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: IndexMetadata includes position field";
+        bool              ok   = true;
+        try {
+            // Create a simple base64 index
+            std::vector<uint8_t> bytes  = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
+            std::string          base64 = Utilities::encodeBase64Url(bytes);
+
+            auto meta = IndexMetadata::extractMetadataFromIndex(base64);
+
+            // Check that position was calculated
+            ok &= RUN_CHECK(runner, name, !meta.genre.empty(), "genre non-empty");
+            ok &= RUN_CHECK(runner, name, !meta.artist.empty(), "artist non-empty");
+            ok &= RUN_CHECK(runner, name, !meta.album.empty(), "album non-empty");
+            ok &= RUN_CHECK(runner, name, !meta.track.empty(), "track non-empty");
+            ok &= RUN_CHECK(runner, name, meta.position.room >= 0, "position has room field");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("LibraryPosition: cpp_int overload includes position", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: cpp_int overload includes position";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+        try {
+            cpp_int index = 123456789;
+
+            auto meta       = IndexMetadata::extractMetadataFromIndex(index);
+            auto pos_direct = calculateLibraryPosition(index);
+
+            // Check that both methods produce the same position
+            ok &= RUN_CHECK(runner, name, meta.position.room == pos_direct.room, "room matches");
+            ok &= RUN_CHECK(runner, name, meta.position.wall == pos_direct.wall, "wall matches");
+            ok &= RUN_CHECK(runner, name, meta.position.shelf == pos_direct.shelf, "shelf matches");
+            ok &= RUN_CHECK(runner, name, meta.position.album == pos_direct.album, "album matches");
+            ok &= RUN_CHECK(runner, name, meta.position.track == pos_direct.track, "track matches");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("LibraryPosition: zero index maps to origin", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: zero index maps to origin";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+        try {
+            cpp_int index = 0;
+            auto    pos   = calculateLibraryPosition(index);
+
+            ok &= RUN_CHECK(runner, name, pos.room == 0, "room is 0");
+            ok &= RUN_CHECK(runner, name, pos.wall == 0, "wall is 0");
+            ok &= RUN_CHECK(runner, name, pos.shelf == 0, "shelf is 0");
+            ok &= RUN_CHECK(runner, name, pos.album == 0, "album is 0");
+            ok &= RUN_CHECK(runner, name, pos.track == 0, "track is 0");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("LibraryPosition: constants validation", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: constants validation";
+        using namespace LibraryConstants;
+        bool ok = true;
+
+        ok &= RUN_CHECK(runner, name, TRACKS_PER_ALBUM == 15, "TRACKS_PER_ALBUM == 15");
+        ok &= RUN_CHECK(runner, name, ALBUMS_PER_SHELF == 32, "ALBUMS_PER_SHELF == 32");
+        ok &= RUN_CHECK(runner, name, SHELVES_PER_WALL == 5, "SHELVES_PER_WALL == 5");
+        ok &= RUN_CHECK(runner, name, WALLS_PER_ROOM == 4, "WALLS_PER_ROOM == 4");
+        ok &= RUN_CHECK(runner, name, ITEMS_PER_ALBUM == 15, "ITEMS_PER_ALBUM == 15");
+        ok &= RUN_CHECK(runner, name, ITEMS_PER_SHELF == 480, "ITEMS_PER_SHELF == 480");
+        ok &= RUN_CHECK(runner, name, ITEMS_PER_WALL == 2400, "ITEMS_PER_WALL == 2400");
+        ok &= RUN_CHECK(runner, name, ITEMS_PER_ROOM == 9600, "ITEMS_PER_ROOM == 9600");
+
         return ok;
     });
 

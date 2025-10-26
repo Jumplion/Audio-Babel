@@ -5,16 +5,22 @@
 #include <string>
 #include <vector>
 
+#include "LibraryPosition.h"
+
 namespace AudioBabel {
 
 // Metadata type for audio indices (renamed from AudioMetaData).
 class IndexMetadata {
    public:
+    // Content-derived labels (variable-length strings from index content)
     std::string genre;
     std::string artist;
     std::string album;
     std::string track;
     std::string cover; // optional small image (SVG text) stored as string
+
+    // Hierarchical position (numeric, deterministic location in library)
+    LibraryPosition position;
 
     // Forward declaration for helper used by both overloads
     static auto buildMetadataFromBytesAndB64(const std::vector<uint8_t>& bytes, const std::string& b64str) -> IndexMetadata;

@@ -6,7 +6,9 @@
 #include <string>
 #include <vector>
 
+#include "../include/LibraryPosition.h"
 #include "../include/Utilities.h"
+
 
 namespace AudioBabel {
 
@@ -15,7 +17,20 @@ namespace AudioBabel {
 // Overload: accept a URL-safe base64 string representing the index bytes
 auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> IndexMetadata {
     std::vector<uint8_t> bytes = ::AudioBabel::Utilities::decodeBase64Url(base64Index);
-    return buildMetadataFromBytesAndB64(bytes, base64Index);
+
+    // Convert bytes to cpp_int to calculate position
+    boost::multiprecision::cpp_int index = 0;
+    if (!bytes.empty()) {
+        boost::multiprecision::import_bits(index, bytes.begin(), bytes.end(), 8);
+    }
+
+    // Build metadata with content-derived labels
+    IndexMetadata meta = buildMetadataFromBytesAndB64(bytes, base64Index);
+
+    // Calculate hierarchical position
+    meta.position = calculateLibraryPosition(index);
+
+    return meta;
 }
 
 auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_int& index) -> IndexMetadata {
@@ -26,7 +41,13 @@ auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_in
     // This matches the alphabet used elsewhere in the project.
     std::string b64str = ::AudioBabel::Utilities::encodeBase64Url(bytes);
 
-    return buildMetadataFromBytesAndB64(bytes, b64str);
+    // Build metadata with content-derived labels
+    IndexMetadata meta = buildMetadataFromBytesAndB64(bytes, b64str);
+
+    // Calculate hierarchical position
+    meta.position = calculateLibraryPosition(index);
+
+    return meta;
 }
 
 // Centralized helper that builds IndexMetadata from raw bytes and the corresponding base64 string.

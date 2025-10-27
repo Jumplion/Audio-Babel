@@ -14,6 +14,7 @@
 
 #include "../include/AudioIndex.h"
 #include "../include/IndexMetadata.h"
+#include "../include/LibraryPosition.h"
 #include "../include/Utilities.h"
 
 using namespace AudioBabel;
@@ -239,21 +240,161 @@ uint8_t* sampleBase64ToAudioSamples(const char* base64String, int sampleRate, in
     }
 }
 
+/**
+ * Calculate library position from base64 index string
+ * Returns JSON with room, wall, shelf, album, track
+ */
+EMSCRIPTEN_KEEPALIVE
+char* calculatePositionFromBase64(const char* base64Index) {
+    try {
+        std::string indexStr(base64Index);
+
+        // Decode base64 to get index
+        std::vector<uint8_t> indexBytes = AudioBabel::Utilities::decodeBase64Url(indexStr);
+
+        // Convert bytes to cpp_int
+        cpp_int index = 0;
+        boost::multiprecision::import_bits(index, indexBytes.begin(), indexBytes.end(), 8, true);
+
+        // Calculate position
+        LibraryPosition pos = calculateLibraryPosition(index);
+
+        // Build JSON response
+        std::string json = "{";
+        json += "\"room\":\"" + pos.room.str() + "\",";
+        json += "\"wall\":" + std::to_string(pos.wall) + ",";
+        json += "\"shelf\":" + std::to_string(pos.shelf) + ",";
+        json += "\"album\":" + std::to_string(pos.album) + ",";
+        json += "\"track\":" + std::to_string(pos.track);
+        json += "}";
+
+        char* result = (char*) malloc(json.length() + 1);
+        strcpy(result, json.c_str());
+        return result;
+
+    } catch (const std::exception& e) {
+        std::string error  = "{\"error\":\"" + std::string(e.what()) + "\"}";
+        char*       result = (char*) malloc(error.length() + 1);
+        strcpy(result, error.c_str());
+        return result;
+    }
+}
+
+/**
+ * Reconstruct base64 index from library position
+ * Takes room (as string), wall, shelf, album, track
+ * Returns base64 index string
+ */
+EMSCRIPTEN_KEEPALIVE
+char* reconstructBase64FromPosition(const char* roomStr, int wall, int shelf, int album, int track) {
+    try {
+        // Parse room number from string
+        cpp_int room(roomStr);
+
+        // Build position structure
+        LibraryPosition pos;
+        pos.room  = room;
+        pos.wall  = static_cast<uint8_t>(wall);
+        pos.shelf = static_cast<uint8_t>(shelf);
+        pos.album = static_cast<uint8_t>(album);
+        pos.track = static_cast<uint8_t>(track);
+
+        // Reconstruct index
+        cpp_int index = reconstructIndexFromPosition(pos);
+
+        // Convert to base64
+        std::vector<uint8_t> indexBytes;
+        if (index == 0) {
+            indexBytes.push_back(0);
+        } else {
+            boost::multiprecision::export_bits(index, std::back_inserter(indexBytes), 8, true);
+        }
+
+        // Encode to URL-safe base64
+        std::string base64;
+        const char  alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+        size_t i = 0;
+        while (i + 2 < indexBytes.size()) {
+            uint32_t triple = (indexBytes[i] << 16) | (indexBytes[i + 1] << 8) | indexBytes[i + 2];
+            base64 += alphabet[(triple >> 18) & 0x3F];
+            base64 += alphabet[(triple >> 12) & 0x3F];
+            base64 += alphabet[(triple >> 6) & 0x3F];
+            base64 += alphabet[triple & 0x3F];
+            i += 3;
+        }
+
+        // Handle remaining bytes
+        if (i < indexBytes.size()) {
+            uint32_t triple = indexBytes[i] << 16;
+            if (i + 1 < indexBytes.size()) {
+                triple |= indexBytes[i + 1] << 8;
+            }
+            base64 += alphabet[(triple >> 18) & 0x3F];
+            base64 += alphabet[(triple >> 12) & 0x3F];
+            if (i + 1 < indexBytes.size()) {
+                base64 += alphabet[(triple >> 6) & 0x3F];
+            }
+        }
+
+        char* result = (char*) malloc(base64.length() + 1);
+        strcpy(result, base64.c_str());
+        return result;
+
+    } catch (const std::exception& e) {
+        std::string error  = "error:" + std::string(e.what());
+        char*       result = (char*) malloc(error.length() + 1);
+        strcpy(result, error.c_str());
+        return result;
+    }
+}
+
 } // extern "C"
+
+// Wrapper functions that return std::string for embind compatibility
+std::string getMetadataWrapper(const std::string& base64Index) {
+    char*       result = getMetadataFromBase64(base64Index.c_str());
+    std::string str(result);
+    free(result);
+    return str;
+}
+
+std::string generateRandomWrapper(int targetLength) {
+    char*       result = generateRandomIndex(targetLength);
+    std::string str(result);
+    free(result);
+    return str;
+}
+
+std::string calculatePositionWrapper(const std::string& base64Index) {
+    char*       result = calculatePositionFromBase64(base64Index.c_str());
+    std::string str(result);
+    free(result);
+    return str;
+}
+
+std::string reconstructIndexWrapper(const std::string& roomStr, int wall, int shelf, int album, int track) {
+    char*       result = reconstructBase64FromPosition(roomStr.c_str(), wall, shelf, album, track);
+    std::string str(result);
+    free(result);
+    return str;
+}
+
+bool validateWrapper(const std::string& base64Index) {
+    return validateBase64Index(base64Index.c_str()) == 1;
+}
 
 // Embind bindings for class-based API
 using namespace emscripten;
 
 EMSCRIPTEN_BINDINGS(audio_index_module) {
-    // Expose utility functions
-    function("getMetadata", &getMetadataFromBase64, allow_raw_pointers());
-    function("reconstructAudio", &reconstructAudioFromBase64, allow_raw_pointers());
-    function("generateIndex", &generateIndexFromSamples, allow_raw_pointers());
-    function("generateRandom", &generateRandomIndex, allow_raw_pointers());
-    function("validate", &validateBase64Index, allow_raw_pointers());
-    function("calculateSize", &calculateAudioSize);
+    // Expose utility functions (using std::string wrappers)
+    function("getMetadata", &getMetadataWrapper);
+    function("generateRandom", &generateRandomWrapper);
+    function("calculatePosition", &calculatePositionWrapper);
+    function("reconstructIndex", &reconstructIndexWrapper);
+    function("validate", &validateWrapper);
 
-    // Sample-based base64 functions
-    function("audioToSampleBase64", &audioSamplesToSampleBase64, allow_raw_pointers());
-    function("sampleBase64ToAudio", &sampleBase64ToAudioSamples, allow_raw_pointers());
+    // Functions that don't need wrappers
+    function("calculateSize", &calculateAudioSize);
 }

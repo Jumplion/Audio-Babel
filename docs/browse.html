@@ -15,78 +15,88 @@
 
     <div class="wrap">
         <main class="card">
-            <h1>Browse</h1>
+            <h1>Browse the Record Shop</h1>
+            
+            <p class="browse-intro">
+                Navigate through the infinite Record Shop. Each room contains 4 walls (genres), 
+                each wall has 5 shelves (artists), each shelf holds 32 albums, and each album has 15 tracks.
+            </p>
 
             <nav id="breadcrumb" aria-label="Breadcrumb"></nav>
 
-            <section id="selectorArea">
-                <div class="filterRow">
-                    <input id="filterInput" placeholder="Filter visible items (type to narrow)" />
-                </div>
-
-                <!-- Generate button and status above the entries -->
-                <div id="generateArea">
-                    <button class="btn" id="generateBtn" disabled>Generate .wav</button>
-                    <span id="statusMsg">Select genre → artist → album → track</span>
-                </div>
-
-                <!-- Result / player appears above the entries -->
-                <div id="resultContainer"></div>
-
-                <!-- Manual selection: single context-aware input for the active breadcrumb -->
-                <div class="manual-select">
-                    <div id="manualHeader" class="manual-header">Input genre...</div>
-                    <div class="manual-input-row">
-                        <input id="manualInput" placeholder="Type a value and press Apply" />
-                        <button class="btn" id="applyManual">Apply</button>
-                        <button class="btn" id="clearManual">Clear</button>
-                    </div>
-                </div>
-
-                <div class="browse-list-header">Or Browse the List</div>
-
-                <!-- Top pagination controls (below result, above list) -->
-                <div class="controlsTop">
-                    <div class="pageGroup">
-                        <label for="pageInputTop">Page</label>
-                        <input id="pageInputTop" type="text" placeholder="1" />
-                        <button class="btn" id="goPageTop">Go</button>
-                    </div>
-                    <div class="pageGroup">
-                        <button class="btn" id="prevPageTop">Prev</button>
-                        <button class="btn" id="nextPageTop">Next</button>
-                    </div>
-                    <div class="page-info-container">
-                        <span id="pageInfoTop"></span>
-                    </div>
-                </div>
-
-                <!-- Items listed vertically in one column -->
-
-                <div id="itemsContainer"></div>
-
-                <!-- Pagination controls moved to the bottom of the list -->
-                <div class="controlsBottom">
-                    <div class="pageGroup">
-                        <label for="pageInput">Page</label>
-                        <input id="pageInput" type="text" placeholder="1" />
-                        <button class="btn" id="goPage">Go</button>
-                    </div>
-                    <div class="pageGroup">
-                        <button class="btn" id="prevPage">Prev</button>
-                        <button class="btn" id="nextPage">Next</button>
-                    </div>
-                    <div class="page-info-container">
-                        <span id="pageInfo"></span>
-                    </div>
+            <!-- Room Selection -->
+            <section id="roomSection" class="nav-section">
+                <h2>Enter a Room</h2>
+                <div class="input-row">
+                    <label for="roomInput">Room Number:</label>
+                    <input type="number" id="roomInput" placeholder="0" min="0" />
+                    <button class="btn" id="enterRoomBtn">Enter</button>
                 </div>
             </section>
+
+            <!-- Wall Selection (Hexagon) -->
+            <section id="wallSection" class="nav-section" style="display: none;">
+                <h2>Select a Wall (Genre)</h2>
+                <div id="hexagonContainer" class="hexagon-container">
+                    <svg viewBox="0 0 200 200" class="hexagon-svg">
+                        <!-- Hexagon with 4 clickable walls -->
+                        <g id="wallGroup">
+                            <!-- North wall -->
+                            <polygon class="wall" data-wall="0" points="100,20 160,60 160,80 100,50 40,80 40,60" />
+                            <text class="wall-label" x="100" y="55" text-anchor="middle">Wall 0</text>
+                            
+                            <!-- East wall -->
+                            <polygon class="wall" data-wall="1" points="160,60 180,100 180,120 160,140 160,80 160,60" />
+                            <text class="wall-label" x="170" y="105" text-anchor="middle">Wall 1</text>
+                            
+                            <!-- South wall -->
+                            <polygon class="wall" data-wall="2" points="160,140 100,180 40,140 40,120 100,150 160,120" />
+                            <text class="wall-label" x="100" y="150" text-anchor="middle">Wall 2</text>
+                            
+                            <!-- West wall -->
+                            <polygon class="wall" data-wall="3" points="40,60 40,80 40,140 20,120 20,100 40,60" />
+                            <text class="wall-label" x="30" y="105" text-anchor="middle">Wall 3</text>
+                        </g>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Shelf Selection -->
+            <section id="shelfSection" class="nav-section" style="display: none;">
+                <h2>Select a Shelf (Artist)</h2>
+                <div id="shelvesContainer" class="shelves-container">
+                    <!-- 5 shelves will be generated here -->
+                </div>
+            </section>
+
+            <!-- Album Selection -->
+            <section id="albumSection" class="nav-section" style="display: none;">
+                <h2>Select an Album</h2>
+                <div id="albumsContainer" class="albums-container">
+                    <!-- 32 albums will be generated here -->
+                </div>
+            </section>
+
+            <!-- Track Selection -->
+            <section id="trackSection" class="nav-section" style="display: none;">
+                <h2>Select a Track</h2>
+                <div id="tracksContainer" class="tracks-container">
+                    <!-- 15 tracks will be generated here -->
+                </div>
+            </section>
+
+            <!-- Result Display -->
+            <section id="resultSection" class="nav-section" style="display: none;">
+                <h2>Track Details</h2>
+                <div id="resultContainer"></div>
+            </section>
+
         </main>
     </div>
 
     <!-- IMPORTANT: main.js must load FIRST to enable client-side API before browse.js makes fetch calls -->
-    <script type="module" src="./js/main.js?v=4"></script>
-    <script type="module" src="./js/browse.js?v=4"></script>
+    <script type="module" src="./js/main.js?v=5"></script>
+    <script type="module" src="./js/browse.js?v=5"></script>
     <script type="module">
         import { loadFragment } from './js/loadFragment.js';
         import { highlightActiveNav } from './js/nav.js';

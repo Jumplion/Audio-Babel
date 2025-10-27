@@ -3015,7 +3015,7 @@ function checkIncomingModuleAPI() {
 var ___getTypeName = makeInvalidEarlyAccess('___getTypeName');
 var ___cxa_free_exception = makeInvalidEarlyAccess('___cxa_free_exception');
 var _getMetadataFromBase64 = Module['_getMetadataFromBase64'] = makeInvalidEarlyAccess('_getMetadataFromBase64');
-var _malloc = Module['_malloc'] = makeInvalidEarlyAccess('_malloc');
+var _malloc = makeInvalidEarlyAccess('_malloc');
 var _reconstructAudioFromBase64 = Module['_reconstructAudioFromBase64'] = makeInvalidEarlyAccess('_reconstructAudioFromBase64');
 var _generateIndexFromSamples = Module['_generateIndexFromSamples'] = makeInvalidEarlyAccess('_generateIndexFromSamples');
 var _generateRandomIndex = Module['_generateRandomIndex'] = makeInvalidEarlyAccess('_generateRandomIndex');
@@ -3023,11 +3023,13 @@ var _validateBase64Index = Module['_validateBase64Index'] = makeInvalidEarlyAcce
 var _calculateAudioSize = Module['_calculateAudioSize'] = makeInvalidEarlyAccess('_calculateAudioSize');
 var _audioSamplesToSampleBase64 = Module['_audioSamplesToSampleBase64'] = makeInvalidEarlyAccess('_audioSamplesToSampleBase64');
 var _sampleBase64ToAudioSamples = Module['_sampleBase64ToAudioSamples'] = makeInvalidEarlyAccess('_sampleBase64ToAudioSamples');
+var _calculatePositionFromBase64 = Module['_calculatePositionFromBase64'] = makeInvalidEarlyAccess('_calculatePositionFromBase64');
+var _reconstructBase64FromPosition = Module['_reconstructBase64FromPosition'] = makeInvalidEarlyAccess('_reconstructBase64FromPosition');
+var _free = makeInvalidEarlyAccess('_free');
 var _fflush = makeInvalidEarlyAccess('_fflush');
 var _emscripten_stack_get_end = makeInvalidEarlyAccess('_emscripten_stack_get_end');
 var _emscripten_stack_get_base = makeInvalidEarlyAccess('_emscripten_stack_get_base');
 var _strerror = makeInvalidEarlyAccess('_strerror');
-var _free = Module['_free'] = makeInvalidEarlyAccess('_free');
 var _setThrew = makeInvalidEarlyAccess('_setThrew');
 var __emscripten_tempret_set = makeInvalidEarlyAccess('__emscripten_tempret_set');
 var _emscripten_stack_init = makeInvalidEarlyAccess('_emscripten_stack_init');
@@ -3053,7 +3055,7 @@ function assignWasmExports(wasmExports) {
   assert(wasmExports['getMetadataFromBase64'], 'missing Wasm export: getMetadataFromBase64');
   _getMetadataFromBase64 = Module['_getMetadataFromBase64'] = createExportWrapper('getMetadataFromBase64', 1);
   assert(wasmExports['malloc'], 'missing Wasm export: malloc');
-  _malloc = Module['_malloc'] = createExportWrapper('malloc', 1);
+  _malloc = createExportWrapper('malloc', 1);
   assert(wasmExports['reconstructAudioFromBase64'], 'missing Wasm export: reconstructAudioFromBase64');
   _reconstructAudioFromBase64 = Module['_reconstructAudioFromBase64'] = createExportWrapper('reconstructAudioFromBase64', 2);
   assert(wasmExports['generateIndexFromSamples'], 'missing Wasm export: generateIndexFromSamples');
@@ -3068,6 +3070,12 @@ function assignWasmExports(wasmExports) {
   _audioSamplesToSampleBase64 = Module['_audioSamplesToSampleBase64'] = createExportWrapper('audioSamplesToSampleBase64', 4);
   assert(wasmExports['sampleBase64ToAudioSamples'], 'missing Wasm export: sampleBase64ToAudioSamples');
   _sampleBase64ToAudioSamples = Module['_sampleBase64ToAudioSamples'] = createExportWrapper('sampleBase64ToAudioSamples', 4);
+  assert(wasmExports['calculatePositionFromBase64'], 'missing Wasm export: calculatePositionFromBase64');
+  _calculatePositionFromBase64 = Module['_calculatePositionFromBase64'] = createExportWrapper('calculatePositionFromBase64', 1);
+  assert(wasmExports['reconstructBase64FromPosition'], 'missing Wasm export: reconstructBase64FromPosition');
+  _reconstructBase64FromPosition = Module['_reconstructBase64FromPosition'] = createExportWrapper('reconstructBase64FromPosition', 5);
+  assert(wasmExports['free'], 'missing Wasm export: free');
+  _free = createExportWrapper('free', 1);
   assert(wasmExports['fflush'], 'missing Wasm export: fflush');
   _fflush = createExportWrapper('fflush', 1);
   assert(wasmExports['emscripten_stack_get_end'], 'missing Wasm export: emscripten_stack_get_end');
@@ -3076,8 +3084,6 @@ function assignWasmExports(wasmExports) {
   _emscripten_stack_get_base = wasmExports['emscripten_stack_get_base'];
   assert(wasmExports['strerror'], 'missing Wasm export: strerror');
   _strerror = createExportWrapper('strerror', 1);
-  assert(wasmExports['free'], 'missing Wasm export: free');
-  _free = Module['_free'] = createExportWrapper('free', 1);
   assert(wasmExports['setThrew'], 'missing Wasm export: setThrew');
   _setThrew = createExportWrapper('setThrew', 2);
   assert(wasmExports['_emscripten_tempret_set'], 'missing Wasm export: _emscripten_tempret_set');
@@ -3216,13 +3222,21 @@ var wasmImports = {
   /** @export */
   invoke_viiiii,
   /** @export */
+  invoke_viiiiii,
+  /** @export */
   invoke_viiiiiii,
   /** @export */
   invoke_viiiiiiiiii,
   /** @export */
   invoke_viiiiiiiiiiiiiii,
   /** @export */
+  invoke_viiji,
+  /** @export */
+  invoke_vij,
+  /** @export */
   invoke_vijii,
+  /** @export */
+  invoke_vijj,
   /** @export */
   llvm_eh_typeid_for: _llvm_eh_typeid_for
 };
@@ -3416,10 +3430,54 @@ function invoke_viiiiiii(index,a1,a2,a3,a4,a5,a6,a7) {
   }
 }
 
+function invoke_viiji(index,a1,a2,a3,a4) {
+  var sp = stackSave();
+  try {
+    getWasmTableEntry(index)(a1,a2,a3,a4);
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_vijj(index,a1,a2,a3) {
+  var sp = stackSave();
+  try {
+    getWasmTableEntry(index)(a1,a2,a3);
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_vij(index,a1,a2) {
+  var sp = stackSave();
+  try {
+    getWasmTableEntry(index)(a1,a2);
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
 function invoke_i(index) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)();
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_viiiiii(index,a1,a2,a3,a4,a5,a6) {
+  var sp = stackSave();
+  try {
+    getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6);
   } catch(e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;

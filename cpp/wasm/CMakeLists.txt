@@ -25,9 +25,6 @@ if(EMSCRIPTEN)
     # Optimization for production
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
     set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
-
-    # Export malloc and free for memory management
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sEXPORTED_FUNCTIONS=_malloc,_free")
 endif()
 
 # Include directories - use parent directory paths
@@ -51,6 +48,7 @@ set(AUDIO_INDEX_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/AudioIndex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/IndexMetadata.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/FileWriters.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/LibraryPosition.cpp
 )
 
 # WASM bindings

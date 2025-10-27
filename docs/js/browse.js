@@ -1,7 +1,13 @@
-// browse.js - client-side browsing UI for genres/artists/albums/tracks
+// browse.js - Hierarchical navigation through the Record Shop library
 import AudioIndexWASM from './audioIndexWasm.js';
 import { calculateDuration } from './audioIndex.js';
-import { bytesToBase64Chunked, textToBase64Url } from './utils.js';
+import { bytesToBase64Chunked } from './utils.js';
+
+// Library hierarchy constants (from C++)
+const TRACKS_PER_ALBUM = 15;
+const ALBUMS_PER_SHELF = 32;
+const SHELVES_PER_WALL = 5;
+const WALLS_PER_ROOM = 4;
 
 // Initialize WASM module (lazy-loaded)
 let wasmModule = null;
@@ -13,506 +19,480 @@ async function getWasmModule() {
     return wasmModule;
 }
 
-const alphabet = [];
-// order: a-z, A-Z, 0-9, -, _
-for (let i = 0; i < 26; ++i) alphabet.push(String.fromCharCode(97 + i));
-for (let i = 0; i < 26; ++i) alphabet.push(String.fromCharCode(65 + i));
-for (let i = 0; i < 10; ++i) alphabet.push(String.fromCharCode(48 + i));
-alphabet.push('-');
-alphabet.push('_');
-
-const ALPHABET_SIZE = BigInt(alphabet.length); // 64
-// browsing configuration
-// NOTE: tokens are now allowed to be arbitrarily long. We keep a soft-length cap
-// to warn users when tokens exceed a sensible length for browsing (see SOFT_LENGTH_CAP).
-const SOFT_LENGTH_CAP = 6; // soft warning threshold (old hard cap)
-let pageSize = 50; // fixed number of entries per page
-
-// (removed old tokenLength-based total function)
-
-let page = 0n; // BigInt page index (0-based)
-let filter = '';
-let currentStage = 'genre';
-const stages = ['genre', 'artist', 'album', 'track'];
-const selection = { genre: null, artist: null, album: null, track: null };
-// store last selected DOM element per stage so we can toggle CSS
-const selectedEl = { genre: null, artist: null, album: null, track: null };
-
-// Generate token for a variable-length enumeration where tokens are
-// ordered by increasing length: all length-1 tokens, then length-2, etc.
-// Enumeration is unbounded; longer tokens are supported but a soft-cap
-// will warn users when lengths exceed a sensible threshold.
-function indexToVariableToken(indexBig) {
-  // Map a 0-based integer index into the ordered variable-length tokens
-  // (all length-1 strings, then length-2, ...). This implementation no longer
-  // imposes a hard maximum length.
-  let n = BigInt(indexBig);
-  const base = ALPHABET_SIZE;
-  // find the length by subtracting counts until n fits into the current length
-  let len = 1;
-  while (true) {
-    const count = base ** BigInt(len);
-    if (n < count) break;
-    n -= count;
-    len++;
-  }
-  // now n is the local index within strings of length `len`
-  let out = '';
-  let local = n;
-  for (let i = 0; i < len; ++i) {
-    const digit = Number(local % base);
-    out = alphabet[digit] + out;
-    local = local / base;
-  }
-  return out;
-}
-
-function totalTokensBig() {
-  // unlimited token space; return `null` to indicate an infinite/unknown total.
-  return null;
-}
+// Current navigation state
+const navState = {
+    room: null,
+    wall: null,
+    shelf: null,
+    album: null,
+    track: null
+};
 
 function escapeHtml(s) {
-  if (!s) return '';
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    if (!s && s !== 0) return '';
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
-// Small DOM helper: $(id) -> element or null
 function $(id) {
-  return document.getElementById(id);
-}
-
-// If total is finite, clamp page to the last page. If total is null (infinite) return page unchanged.
-function clampPageForTotal(p) {
-  const total = totalTokensBig();
-  if (total === null) return p;
-  const totalPages = (total + BigInt(pageSize) - 1n) / BigInt(pageSize);
-  if (p < 0n) return 0n;
-  if (p >= totalPages) return totalPages - 1n;
-  return p;
-}
-
-// Create or return the softcap warning element. Keeps creation logic in one place.
-function createOrGetSoftcapWarning(container) {
-  const warnElId = 'softcapWarning';
-  let warnEl = $(warnElId);
-  if (!warnEl) {
-    warnEl = document.createElement('div');
-    warnEl.id = warnElId;
-    warnEl.style.margin = '8px 0';
-    warnEl.style.padding = '8px';
-    warnEl.style.border = '1px solid var(--muted)';
-    warnEl.style.borderRadius = '6px';
-    warnEl.style.background = 'var(--bg)';
-    warnEl.style.color = 'var(--muted)';
-    warnEl.style.display = 'none';
-    container.parentNode && container.parentNode.insertBefore(warnEl, container);
-  }
-  return warnEl;
-}
-
-function renderItems() {
-  const container = document.getElementById('itemsContainer');
-  if (!container) {
-    console.warn('browse.js: itemsContainer not found');
-    return;
-  }
-  container.innerHTML = '';
-  const total = totalTokensBig();
-  const start = page * BigInt(pageSize);
-  // when total is null the space is infinite; we'll iterate until we've
-  // rendered `pageSize` items or hit a safety attempt limit if a filter
-  // prevents matches.
-  console.debug('browse.renderItems', { page: page.toString(), pageSize, total: total === null ? 'infinite' : total.toString() });
-  let count = 0;
-  let attempts = 0n;
-  const maxAttempts = BigInt(pageSize) * 200n + 1000n; // safety when filter is restrictive
-  for (let i = start; (total ? i <= (total - 1n) : true) && count < pageSize; i = i + 1n) {
-    if (attempts > maxAttempts) break;
-    attempts++;
-    const t = indexToVariableToken(i);
-    // In non-prefix mode we may still have a filter (substring). In prefix mode, filter is the prefix and always matches.
-    if (filter && !t.toLowerCase().includes(filter.toLowerCase())) continue;
-    const btn = document.createElement('button');
-    btn.className = 'option';
-    btn.textContent = t;
-    btn.dataset.token = t;
-  btn.addEventListener('click', () => onSelectToken(t, btn));
-    // Disable items if trying to select a later stage before earlier selection
-    if (stages.indexOf(currentStage) > 0) {
-      // only enable when previous stage already selected
-      const prev = stages[stages.indexOf(currentStage) - 1];
-      if (!selection[prev]) btn.disabled = true;
-    }
-    container.appendChild(btn);
-    count++;
-  }
-  console.debug('browse.renderItems done', { rendered: count, start: start.toString(), total: total === null ? 'infinite' : total.toString() });
-  // show a soft-cap UI warning when token lengths exceed the old hard cap
-  try {
-    const longestShown = Array.from(container.querySelectorAll('button.option')).reduce((m, b) => Math.max(m, (b.textContent || '').length), 0);
-    const dismissed = localStorage.getItem('softcapWarningDismissed') === '1';
-    const warnEl = createOrGetSoftcapWarning(container);
-    if (!dismissed && longestShown > SOFT_LENGTH_CAP) {
-      warnEl.style.display = 'block';
-      warnEl.innerHTML = `Warning: some tokens exceed ${SOFT_LENGTH_CAP} characters which may make browsing slow or hard to read. <button id="dismissSoftcap" class="btn" style="margin-left:12px">Dismiss</button>`;
-      const dBtn = $('dismissSoftcap');
-      if (dBtn) dBtn.addEventListener('click', () => {
-        localStorage.setItem('softcapWarningDismissed', '1');
-        warnEl.style.display = 'none';
-      });
-    } else {
-      warnEl.style.display = 'none';
-    }
-  } catch (e) {
-    // non-fatal UI enhancement; ignore on error
-    console.error('softcap warning update failed', e);
-  }
-  updatePagerButtons();
-  updatePageInfo();
-  // keep the single manual input in-sync with the active breadcrumb/stage
-  try {
-    const mh = $('manualHeader');
-    const mi = $('manualInput');
-    if (mh) mh.textContent = `Input ${currentStage}...`;
-    if (mi) {
-      mi.value = selection[currentStage] || '';
-      mi.placeholder = `Type a ${currentStage} and press Apply`;
-    }
-  } catch (e) {
-    // non-fatal
-  }
-}
-
-function updatePagerButtons() {
-  const prev = $('prevPage');
-  const next = $('nextPage');
-  const prevTop = $('prevPageTop');
-  const nextTop = $('nextPageTop');
-  if (prev) prev.disabled = page <= 0n;
-  if (prevTop) prevTop.disabled = page <= 0n;
-  const total = totalTokensBig();
-  // if total is infinite both next buttons stay enabled; otherwise compute disabled for both
-  const nextDisabled = (total === null) ? false : (((page + 1n) * BigInt(pageSize)) >= total);
-  if (next) next.disabled = nextDisabled;
-  if (nextTop) nextTop.disabled = nextDisabled;
-  // sync page input displays
-  const pageInput = $('pageInput');
-  const pageInputTop = $('pageInputTop');
-  try {
-    const display = (page + 1n).toString();
-    if (pageInput) pageInput.value = display;
-    if (pageInputTop) pageInputTop.value = display;
-  } catch (e) {
-    // ignore
-  }
-}
-
-function updatePageInfo() {
-  const info = document.getElementById('pageInfo');
-  const infoTop = document.getElementById('pageInfoTop');
-  // only show current page number (hide total pages)
-  const text = `Page ${page + 1n}`;
-  if (info) info.textContent = text;
-  if (infoTop) infoTop.textContent = text;
-}
-
-function onSelectToken(token, btnEl) {
-  selection[currentStage] = token;
-  // toggle selected class
-  const prev = selectedEl[currentStage];
-  if (prev && prev !== btnEl) prev.classList.remove('selected');
-  if (btnEl) btnEl.classList.add('selected');
-  selectedEl[currentStage] = btnEl;
-  // advance stage if possible
-  const curIdx = stages.indexOf(currentStage);
-  if (curIdx < stages.length - 1) {
-    currentStage = stages[curIdx + 1];
-    // reset page/filter for the next stage
-    page = 0n;
-    filter = '';
-    const fi = document.getElementById('filterInput');
-    if (fi) fi.value = '';
-    // when moving forward, clear any previously selected DOM for later stages
-    stages.slice(curIdx + 1).forEach((s) => {
-      if (selectedEl[s]) {
-        selectedEl[s].classList.remove('selected');
-        selectedEl[s] = null;
-      }
-    });
-    renderItems();
-  }
-  updateBreadcrumb();
-  updateGenerateButtonState();
-  // auto-scroll to top of the items list when a selection is made
-  try {
-    // scroll back up to the top of the page instead of focusing the items list
-    if (typeof window !== 'undefined' && window.scrollTo) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  } catch (e) {
-    console.error('browse.js: scrollTo failed', e);
-  }
-}
-
-function updateBreadcrumb() {
-  const nav = document.getElementById('breadcrumb');
-  nav.innerHTML = '';
-  stages.forEach((s, idx) => {
-    const span = document.createElement('span');
-    span.style.marginRight = '8px';
-    if (selection[s]) {
-      const a = document.createElement('a');
-      a.href = '#';
-      a.textContent = selection[s];
-      // highlight the crumb if it's the current stage
-      if (s === currentStage) a.classList.add('active-stage');
-      a.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        // go back to this stage and clear later selections
-        currentStage = s;
-        stages.slice(idx + 1).forEach((later) => (selection[later] = null));
-        // clear selected classes for later stages
-        stages.slice(idx + 1).forEach((later) => {
-          if (selectedEl[later]) {
-            selectedEl[later].classList.remove('selected');
-            selectedEl[later] = null;
-          }
-        });
-  updateBreadcrumb();
-  page = 0n;
-        renderItems();
-        updateGenerateButtonState();
-      });
-      span.appendChild(a);
-    } else {
-      const txt = document.createElement('span');
-      txt.textContent = s;
-      txt.className = 'crumb-inactive';
-      span.appendChild(txt);
-    }
-    nav.appendChild(span);
-    if (idx < stages.length - 1) {
-      const sep = document.createElement('span');
-      sep.textContent = '›';
-      sep.style.marginRight = '8px';
-      nav.appendChild(sep);
-    }
-  });
-}
-
-function updateGenerateButtonState() {
-  const btn = document.getElementById('generateBtn');
-  const allSelected = stages.every((s) => !!selection[s]);
-  btn.disabled = !allSelected;
-  const status = document.getElementById('statusMsg');
-  if (!allSelected) {
-    const next = stages.find((s) => !selection[s]);
-    status.textContent = `Select ${next}`;
-  } else {
-    status.textContent = 'Ready to generate';
-  }
-}
-
-function init() {
-  const fi = document.getElementById('filterInput');
-  if (fi) {
-    fi.addEventListener('input', (e) => {
-      filter = e.target.value || '';
-      page = 0n;
-      renderItems();
-    });
-  }
-  // wire controls (uses helper to reduce duplication between top/bottom controls)
-  function addPageControls({ prevId, nextId, goId, inputId, allowInfiniteNext }) {
-    const prev = $(prevId);
-    const next = $(nextId);
-    const input = $(inputId);
-    const go = $(goId);
-    if (prev) prev.addEventListener('click', () => { if (page > 0n) { page = page - 1n; renderItems(); } });
-    if (next) next.addEventListener('click', () => {
-      const total = totalTokensBig();
-      if (total === null && allowInfiniteNext) { page = page + 1n; }
-      else if (total !== null) {
-        const nextStart = (page + 1n) * BigInt(pageSize);
-        if (nextStart < total) page = page + 1n;
-      }
-      renderItems();
-    });
-    if (go && input) {
-      go.addEventListener('click', () => {
-        const v = input.value && input.value.trim();
-        if (!v) return;
-        try {
-          const pn = BigInt(v);
-          if (pn <= 0n) return;
-          const target = pn - 1n;
-          page = clampPageForTotal(target);
-          renderItems();
-        } catch (e) {
-          // invalid input; ignore
-        }
-      });
-    }
-  }
-
-  addPageControls({ prevId: 'prevPage', nextId: 'nextPage', goId: 'goPage', inputId: 'pageInput', allowInfiniteNext: true });
-  addPageControls({ prevId: 'prevPageTop', nextId: 'nextPageTop', goId: 'goPageTop', inputId: 'pageInputTop', allowInfiniteNext: true });
-  // pageSize is fixed at 50 per design
-  const genBtn = document.getElementById('generateBtn');
-  if (genBtn) genBtn.addEventListener('click', generateWav);
-  // wire single context-aware manual input
-  const applyManual = $('applyManual');
-  const clearManual = $('clearManual');
-  const manualInput = $('manualInput');
-  const manualHeader = $('manualHeader');
-  function refreshManualUI() {
-    if (manualHeader) manualHeader.textContent = `Input ${currentStage}...`;
-    if (manualInput) manualInput.value = selection[currentStage] || '';
-    if (manualInput) manualInput.placeholder = `Type a ${currentStage} and press Apply`;
-  }
-  if (applyManual) applyManual.addEventListener('click', () => {
-    if (!manualInput) return;
-    const v = manualInput.value && manualInput.value.trim();
-    if (!v) return;
-    // set only the current stage, clear later stages, and advance
-    selection[currentStage] = v;
-    const curIdx = stages.indexOf(currentStage);
-    // clear later selections and UI
-    stages.slice(curIdx + 1).forEach((s) => { selection[s] = null; if (selectedEl[s]) { selectedEl[s].classList.remove('selected'); selectedEl[s] = null; } });
-    // update breadcrumb and state
-    updateBreadcrumb();
-    updateGenerateButtonState();
-    // advance to next stage if any
-    if (curIdx < stages.length - 1) {
-      currentStage = stages[curIdx + 1];
-    }
-    page = 0n;
-    renderItems();
-    refreshManualUI();
-  });
-  // Enter-key on manual input should act like Apply
-  if (manualInput) {
-    manualInput.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') {
-        ev.preventDefault();
-        if (applyManual) applyManual.click();
-      }
-    });
-  }
-  if (clearManual) clearManual.addEventListener('click', () => {
-    // clear current and later stages
-    const curIdx = stages.indexOf(currentStage);
-    stages.slice(curIdx).forEach((s) => { selection[s] = null; if (selectedEl[s]) { selectedEl[s].classList.remove('selected'); selectedEl[s] = null; } });
-    if (manualInput) manualInput.value = '';
-    updateBreadcrumb();
-    updateGenerateButtonState();
-    page = 0n;
-    renderItems();
-    refreshManualUI();
-  });
-  updateBreadcrumb();
-  try { renderItems(); } catch (e) { console.error('browse.js: renderItems failed', e); }
-  // initialize manual UI state
-  try { refreshManualUI(); } catch (e) { /* ignore */ }
-  // ensure the generate button reflects current selections on load
-  try { updateGenerateButtonState(); } catch (e) { console.error('browse.js: updateGenerateButtonState failed', e); }
+    return document.getElementById(id);
 }
 
 /**
- * Generates a WAV file from selected metadata tokens.
- * Constructs a deterministic index from genre|artist|album|track,
- * uses WASM to decode and create audio, then displays the result.
+ * Update the breadcrumb navigation
  */
-async function generateWav() {
-  const btn = document.getElementById('generateBtn');
-  btn.disabled = true;
-  const status = document.getElementById('statusMsg');
-  status.textContent = 'Generating...';
-  try {
-    // Construct a text payload from selected tokens (pipe-separated)
-    const text = `${selection.genre}|${selection.artist}|${selection.album}|${selection.track}`;
-    const b64url = textToBase64Url(text);
-
-    // Use WASM to decode the index into audio samples
-    const wasm = await getWasmModule();
-    const pcmData = wasm.decodeFromSampleBase64(b64url, 44100, 1);
+function updateBreadcrumb() {
+    const nav = $('breadcrumb');
+    if (!nav) return;
     
-    // Calculate duration
-    const duration = calculateDuration(pcmData.length, 44100, 16, 1);
+    nav.innerHTML = '';
     
-    // Create metadata for display
-    const metadata = {
-      genre: selection.genre,
-      artist: selection.artist,
-      album: selection.album,
-      track: selection.track,
-      cover: '' // No cover for browse-generated audio
-    };
+    const parts = [];
     
-    // Generate WAV blob for playback
-    const wavBlob = wasm.samplesToWav(pcmData, 44100, 16, 1);
-    const wavArrayBuffer = await wavBlob.arrayBuffer();
-    const wavBytes = new Uint8Array(wavArrayBuffer);
-    const wavBase64 = bytesToBase64Chunked(wavBytes);
-
-    // Display results
-    const rc = document.getElementById('resultContainer');
-    rc.innerHTML = '';
-
-    // Metadata display
-    const metaDiv = document.createElement('div');
-    metaDiv.style.display = 'inline-block';
-    metaDiv.style.verticalAlign = 'top';
-    metaDiv.innerHTML = `
-        <div style="font-weight:700">${escapeHtml(metadata.track)}</div>
-        <div style="color:var(--muted)">${escapeHtml(metadata.artist)} — ${escapeHtml(metadata.album)}</div>
-        <div style="margin-top:6px; color:var(--muted); font-size:13px">genre: ${escapeHtml(metadata.genre)}</div>
-        <div style="margin-top:6px; color:var(--muted); font-size:13px">duration: ${duration.toFixed(2)}s</div>
-      `;
-    rc.appendChild(metaDiv);
-
-    // Audio player
-    const byteChars = atob(wavBase64);
-    const len = byteChars.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; ++i) bytes[i] = byteChars.charCodeAt(i);
-    const blob = new Blob([bytes], { type: 'audio/wav' });
-    const url = URL.createObjectURL(blob);
-
-    const audio = document.createElement('audio');
-    audio.controls = true;
-    audio.src = url;
-    audio.style.display = 'block';
-    audio.style.marginTop = '12px';
-    rc.appendChild(audio);
-
-    // Download link
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${metadata.genre}_${metadata.artist}_${metadata.album}_${metadata.track}.wav`;
-    a.textContent = 'Download .wav';
-    a.style.display = 'inline-block';
-    a.style.marginLeft = '12px';
-    a.className = 'btn';
-    rc.appendChild(a);
-
-    status.textContent = 'Generated';
-  } catch (err) {
-    console.error(err);
-    status.textContent = 'Generation failed: ' + (err && err.message ? err.message : String(err));
-  } finally {
-    btn.disabled = false;
-  }
+    if (navState.room !== null) {
+        const link = document.createElement('a');
+        link.href = '#';
+        link.textContent = `Room ${navState.room}`;
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            goToRoom();
+        });
+        parts.push(link);
+    }
+    
+    if (navState.wall !== null) {
+        const link = document.createElement('a');
+        link.href = '#';
+        link.textContent = `Wall ${navState.wall}`;
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            goToWall();
+        });
+        parts.push(link);
+    }
+    
+    if (navState.shelf !== null) {
+        const link = document.createElement('a');
+        link.href = '#';
+        link.textContent = `Shelf ${navState.shelf}`;
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            goToShelf();
+        });
+        parts.push(link);
+    }
+    
+    if (navState.album !== null) {
+        const link = document.createElement('a');
+        link.href = '#';
+        link.textContent = `Album ${navState.album}`;
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            goToAlbum();
+        });
+        parts.push(link);
+    }
+    
+    if (navState.track !== null) {
+        const span = document.createElement('span');
+        span.textContent = `Track ${navState.track}`;
+        span.style.fontWeight = '600';
+        parts.push(span);
+    }
+    
+    parts.forEach((part, i) => {
+        nav.appendChild(part);
+        if (i < parts.length - 1) {
+            const sep = document.createElement('span');
+            sep.textContent = ' › ';
+            sep.style.margin = '0 8px';
+            sep.style.color = 'var(--muted)';
+            nav.appendChild(sep);
+        }
+    });
 }
 
-console.info('browse.js loaded');
+/**
+ * Show only the specified section
+ */
+function showSection(sectionId) {
+    const sections = ['roomSection', 'wallSection', 'shelfSection', 'albumSection', 'trackSection', 'resultSection'];
+    sections.forEach(id => {
+        const el = $(id);
+        if (el) el.style.display = (id === sectionId) ? 'block' : 'none';
+    });
+}
+
+/**
+ * Navigate to room selection
+ */
+function goToRoom() {
+    navState.wall = null;
+    navState.shelf = null;
+    navState.album = null;
+    navState.track = null;
+    
+    showSection('roomSection');
+    showSection('wallSection');
+    updateBreadcrumb();
+}
+
+/**
+ * Navigate to wall selection
+ */
+function goToWall() {
+    navState.shelf = null;
+    navState.album = null;
+    navState.track = null;
+    
+    showSection('wallSection');
+    updateBreadcrumb();
+}
+
+/**
+ * Navigate to shelf selection
+ */
+function goToShelf() {
+    navState.album = null;
+    navState.track = null;
+    
+    showSection('shelfSection');
+    renderShelves();
+    updateBreadcrumb();
+}
+
+/**
+ * Navigate to album selection
+ */
+function goToAlbum() {
+    navState.track = null;
+    
+    showSection('albumSection');
+    renderAlbums();
+    updateBreadcrumb();
+}
+
+/**
+ * Enter a room
+ */
+function enterRoom() {
+    const input = $('roomInput');
+    if (!input) return;
+    
+    const roomNum = input.value.trim();
+    if (roomNum === '') return;
+    
+    try {
+        const room = BigInt(roomNum);
+        if (room < 0n) {
+            alert('Room number must be 0 or greater');
+            return;
+        }
+        
+        navState.room = room;
+        navState.wall = null;
+        navState.shelf = null;
+        navState.album = null;
+        navState.track = null;
+        
+        showSection('wallSection');
+        updateBreadcrumb();
+    } catch (e) {
+        alert('Invalid room number');
+    }
+}
+
+/**
+ * Select a wall
+ */
+function selectWall(wallNum) {
+    if (navState.room === null) return;
+    
+    navState.wall = wallNum;
+    navState.shelf = null;
+    navState.album = null;
+    navState.track = null;
+    
+    showSection('shelfSection');
+    renderShelves();
+    updateBreadcrumb();
+}
+
+/**
+ * Render the shelves for the current wall
+ */
+function renderShelves() {
+    const container = $('shelvesContainer');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    for (let i = 0; i < SHELVES_PER_WALL; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'shelf-btn';
+        btn.textContent = `Shelf ${i}`;
+        btn.addEventListener('click', () => selectShelf(i));
+        container.appendChild(btn);
+    }
+}
+
+/**
+ * Select a shelf
+ */
+function selectShelf(shelfNum) {
+    if (navState.room === null || navState.wall === null) return;
+    
+    navState.shelf = shelfNum;
+    navState.album = null;
+    navState.track = null;
+    
+    showSection('albumSection');
+    renderAlbums();
+    updateBreadcrumb();
+}
+
+/**
+ * Render the albums for the current shelf
+ */
+function renderAlbums() {
+    const container = $('albumsContainer');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    for (let i = 0; i < ALBUMS_PER_SHELF; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'album-btn';
+        btn.textContent = `Album ${i}`;
+        btn.addEventListener('click', () => selectAlbum(i));
+        container.appendChild(btn);
+    }
+}
+
+/**
+ * Select an album
+ */
+function selectAlbum(albumNum) {
+    if (navState.room === null || navState.wall === null || navState.shelf === null) return;
+    
+    navState.album = albumNum;
+    navState.track = null;
+    
+    showSection('trackSection');
+    renderTracks();
+    updateBreadcrumb();
+}
+
+/**
+ * Render the tracks for the current album
+ */
+function renderTracks() {
+    const container = $('tracksContainer');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    for (let i = 0; i < TRACKS_PER_ALBUM; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'track-btn';
+        btn.textContent = `Track ${i}`;
+        btn.addEventListener('click', () => selectTrack(i));
+        container.appendChild(btn);
+    }
+}
+
+/**
+ * Select a track and display the result
+ */
+async function selectTrack(trackNum) {
+    if (navState.room === null || navState.wall === null || 
+        navState.shelf === null || navState.album === null) return;
+    
+    navState.track = trackNum;
+    
+    showSection('resultSection');
+    updateBreadcrumb();
+    
+    await generateAndDisplayTrack();
+}
+
+/**
+ * Generate and display the selected track
+ */
+async function generateAndDisplayTrack() {
+    const container = $('resultContainer');
+    if (!container) return;
+    
+    container.innerHTML = '<p>Generating track...</p>';
+    
+    try {
+        // Get WASM module
+        const wasm = await getWasmModule();
+        
+        // Reconstruct base64 index from position using WASM
+        const base64Index = wasm.module.reconstructIndex(
+            navState.room.toString(),
+            navState.wall,
+            navState.shelf,
+            navState.album,
+            navState.track
+        );
+        
+        if (!base64Index || base64Index.startsWith('error:')) {
+            throw new Error(base64Index || 'Failed to reconstruct index');
+        }
+        
+        // Get metadata from WASM
+        const metadataJson = wasm.module.getMetadata(base64Index);
+        const metadata = JSON.parse(metadataJson);
+        
+        if (metadata.error) {
+            throw new Error(metadata.error);
+        }
+        
+        // Decode audio from index
+        const pcmData = wasm.decodeFromIndex(base64Index);
+        
+        // Calculate duration
+        const duration = calculateDuration(pcmData.length, 44100, 16, 1);
+        
+        // Generate WAV blob
+        const wavBlob = wasm.samplesToWav(pcmData, 44100, 16, 1);
+        const wavArrayBuffer = await wavBlob.arrayBuffer();
+        const wavBytes = new Uint8Array(wavArrayBuffer);
+        const wavBase64 = bytesToBase64Chunked(wavBytes);
+        
+        // Display results
+        container.innerHTML = '';
+        
+        // Position info
+        const posInfo = document.createElement('div');
+        posInfo.style.marginBottom = '16px';
+        posInfo.style.padding = '12px';
+        posInfo.style.background = 'rgba(30, 36, 51, 0.4)';
+        posInfo.style.borderRadius = '8px';
+        posInfo.innerHTML = `
+            <div style="font-size:13px; color:var(--muted); margin-bottom:8px">
+                <strong>Position:</strong> Room ${escapeHtml(navState.room)}, Wall ${navState.wall}, Shelf ${navState.shelf}, Album ${navState.album}, Track ${navState.track}
+            </div>
+            <div style="font-size:13px; color:var(--muted)">
+                <strong>Index:</strong> ${escapeHtml(base64Index.substring(0, 50))}${base64Index.length > 50 ? '...' : ''}
+            </div>
+        `;
+        container.appendChild(posInfo);
+        
+        // Cover and metadata
+        const metaContainer = document.createElement('div');
+        metaContainer.style.display = 'flex';
+        metaContainer.style.gap = '16px';
+        metaContainer.style.marginBottom = '16px';
+        metaContainer.style.alignItems = 'flex-start';
+        
+        // Cover
+        if (metadata.cover) {
+            const coverDiv = document.createElement('div');
+            coverDiv.innerHTML = metadata.cover;
+            coverDiv.style.flexShrink = '0';
+            const svg = coverDiv.querySelector('svg');
+            if (svg) {
+                svg.style.width = '128px';
+                svg.style.height = '128px';
+                svg.style.borderRadius = '6px';
+            }
+            metaContainer.appendChild(coverDiv);
+        }
+        
+        // Metadata
+        const metaDiv = document.createElement('div');
+        metaDiv.innerHTML = `
+            <div style="font-weight:700; font-size:18px; margin-bottom:6px">${escapeHtml(metadata.track)}</div>
+            <div style="color:var(--muted); margin-bottom:4px">${escapeHtml(metadata.artist)}</div>
+            <div style="color:var(--muted); font-size:14px; margin-bottom:4px">${escapeHtml(metadata.album)}</div>
+            <div style="color:var(--muted); font-size:13px">Genre: ${escapeHtml(metadata.genre)}</div>
+            <div style="color:var(--muted); font-size:13px; margin-top:6px">Duration: ${duration.toFixed(2)}s</div>
+        `;
+        metaContainer.appendChild(metaDiv);
+        
+        container.appendChild(metaContainer);
+        
+        // Audio player
+        const byteChars = atob(wavBase64);
+        const len = byteChars.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; ++i) bytes[i] = byteChars.charCodeAt(i);
+        const blob = new Blob([bytes], { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
+        
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.src = url;
+        audio.style.display = 'block';
+        audio.style.marginBottom = '12px';
+        audio.style.width = '100%';
+        container.appendChild(audio);
+        
+        // Download link
+        const downloadBtn = document.createElement('a');
+        downloadBtn.href = url;
+        downloadBtn.download = `track_${navState.room}_${navState.wall}_${navState.shelf}_${navState.album}_${navState.track}.wav`;
+        downloadBtn.textContent = 'Download .wav';
+        downloadBtn.className = 'btn';
+        downloadBtn.style.display = 'inline-block';
+        container.appendChild(downloadBtn);
+        
+    } catch (err) {
+        console.error('Error generating track:', err);
+        container.innerHTML = `<p style="color:var(--error)">Error: ${escapeHtml(err.message || String(err))}</p>`;
+    }
+}
+
+/**
+ * Initialize the page
+ */
+function init() {
+    // Room input
+    const roomInput = $('roomInput');
+    const enterRoomBtn = $('enterRoomBtn');
+    
+    if (enterRoomBtn) {
+        enterRoomBtn.addEventListener('click', enterRoom);
+    }
+    
+    if (roomInput) {
+        roomInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                enterRoom();
+            }
+        });
+    }
+    
+    // Wall selection (SVG hexagon)
+    const walls = document.querySelectorAll('.wall');
+    walls.forEach(wall => {
+        const wallNum = parseInt(wall.dataset.wall);
+        wall.addEventListener('click', () => selectWall(wallNum));
+        wall.addEventListener('mouseenter', () => wall.classList.add('hover'));
+        wall.addEventListener('mouseleave', () => wall.classList.remove('hover'));
+    });
+    
+    // Initialize breadcrumb
+    updateBreadcrumb();
+    
+    // Show room section by default
+    showSection('roomSection');
+}
+
+console.info('browse.js (hierarchical) loaded');
 document.addEventListener('DOMContentLoaded', () => {
-  console.info('browse.js DOMContentLoaded');
-  try { init(); } catch (e) { console.error('browse.init error', e); }
+    console.info('browse.js DOMContentLoaded');
+    try {
+        init();
+    } catch (e) {
+        console.error('browse.init error', e);
+    }
 });

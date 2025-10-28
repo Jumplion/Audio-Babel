@@ -299,12 +299,9 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
     }
 
     /**
-     * Build pcm_int (our index) by concatenating samples and appending the header.
-     * The byte layout is assumed as follows:
-     *      Index = [PCM_payload (Samples)] [16-byte Header]
-     *
-     * To construct the PCM portion efficiently we assemble a MSB-first byte
-     * buffer and call boost::multiprecision::import_bits with the MSB flag set.
+     * Build index from PCM samples only - NO header embedding
+     * The index is just the raw PCM data as a big integer
+     * Headers are applied only when creating WAV files
     */
     size_t  bytes_per_sample = audioData.bit_rate / BITS_PER_BYTE;
     size_t  total_samples    = audioData.num_frames * audioData.num_channels;
@@ -332,60 +329,20 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
     auto t1_import               = std::chrono::steady_clock::now();
     lastDebug.audioDataToIndexMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(t1_import - t0_import).count());
 
-    // Build explicit header bytes (big-endian):
-    //      u32 sample_rate, u16 bit_depth, u16 num_channels, u64 num_frames
-    // The header is appended at the end (into the least-significant HEADER_BYTES_CONST bytes) so
-    // we can extract it by masking the low bits.
-    std::vector<uint8_t> header_buf;
-    header_buf.reserve(HEADER_BYTES_CONST);
-
-    push_be<uint32_t>(header_buf, audioData.sample_rate);
-    push_be<uint16_t>(header_buf, audioData.bit_rate);
-    push_be<uint16_t>(header_buf, audioData.num_channels);
-    push_be<uint64_t>(header_buf, audioData.num_frames);
-
-    // Convert header_buf to cpp_int (big-endian bytes)
-    cpp_int header_int = bytes_to_cpp_int_be(header_buf);
-
-    // Combine: shift pcm_int left by header_bits and OR header_int
-    size_t  header_bits = HEADER_BYTES_CONST * BITS_PER_BYTE;
-    cpp_int idx         = (pcm_int << header_bits) | header_int;
-    return idx;
+    // Return PCM data as the index - no header embedding
+    return pcm_int;
 }
 
 auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -> AudioIndex::AudioData {
-    const size_t HEADER_BITS = HEADER_BYTES_CONST * BITS_PER_BYTE;
-
-    // Extract header_int from the last HEADER_BITS of the index
-    cpp_int mask       = (cpp_int(1) << HEADER_BITS) - 1;
-    cpp_int header_int = index & mask;
-    cpp_int pcm_int    = index >> HEADER_BITS;
-
-    // Convert header to bytes (big-endian)
-    std::vector<uint8_t> header_buf(HEADER_BYTES_CONST);
-    cpp_int              tmp = header_int;
-    for (int headerIndex = static_cast<int>(HEADER_BYTES_CONST) - 1; headerIndex >= 0; --headerIndex) {
-        uint8_t byte            = static_cast<uint8_t>(static_cast<uint64_t>(tmp & BYTE_MASK));
-        header_buf[headerIndex] = byte;
-        tmp >>= BITS_PER_BYTE;
-    }
-
-    // Parse fields from header_buf (big-endian)
-    uint32_t sample_rate = (static_cast<uint32_t>(header_buf[0]) << 24) | (static_cast<uint32_t>(header_buf[1]) << 16) |
-                           (static_cast<uint32_t>(header_buf[2]) << 8) | static_cast<uint32_t>(header_buf[3]);
-    auto     bit_depth    = static_cast<uint16_t>((static_cast<uint16_t>(header_buf[4]) << 8) | static_cast<uint16_t>(header_buf[5]));
-    auto     num_channels = static_cast<uint16_t>((static_cast<uint16_t>(header_buf[6]) << 8) | static_cast<uint16_t>(header_buf[7]));
-    uint64_t num_frames   = 0;
-    for (int i = 0; i < 8; ++i) {
-        num_frames = (num_frames << BITS_PER_BYTE) | header_buf[8 + i];
-    }
-
-    if (!isBitDepthSupported(bit_depth)) {
-        std::ostringstream ss;
-        ss << "Unsupported bit depth in indexToAudioData: " << bit_depth << " sample_rate=" << sample_rate << " num_channels=" << num_channels
-           << " num_frames=" << num_frames;
-        throw std::runtime_error(ss.str());
-    }
+    // Treat ALL indexes as raw PCM data without embedded headers
+    // Headers are only applied when creating WAV files, not stored in the index
+    
+    // Use default audio parameters for all reconstructions
+    uint32_t sample_rate  = 44100;  // Default sample rate
+    uint16_t bit_depth    = 16;     // Default bit depth  
+    uint16_t num_channels = 1;      // Default mono
+    uint64_t num_frames   = 0;      // Will be inferred from data
+    cpp_int  pcm_int      = index;  // Entire index is PCM data
 
     // Compute number of samples
     size_t                bytes_per_sample = bit_depth / BITS_PER_BYTE;
@@ -481,121 +438,6 @@ void AudioIndex::exportAudioDataToWav(const AudioData& audioData, const std::str
 
 void AudioIndex::writeIndexToFile(const boost::multiprecision::cpp_int& index, const std::string& outDir, const std::string& filename) {
     FileWriters::writeIndexToFile(index, outDir, filename);
-}
-
-// ---------------------------------------------------------------------------
-// Alternate Index Format: Sample-based Base64 encoding
-// ---------------------------------------------------------------------------
-
-auto AudioIndex::audioDataToSampleBase64(const AudioIndex::AudioData& audioData) -> std::string {
-    // Validate that we have 16-bit audio
-    if (audioData.bit_rate != 16) {
-        std::ostringstream ss;
-        ss << "audioDataToSampleBase64 requires 16-bit audio, got " << audioData.bit_rate << " bits";
-        throw std::runtime_error(ss.str());
-    }
-
-    const size_t bytes_per_sample = 2; // 16 bits = 2 bytes
-    const size_t total_samples    = audioData.num_frames * audioData.num_channels;
-
-    if (audioData.samples.size() != total_samples * bytes_per_sample) {
-        std::ostringstream ss;
-        ss << "Sample buffer size mismatch: expected " << (total_samples * bytes_per_sample) << " bytes, got " << audioData.samples.size();
-        throw std::runtime_error(ss.str());
-    }
-
-    // Each 16-bit sample will be encoded as 3 base64 characters
-    // 16-bit range: 0-65,535
-    // Base64 capacity: 64^3 = 262,144 (sufficient for all 16-bit values)
-    std::string result;
-    result.reserve(total_samples * 3); // 3 base64 chars per sample
-
-    const char*        b64_alpha = Utilities::BASE64_URL_ALPHA;
-    constexpr uint16_t BASE      = 64;
-    constexpr uint16_t BASE_SQ   = BASE * BASE; // 4096
-
-    for (size_t i = 0; i < total_samples; ++i) {
-        // Read 16-bit sample from little-endian byte array
-        size_t   offset    = i * bytes_per_sample;
-        uint16_t sample_le = static_cast<uint16_t>(audioData.samples[offset]) | (static_cast<uint16_t>(audioData.samples[offset + 1]) << 8);
-
-        // Treat as unsigned 16-bit value (0-65535)
-        uint16_t value = sample_le;
-
-        // Convert to base-64 representation with 3 digits (most to least significant)
-        // Similar to converting a decimal number to hexadecimal, but using base 64
-        uint16_t digit0 = value / BASE_SQ;          // Most significant digit
-        uint16_t digit1 = (value % BASE_SQ) / BASE; // Middle digit
-        uint16_t digit2 = value % BASE;             // Least significant digit
-
-        result.push_back(b64_alpha[digit0]);
-        result.push_back(b64_alpha[digit1]);
-        result.push_back(b64_alpha[digit2]);
-    }
-
-    return result;
-}
-
-auto AudioIndex::sampleBase64ToAudioData(const std::string& base64String, uint32_t sampleRate, uint16_t numChannels) -> AudioIndex::AudioData {
-    // Validate input length (must be divisible by 3)
-    if (base64String.length() % 3 != 0) {
-        std::ostringstream ss;
-        ss << "Invalid base64 string length: " << base64String.length() << " (must be divisible by 3)";
-        throw std::invalid_argument(ss.str());
-    }
-
-    // Validate that all characters are valid base64
-    if (!Utilities::isValidBase64Url(base64String)) {
-        throw std::invalid_argument("Invalid base64 characters in input string");
-    }
-
-    // Build reverse lookup table for base64 decoding
-    static const std::array<int8_t, 256> rev = []() {
-        std::array<int8_t, 256> table{};
-        table.fill(-1);
-        const char* alpha = Utilities::BASE64_URL_ALPHA;
-        for (size_t i = 0; i < 64; ++i) {
-            table[static_cast<unsigned char>(alpha[i])] = static_cast<int8_t>(i);
-        }
-        return table;
-    }();
-
-    const size_t total_samples    = base64String.length() / 3;
-    const size_t bytes_per_sample = 2; // 16-bit = 2 bytes
-
-    constexpr uint16_t BASE    = 64;
-    constexpr uint16_t BASE_SQ = BASE * BASE; // 4096
-
-    AudioData audioData{};
-    audioData.sample_rate  = sampleRate;
-    audioData.bit_rate     = 16;
-    audioData.num_channels = numChannels;
-    audioData.audio_format = PCM_FORMAT_CODE;
-    audioData.num_frames   = total_samples / numChannels;
-    audioData.samples.resize(total_samples * bytes_per_sample);
-
-    for (size_t i = 0; i < total_samples; ++i) {
-        size_t base64_offset = i * 3;
-
-        // Decode 3 base64 characters back to 16-bit value
-        int8_t digit0 = rev[static_cast<unsigned char>(base64String[base64_offset])];     // Most significant
-        int8_t digit1 = rev[static_cast<unsigned char>(base64String[base64_offset + 1])]; // Middle
-        int8_t digit2 = rev[static_cast<unsigned char>(base64String[base64_offset + 2])]; // Least significant
-
-        if (digit0 < 0 || digit1 < 0 || digit2 < 0) {
-            throw std::invalid_argument("Invalid base64 character encountered during decoding");
-        }
-
-        // Convert from base-64 to decimal: value = digit0*64^2 + digit1*64 + digit2
-        uint16_t value = static_cast<uint16_t>(digit0) * BASE_SQ + static_cast<uint16_t>(digit1) * BASE + static_cast<uint16_t>(digit2);
-
-        // Write as little-endian bytes
-        size_t sample_offset                 = i * bytes_per_sample;
-        audioData.samples[sample_offset]     = static_cast<uint8_t>(value & 0xFF);
-        audioData.samples[sample_offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
-    }
-
-    return audioData;
 }
 
 } // namespace AudioBabel

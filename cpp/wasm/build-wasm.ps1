@@ -29,7 +29,7 @@ catch {
 # Directories
 $wasmDir = $PSScriptRoot
 $buildDir = Join-Path $wasmDir "build"
-$outputDir = Join-Path $PSScriptRoot "..\..\audio-babel-record-store\public\wasm"
+$outputDir = Join-Path $PSScriptRoot "..\..\docs\wasm"
 
 # Clean if requested
 if ($Clean) {

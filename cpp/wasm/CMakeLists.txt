@@ -74,33 +74,23 @@ set_target_properties(audio-index PROPERTIES
     OUTPUT_NAME "audio-index"
 )
 
-# Define output directories for copying
-set(WASM_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../audio-babel-record-store/public/wasm")
+# Define output directory for copying
 set(DOCS_WASM_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../docs/wasm")
 
-# Copy .wasm and .js files to output directories after build
+# Copy .wasm and .js files to output directory after build
 if(EMSCRIPTEN)
-    # Create output directories if they don't exist
-    file(MAKE_DIRECTORY "${WASM_OUTPUT_DIR}")
+    # Create output directory if it doesn't exist
     file(MAKE_DIRECTORY "${DOCS_WASM_OUTPUT_DIR}")
 
-    # Copy files to both locations after build
+    # Copy files to docs folder after build
     add_custom_command(TARGET audio-index POST_BUILD
-        # Copy to audio-babel-record-store
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_BINARY_DIR}/audio-index.wasm"
-        "${WASM_OUTPUT_DIR}/audio-index.wasm"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_BINARY_DIR}/audio-index.js"
-        "${WASM_OUTPUT_DIR}/audio-index.js"
-        # Copy to docs folder
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_BINARY_DIR}/audio-index.wasm"
         "${DOCS_WASM_OUTPUT_DIR}/audio-index.wasm"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_BINARY_DIR}/audio-index.js"
         "${DOCS_WASM_OUTPUT_DIR}/audio-index.js"
-        COMMENT "Copying WASM files to ${WASM_OUTPUT_DIR} and ${DOCS_WASM_OUTPUT_DIR}"
+        COMMENT "Copying WASM files to ${DOCS_WASM_OUTPUT_DIR}"
         VERBATIM
     )
 endif()

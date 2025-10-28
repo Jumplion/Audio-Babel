@@ -123,28 +123,28 @@ export function createRecorder({ recordPlayer, recordStatus, recordDurationEl, u
       const wavBlob = await convertWebMToWav(recordedBlob);
       const file = new File([wavBlob], 'recording.wav', { type: 'audio/wav' });
       
-      // Use WASM for sample-based format (only format supported)
+      // Use WASM to generate audio index
       const wasm = await getWasmModule();
       
       // Read WAV file and parse using shared utility
       const arrayBuffer = await file.arrayBuffer();
       const { pcmData, sampleRate, numChannels } = parseWavFile(arrayBuffer);
       
-      // Encode to sample-based base64 using WASM
-      const sampleBase64 = wasm.encodeToSampleBase64(pcmData, sampleRate, numChannels);
+      // Generate audio index from PCM data using WASM
+      const audioIndex = wasm.generateIndex(pcmData, sampleRate, 16, numChannels);
       
       // Calculate duration
       const duration = calculateDuration(pcmData.length, sampleRate, 16, numChannels);
       
       // Create result object
       const result = {
-        indexBase64: sampleBase64,
+        indexBase64: audioIndex,
         metadata: {
           genre: 'recorded',
           artist: 'microphone',
           album: `${duration.toFixed(2)}s`,
-          track: `${(sampleBase64.length / 1024).toFixed(2)} KB`,
-          cover: '' // No cover for sample-based
+          track: `${(audioIndex.length / 1024).toFixed(2)} KB`,
+          cover: ''
         },
         sampleRate: sampleRate,
         numChannels: numChannels,

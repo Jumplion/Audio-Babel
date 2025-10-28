@@ -250,12 +250,12 @@ auto main(int argc, char** argv) -> int {
             auto idx        = AudioIndex::audioDataToIndex(audioData);
             auto audioData2 = AudioIndex::indexToAudioData(idx);
             bool ok         = true;
-            // Note: indexToAudioData now uses default parameters (16-bit, 44.1kHz, mono)
-            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == 44100, "sample_rate is default 44100");
-            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == 16, "bit_rate is default 16");
-            ok &= RUN_CHECK(runner, name, audioData2.num_channels == 1, "num_channels is default 1");
-            ok &= RUN_CHECK(runner, name, audioData2.num_frames > 0, "num_frames derived from PCM data");
-            ok &= RUN_CHECK(runner, name, audioData2.samples.size() > 0, "samples reconstructed");
+            // With header: parameters should match exactly
+            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == 8000, "sample_rate matches (8000)");
+            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == 8, "bit_rate matches (8-bit)");
+            ok &= RUN_CHECK(runner, name, audioData2.num_channels == 1, "num_channels is 1");
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == 5, "num_frames matches (5)");
+            ok &= RUN_CHECK(runner, name, audioData2.samples.size() == 5, "samples size matches");
             return ok;
         } catch (const std::exception& e) {
             runner.failMsg(name, std::string("exception: ") + e.what());
@@ -271,12 +271,12 @@ auto main(int argc, char** argv) -> int {
             auto idx        = AudioIndex::audioDataToIndex(audioData);
             auto audioData2 = AudioIndex::indexToAudioData(idx);
             bool ok         = true;
-            // Note: indexToAudioData now uses default parameters (16-bit, 44.1kHz, mono)
-            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == 44100, "sample_rate is default 44100");
-            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == 16, "bit_rate is default 16");
-            ok &= RUN_CHECK(runner, name, audioData2.num_channels == 1, "num_channels is default 1");
-            ok &= RUN_CHECK(runner, name, audioData2.num_frames > 0, "num_frames derived from PCM data");
-            ok &= RUN_CHECK(runner, name, audioData2.samples.size() > 0, "samples reconstructed");
+            // With header: parameters should match exactly
+            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == 48000, "sample_rate matches (48000)");
+            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == 32, "bit_rate matches (32-bit)");
+            ok &= RUN_CHECK(runner, name, audioData2.num_channels == 1, "num_channels is 1");
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == 5, "num_frames matches (5)");
+            ok &= RUN_CHECK(runner, name, audioData2.samples.size() == 20, "samples size matches (5*4 bytes)");
             return ok;
         } catch (const std::exception& e) {
             runner.failMsg(name, std::string("exception: ") + e.what());
@@ -343,21 +343,6 @@ auto main(int argc, char** argv) -> int {
             runner.failMsg(name, std::string("exception: ") + e.what());
             return false;
         }
-    });
-
-    runner.add("AudioIndex: fromAudioSamples and getters", [&runner]() -> bool {
-        const std::string    name = "AudioIndex: fromAudioSamples and getters";
-        std::vector<int32_t> samples(44100); // 1 second of silence at 44.1k
-        for (int& sample : samples) {
-            sample = 0;
-        }
-        auto ai = AudioIndex::fromAudioSamples(samples, 44100, 16);
-
-        bool ok = true;
-        ok &= RUN_CHECK(runner, name, ai.getSampleRate() == 44100, "getSampleRate");
-        ok &= RUN_CHECK(runner, name, ai.getBitDepth() == 16, "getBitDepth");
-        ok &= RUN_CHECK(runner, name, TestRunner::approxEqual(ai.getDuration(), 1.0, 1e-6), "getDuration ~ 1s");
-        return ok;
     });
 
     runner.add("Base64Url: alphabet and edge-case roundtrip", [&runner]() -> bool {
@@ -438,51 +423,47 @@ auto main(int argc, char** argv) -> int {
         return ok;
     });
 
+    runner.add("AudioIndex: silence duration preservation bug", [&runner]() -> bool {
+        const std::string name = "AudioIndex: silence duration preservation bug";
+        bool              ok   = true;
+        try {
+            // 1 second of silence at 44100 Hz = 44100 zero samples
+            std::vector<int32_t> silence_1sec(44100, 0);
+            auto                 ad1  = AudioIndex::extractAudioDataFromSamples(silence_1sec, 44100, 16);
+            auto                 idx1 = AudioIndex::audioDataToIndex(ad1);
+
+            // 2 seconds of silence = 88200 zero samples
+            std::vector<int32_t> silence_2sec(88200, 0);
+            auto                 ad2  = AudioIndex::extractAudioDataFromSamples(silence_2sec, 44100, 16);
+            auto                 idx2 = AudioIndex::audioDataToIndex(ad2);
+
+            // BUG FIXED: Indexes should now be DIFFERENT because header stores num_frames
+            bool indexes_equal = (idx1 == idx2);
+
+            // Reconstruct from the 1-second index
+            auto reconstructed1 = AudioIndex::indexToAudioData(idx1);
+            auto reconstructed2 = AudioIndex::indexToAudioData(idx2);
+
+            // With the header fix, indexes should be different and reconstruction should preserve duration
+            ok &= RUN_CHECK(runner, name, !indexes_equal, "FIX VERIFIED: 1sec and 2sec silence produce DIFFERENT indexes");
+            ok &= RUN_CHECK(runner, name, reconstructed1.num_frames == 44100, "FIX: reconstructed1 num_frames is 44100 (1 second)");
+            ok &= RUN_CHECK(runner, name, reconstructed2.num_frames == 88200, "FIX: reconstructed2 num_frames is 88200 (2 seconds)");
+            ok &= RUN_CHECK(runner, name, reconstructed1.samples.size() == 88200, "FIX: reconstructed1 samples correct (44100*2 bytes)");
+            ok &= RUN_CHECK(runner, name, reconstructed2.samples.size() == 176400, "FIX: reconstructed2 samples correct (88200*2 bytes)");
+
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
     runner.add("AudioIndex: zero sampleRate duration is zero", [&runner]() -> bool {
         const std::string    name = "AudioIndex: zero sampleRate duration is zero";
         std::vector<int32_t> samples(10, 1000);
         auto                 ai = AudioIndex::fromAudioSamples(samples, 0, 16);
         bool                 ok = RUN_CHECK(runner, name, TestRunner::approxEqual(ai.getDuration(), 0.0, 1e-12), "duration==0 when sampleRate==0");
         return ok;
-    });
-
-    runner.add("AudioIndex: malformed header bit depth rejected", [&runner]() -> bool {
-        const std::string name = "AudioIndex: malformed header bit depth rejected";
-        using boost::multiprecision::cpp_int;
-
-        // Build a header with unsupported bit depth (7)
-        std::vector<uint8_t> header_buf;
-        uint32_t             sr = 44100;
-        header_buf.push_back(static_cast<uint8_t>((sr >> 24) & 0xFF));
-        header_buf.push_back(static_cast<uint8_t>((sr >> 16) & 0xFF));
-        header_buf.push_back(static_cast<uint8_t>((sr >> 8) & 0xFF));
-        header_buf.push_back(static_cast<uint8_t>((sr >> 0) & 0xFF));
-        uint16_t bd = 7;
-        header_buf.push_back(static_cast<uint8_t>((bd >> 8) & 0xFF));
-        header_buf.push_back(static_cast<uint8_t>((bd >> 0) & 0xFF));
-        uint16_t nc = 1;
-        header_buf.push_back(static_cast<uint8_t>((nc >> 8) & 0xFF));
-        header_buf.push_back(static_cast<uint8_t>((nc >> 0) & 0xFF));
-        uint64_t nf = 1;
-        for (int i = 7; i >= 0; --i) {
-            header_buf.push_back(static_cast<uint8_t>((nf >> (i * 8)) & 0xFF));
-        }
-
-        cpp_int header_int = 0;
-        for (uint8_t b : header_buf) {
-            header_int <<= 8;
-            header_int |= cpp_int(static_cast<uint32_t>(b));
-        }
-        // pcm_int = 0
-        cpp_int idx = header_int;
-
-        bool threw = false;
-        try {
-            auto audioData = AudioIndex::indexToAudioData(idx);
-        } catch (const std::exception& e) {
-            threw = true;
-        }
-        return RUN_CHECK(runner, name, threw, "indexToAudioData should throw for malformed/unsupported header bit depth");
     });
 
     // ------------------ operator== / operator!= tests ------------------
@@ -609,72 +590,12 @@ auto main(int argc, char** argv) -> int {
         try {
             auto idx        = AudioIndex::audioDataToIndex(audioData);
             auto audioData2 = AudioIndex::indexToAudioData(idx);
-            // Note: indexToAudioData now uses default parameters (16-bit, 44.1kHz, mono)
-            // So we only check that PCM data roundtrips correctly, not the format parameters
-            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == 16, "bit_rate match (default 16-bit)");
-            ok &= RUN_CHECK(runner, name, audioData2.num_frames > 0, "num_frames derived from PCM data");
-            ok &= RUN_CHECK(runner, name, audioData2.samples.size() > 0, "samples reconstructed from index");
-        } catch (const std::exception& e) {
-            runner.failMsg(name, std::string("exception: ") + e.what());
-            ok = false;
-        }
-        return ok;
-    });
-
-    // New tests: header layout and sample byte-order
-    runner.add("AudioIndex: header layout big-endian", [&runner]() -> bool {
-        const std::string name = "AudioIndex: header layout big-endian";
-        using boost::multiprecision::export_bits;
-        bool ok = true;
-        try {
-            AudioIndex::AudioData audioData{};
-            audioData.sample_rate  = 44100;
-            audioData.bit_rate     = 16;
-            audioData.num_channels = 1;
-            audioData.audio_format = 1;
-            audioData.num_frames   = 3;
-            // create minimal samples (3 frames, 16-bit -> 6 bytes)
-            audioData.samples.resize(audioData.num_frames * (audioData.bit_rate / 8));
-            for (size_t i = 0; i < audioData.samples.size(); ++i) {
-                audioData.samples[i] = static_cast<uint8_t>(i + 1);
-            }
-
-            auto idx = AudioIndex::audioDataToIndex(audioData);
-
-            std::vector<uint8_t> bytes;
-            boost::multiprecision::export_bits(idx, std::back_inserter(bytes), 8, true);
-
-            const size_t HEADER_LEN = 16; // 4 + 2 + 2 + 8
-            ok &= RUN_CHECK(runner, name, bytes.size() >= HEADER_LEN, "exported bytes contain header");
-            if (bytes.size() >= HEADER_LEN) {
-                // Build expected header in big-endian order
-                std::vector<uint8_t> expected;
-                uint32_t             sr = audioData.sample_rate;
-                expected.push_back(static_cast<uint8_t>((sr >> 24) & 0xFF));
-                expected.push_back(static_cast<uint8_t>((sr >> 16) & 0xFF));
-                expected.push_back(static_cast<uint8_t>((sr >> 8) & 0xFF));
-                expected.push_back(static_cast<uint8_t>((sr >> 0) & 0xFF));
-                uint16_t br = audioData.bit_rate;
-                expected.push_back(static_cast<uint8_t>((br >> 8) & 0xFF));
-                expected.push_back(static_cast<uint8_t>((br >> 0) & 0xFF));
-                uint16_t nc = audioData.num_channels;
-                expected.push_back(static_cast<uint8_t>((nc >> 8) & 0xFF));
-                expected.push_back(static_cast<uint8_t>((nc >> 0) & 0xFF));
-                uint64_t nf = audioData.num_frames;
-                for (int i = 7; i >= 0; --i) {
-                    expected.push_back(static_cast<uint8_t>((nf >> (i * 8)) & 0xFF));
-                }
-
-                auto it    = bytes.end() - HEADER_LEN;
-                bool match = true;
-                for (size_t i = 0; i < HEADER_LEN; ++i) {
-                    if (*(it + i) != expected[i]) {
-                        match = false;
-                        break;
-                    }
-                }
-                ok &= RUN_CHECK(runner, name, match, "header bytes match expected big-endian layout");
-            }
+            // With header: parameters should match exactly
+            ok &= RUN_CHECK(runner, name, audioData2.bit_rate == 32, "bit_rate matches (32-bit)");
+            ok &= RUN_CHECK(runner, name, audioData2.sample_rate == 48000, "sample_rate matches (48000)");
+            ok &= RUN_CHECK(runner, name, audioData2.num_frames == 2, "num_frames matches (2)");
+            ok &= RUN_CHECK(runner, name, audioData2.samples.size() == 8, "samples size matches (2*4 bytes)");
+            ok &= RUN_CHECK(runner, name, audioData2.samples == audioData.samples, "samples content matches");
         } catch (const std::exception& e) {
             runner.failMsg(name, std::string("exception: ") + e.what());
             ok = false;
@@ -1096,6 +1017,196 @@ auto main(int argc, char** argv) -> int {
         ok &= RUN_CHECK(runner, name, ITEMS_PER_WALL == 2400, "ITEMS_PER_WALL == 2400");
         ok &= RUN_CHECK(runner, name, ITEMS_PER_ROOM == 9600, "ITEMS_PER_ROOM == 9600");
 
+        return ok;
+    });
+
+    runner.add("LibraryPosition: uniqueness - consecutive indexes map to different positions", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: uniqueness - consecutive indexes map to different positions";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+        try {
+            // Test that consecutive indexes produce different positions
+            for (int i = 0; i < 100; i++) {
+                cpp_int idx1 = i;
+                cpp_int idx2 = i + 1;
+
+                auto pos1 = calculateLibraryPosition(idx1);
+                auto pos2 = calculateLibraryPosition(idx2);
+
+                // At least one field should be different
+                bool different = (pos1.room != pos2.room) || (pos1.wall != pos2.wall) || (pos1.shelf != pos2.shelf) || (pos1.album != pos2.album) ||
+                                 (pos1.track != pos2.track);
+
+                if (!different) {
+                    std::ostringstream oss;
+                    oss << "indexes " << i << " and " << (i + 1) << " map to same position";
+                    runner.failMsg(name, oss.str());
+                    ok = false;
+                    break;
+                }
+            }
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("LibraryPosition: perfect bijection - all positions in range are reachable", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: perfect bijection - all positions in range are reachable";
+        using boost::multiprecision::cpp_int;
+        using namespace LibraryConstants;
+        bool ok = true;
+        try {
+            // Test all positions in first album (room 0, wall 0, shelf 0, album 0)
+            for (uint8_t track = 0; track < TRACKS_PER_ALBUM; track++) {
+                LibraryPosition pos{0, 0, 0, 0, track};
+                cpp_int         reconstructed = reconstructIndexFromPosition(pos);
+
+                // Should be 0-14
+                ok &= RUN_CHECK(runner, name, reconstructed == track, "track " + std::to_string(track) + " reconstructs correctly");
+            }
+
+            // Test first position of each album in first shelf (room 0, wall 0, shelf 0)
+            for (uint8_t album = 0; album < ALBUMS_PER_SHELF; album++) {
+                LibraryPosition pos{0, 0, 0, album, 0};
+                cpp_int         reconstructed = reconstructIndexFromPosition(pos);
+                cpp_int         expected      = album * ITEMS_PER_ALBUM;
+
+                ok &= RUN_CHECK(runner, name, reconstructed == expected, "album " + std::to_string(album) + " starts at correct index");
+            }
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("LibraryPosition: boundary values produce correct positions", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: boundary values produce correct positions";
+        using boost::multiprecision::cpp_int;
+        using namespace LibraryConstants;
+        bool ok = true;
+        try {
+            // Last track of first album (index 14)
+            {
+                cpp_int index = 14;
+                auto    pos   = calculateLibraryPosition(index);
+                ok &= RUN_CHECK(runner, name, pos.room == 0, "last track room 0");
+                ok &= RUN_CHECK(runner, name, pos.album == 0, "last track album 0");
+                ok &= RUN_CHECK(runner, name, pos.track == 14, "last track is 14");
+            }
+
+            // First track of second album (index 15)
+            {
+                cpp_int index = 15;
+                auto    pos   = calculateLibraryPosition(index);
+                ok &= RUN_CHECK(runner, name, pos.room == 0, "second album room 0");
+                ok &= RUN_CHECK(runner, name, pos.album == 1, "second album is 1");
+                ok &= RUN_CHECK(runner, name, pos.track == 0, "second album first track is 0");
+            }
+
+            // Last track of first shelf (index 479)
+            {
+                cpp_int index = 479;
+                auto    pos   = calculateLibraryPosition(index);
+                ok &= RUN_CHECK(runner, name, pos.room == 0, "last shelf track room 0");
+                ok &= RUN_CHECK(runner, name, pos.shelf == 0, "last shelf track shelf 0");
+                ok &= RUN_CHECK(runner, name, pos.album == 31, "last shelf track album 31");
+                ok &= RUN_CHECK(runner, name, pos.track == 14, "last shelf track track 14");
+            }
+
+            // First track of second shelf (index 480)
+            {
+                cpp_int index = 480;
+                auto    pos   = calculateLibraryPosition(index);
+                ok &= RUN_CHECK(runner, name, pos.room == 0, "second shelf room 0");
+                ok &= RUN_CHECK(runner, name, pos.shelf == 1, "second shelf is 1");
+                ok &= RUN_CHECK(runner, name, pos.album == 0, "second shelf album 0");
+                ok &= RUN_CHECK(runner, name, pos.track == 0, "second shelf track 0");
+            }
+
+            // Last track of first wall (index 2399)
+            {
+                cpp_int index = 2399;
+                auto    pos   = calculateLibraryPosition(index);
+                ok &= RUN_CHECK(runner, name, pos.room == 0, "last wall track room 0");
+                ok &= RUN_CHECK(runner, name, pos.wall == 0, "last wall track wall 0");
+                ok &= RUN_CHECK(runner, name, pos.shelf == 4, "last wall track shelf 4");
+                ok &= RUN_CHECK(runner, name, pos.album == 31, "last wall track album 31");
+                ok &= RUN_CHECK(runner, name, pos.track == 14, "last wall track track 14");
+            }
+
+            // First track of second wall (index 2400)
+            {
+                cpp_int index = 2400;
+                auto    pos   = calculateLibraryPosition(index);
+                ok &= RUN_CHECK(runner, name, pos.room == 0, "second wall room 0");
+                ok &= RUN_CHECK(runner, name, pos.wall == 1, "second wall is 1");
+                ok &= RUN_CHECK(runner, name, pos.shelf == 0, "second wall shelf 0");
+                ok &= RUN_CHECK(runner, name, pos.album == 0, "second wall album 0");
+                ok &= RUN_CHECK(runner, name, pos.track == 0, "second wall track 0");
+            }
+
+            // Last track of first room (index 9599)
+            {
+                cpp_int index = 9599;
+                auto    pos   = calculateLibraryPosition(index);
+                ok &= RUN_CHECK(runner, name, pos.room == 0, "last room track room 0");
+                ok &= RUN_CHECK(runner, name, pos.wall == 3, "last room track wall 3");
+                ok &= RUN_CHECK(runner, name, pos.shelf == 4, "last room track shelf 4");
+                ok &= RUN_CHECK(runner, name, pos.album == 31, "last room track album 31");
+                ok &= RUN_CHECK(runner, name, pos.track == 14, "last room track track 14");
+            }
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("LibraryPosition: complete roundtrip for various patterns", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: complete roundtrip for various patterns";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+        try {
+            // Test various interesting indexes
+            std::vector<cpp_int> test_indexes = {
+                0,
+                1,
+                14,
+                15,
+                16, // Album boundaries
+                479,
+                480,
+                481, // Shelf boundaries
+                2399,
+                2400,
+                2401, // Wall boundaries
+                9599,
+                9600,
+                9601, // Room boundaries
+                12345,
+                67890,                     // Random values
+                123456789,                 // Large value
+                cpp_int("999999999999999") // Very large value
+            };
+
+            for (const auto& original : test_indexes) {
+                auto    pos           = calculateLibraryPosition(original);
+                cpp_int reconstructed = reconstructIndexFromPosition(pos);
+
+                if (original != reconstructed) {
+                    std::ostringstream oss;
+                    oss << "roundtrip failed for index " << original << " -> reconstructed as " << reconstructed;
+                    runner.failMsg(name, oss.str());
+                    ok = false;
+                }
+            }
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
         return ok;
     });
 

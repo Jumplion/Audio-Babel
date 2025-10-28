@@ -9,29 +9,9 @@
 #include "../include/LibraryPosition.h"
 #include "../include/Utilities.h"
 
-
 namespace AudioBabel {
 
 // Decoding/encoding is provided by Base64Url utilities in Base64Url.h/cpp
-
-// Overload: accept a URL-safe base64 string representing the index bytes
-auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> IndexMetadata {
-    std::vector<uint8_t> bytes = ::AudioBabel::Utilities::decodeBase64Url(base64Index);
-
-    // Convert bytes to cpp_int to calculate position
-    boost::multiprecision::cpp_int index = 0;
-    if (!bytes.empty()) {
-        boost::multiprecision::import_bits(index, bytes.begin(), bytes.end(), 8);
-    }
-
-    // Build metadata with content-derived labels
-    IndexMetadata meta = buildMetadataFromBytesAndB64(bytes, base64Index);
-
-    // Calculate hierarchical position
-    meta.position = calculateLibraryPosition(index);
-
-    return meta;
-}
 
 auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_int& index) -> IndexMetadata {
     std::vector<uint8_t> bytes;
@@ -45,6 +25,28 @@ auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_in
     IndexMetadata meta = buildMetadataFromBytesAndB64(bytes, b64str);
 
     // Calculate hierarchical position
+    meta.position = calculateLibraryPosition(index);
+
+    return meta;
+}
+
+// String overload: extract metadata directly from a URL-safe base64 string
+auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> IndexMetadata {
+    // Validate and decode the base64 string
+    if (!::AudioBabel::Utilities::isValidBase64Url(base64Index)) {
+        throw std::invalid_argument("Invalid base64 URL-safe string provided to extractMetadataFromIndex");
+    }
+
+    std::vector<uint8_t> bytes = ::AudioBabel::Utilities::decodeBase64Url(base64Index);
+
+    // Build metadata with content-derived labels
+    IndexMetadata meta = buildMetadataFromBytesAndB64(bytes, base64Index);
+
+    // Reconstruct the cpp_int from bytes to calculate position
+    boost::multiprecision::cpp_int index = 0;
+    if (!bytes.empty()) {
+        boost::multiprecision::import_bits(index, bytes.begin(), bytes.end(), 8, true);
+    }
     meta.position = calculateLibraryPosition(index);
 
     return meta;

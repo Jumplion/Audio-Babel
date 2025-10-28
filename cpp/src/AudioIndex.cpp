@@ -299,132 +299,125 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
     }
 
     /**
-     * Build index from PCM samples only - NO header embedding
-     * The index is just the raw PCM data as a big integer
-     * Headers are applied only when creating WAV files
-    */
-    size_t  bytes_per_sample = audioData.bit_rate / BITS_PER_BYTE;
-    size_t  total_samples    = audioData.num_frames * audioData.num_channels;
-    cpp_int pcm_int          = 0;
-
+     * Build index with 13-byte header + PCM samples
+     * Header format (little-endian):
+     *   Byte 0:      VERSION (0x01)
+     *   Byte 1-4:    num_frames (uint32_t)
+     *   Byte 5-8:    sample_rate (uint32_t)
+     *   Byte 9-10:   bit_depth (uint16_t)
+     *   Byte 11-12:  num_channels (uint16_t)
+     *   Byte 13+:    PCM sample data
+     */
     auto t0_import = std::chrono::steady_clock::now();
-    if (total_samples > 0) {
-        std::vector<uint8_t> pcm_be;
-        pcm_be.reserve(total_samples * bytes_per_sample);
 
-        // Convert samples from little-endian per-sample bytes to big-endian byte stream
-        for (size_t sampleIndex = 0; sampleIndex < total_samples; ++sampleIndex) {
-            size_t offset = sampleIndex * bytes_per_sample;
-            append_sample_be_from_le(audioData.samples, offset, bytes_per_sample, pcm_be);
-        }
+    std::vector<uint8_t> index_bytes;
+    size_t               bytes_per_sample = audioData.bit_rate / BITS_PER_BYTE;
+    size_t               total_samples    = audioData.num_frames * audioData.num_channels;
 
-        // Import bytes into cpp_int (MSB-first)
-        boost::multiprecision::import_bits(pcm_int, pcm_be.begin(), pcm_be.end(), BITS_PER_BYTE, true);
+    // Reserve space for header + PCM data
+    index_bytes.reserve(13 + (total_samples * bytes_per_sample));
 
-        // populate debug info
-        lastDebug.import_pcm_bytes      = pcm_be.size();
-        lastDebug.import_expected_bytes = total_samples * bytes_per_sample;
-    }
+    // Write 13-byte header
+    index_bytes.push_back(0x01); // VERSION byte
+
+    // num_frames (4 bytes, little-endian)
+    auto num_frames_u32 = static_cast<uint32_t>(audioData.num_frames);
+    index_bytes.push_back(static_cast<uint8_t>(num_frames_u32 & 0xFF));
+    index_bytes.push_back(static_cast<uint8_t>((num_frames_u32 >> 8) & 0xFF));
+    index_bytes.push_back(static_cast<uint8_t>((num_frames_u32 >> 16) & 0xFF));
+    index_bytes.push_back(static_cast<uint8_t>((num_frames_u32 >> 24) & 0xFF));
+
+    // sample_rate (4 bytes, little-endian)
+    index_bytes.push_back(static_cast<uint8_t>(audioData.sample_rate & 0xFF));
+    index_bytes.push_back(static_cast<uint8_t>((audioData.sample_rate >> 8) & 0xFF));
+    index_bytes.push_back(static_cast<uint8_t>((audioData.sample_rate >> 16) & 0xFF));
+    index_bytes.push_back(static_cast<uint8_t>((audioData.sample_rate >> 24) & 0xFF));
+
+    // bit_depth (2 bytes, little-endian)
+    index_bytes.push_back(static_cast<uint8_t>(audioData.bit_rate & 0xFF));
+    index_bytes.push_back(static_cast<uint8_t>((audioData.bit_rate >> 8) & 0xFF));
+
+    // num_channels (2 bytes, little-endian)
+    index_bytes.push_back(static_cast<uint8_t>(audioData.num_channels & 0xFF));
+    index_bytes.push_back(static_cast<uint8_t>((audioData.num_channels >> 8) & 0xFF));
+
+    // Append PCM sample data (already in little-endian byte order)
+    index_bytes.insert(index_bytes.end(), audioData.samples.begin(), audioData.samples.end());
+
+    // Convert entire byte array (header + PCM) to cpp_int (MSB-first)
+    cpp_int index = 0;
+    boost::multiprecision::import_bits(index, index_bytes.begin(), index_bytes.end(), BITS_PER_BYTE, true);
+
+    // Populate debug info
+    lastDebug.import_pcm_bytes      = index_bytes.size();
+    lastDebug.import_expected_bytes = 13 + (total_samples * bytes_per_sample);
 
     auto t1_import               = std::chrono::steady_clock::now();
     lastDebug.audioDataToIndexMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(t1_import - t0_import).count());
 
-    // Return PCM data as the index - no header embedding
-    return pcm_int;
+    return index;
 }
 
 auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -> AudioIndex::AudioData {
-    // Treat ALL indexes as raw PCM data without embedded headers
-    // Headers are only applied when creating WAV files, not stored in the index
-    
-    // Use default audio parameters for all reconstructions
-    uint32_t sample_rate  = 44100;  // Default sample rate
-    uint16_t bit_depth    = 16;     // Default bit depth  
-    uint16_t num_channels = 1;      // Default mono
-    uint64_t num_frames   = 0;      // Will be inferred from data
-    cpp_int  pcm_int      = index;  // Entire index is PCM data
+    // Export index to bytes (MSB-first)
+    std::vector<uint8_t> bytes;
+    boost::multiprecision::export_bits(index, std::back_inserter(bytes), BITS_PER_BYTE, true);
 
-    // Compute number of samples
-    size_t                bytes_per_sample = bit_depth / BITS_PER_BYTE;
-    size_t                total_samples    = static_cast<size_t>(num_frames) * static_cast<size_t>(num_channels);
-    cpp_int               sample_mask      = (cpp_int(1) << bit_depth) - 1;
-    std::vector<uint64_t> samples;
-    samples.reserve(total_samples);
-
-    // Attempt to infer num_frames from the index payload when header num_frames is zero
-    std::vector<uint8_t> pcm_be_bytes;
-    if (total_samples == 0) {
-        // Export all available PCM bytes (MSB-first). If the index contains payload
-        // bytes, we can derive total_samples and num_frames from the payload length.
-        boost::multiprecision::export_bits(pcm_int, std::back_inserter(pcm_be_bytes), BITS_PER_BYTE, true);
-        if (!pcm_be_bytes.empty() && bytes_per_sample > 0) {
-            // derive total_samples from available bytes (floor division)
-            total_samples = pcm_be_bytes.size() / bytes_per_sample;
-            num_frames    = (total_samples / num_channels);
-        }
+    // Validate minimum size (13 bytes header + at least 0 bytes PCM)
+    if (bytes.size() < 13) {
+        throw std::runtime_error("Invalid index: too small to contain header (expected at least 13 bytes, got " + std::to_string(bytes.size()) + ")");
     }
 
-    // Extract samples: use export_bits to extract PCM bytes in big-endian
-    if (total_samples > 0) {
-        if (pcm_be_bytes.empty()) {
-            // export_bits writes least-significant byte first by default; request MSB-first
-            pcm_be_bytes.reserve(total_samples * bytes_per_sample);
-            boost::multiprecision::export_bits(pcm_int, std::back_inserter(pcm_be_bytes), BITS_PER_BYTE, true);
-        }
-
-        // pcm_be_bytes now contains samples in big-endian sample order
-        // We need to split into samples and convert each to host-endian little-endian byte order
-        size_t expected_bytes = total_samples * bytes_per_sample;
-        if (pcm_be_bytes.size() != expected_bytes) {
-            if (pcm_be_bytes.size() < expected_bytes) {
-                // export_bits may omit leading zero bytes; pad at the front (MSB side)
-                size_t pad = expected_bytes - pcm_be_bytes.size();
-                pcm_be_bytes.insert(pcm_be_bytes.begin(), pad, 0);
-            } else {
-                // If larger, keep the least-significant expected bytes (rightmost)
-                pcm_be_bytes = std::vector<uint8_t>(pcm_be_bytes.end() - expected_bytes, pcm_be_bytes.end());
-            }
-        }
-
-        // iterate samples in order and convert each to unsigned sample words
-        for (size_t sampleIndex = 0; sampleIndex < total_samples; ++sampleIndex) {
-            size_t   base = sampleIndex * bytes_per_sample;
-            uint64_t word = 0;
-            for (size_t byteIndex = 0; byteIndex < bytes_per_sample; ++byteIndex) {
-                word = (word << BITS_PER_BYTE) | static_cast<uint64_t>(pcm_be_bytes[base + byteIndex]);
-            }
-            // Handle signed values depending on bit depth
-            uint64_t signbit = static_cast<uint64_t>(1) << (bit_depth - 1);
-            int64_t  sval    = 0;
-            if ((word & signbit) != 0U) {
-                sval = static_cast<int64_t>(word - (static_cast<uint64_t>(1) << bit_depth));
-            } else {
-                sval = static_cast<int64_t>(word);
-            }
-            samples.push_back(static_cast<uint64_t>(sval & ((1ULL << bit_depth) - 1)));
-        }
-
-        // record export stats
-        lastDebug.export_pcm_bytes      = pcm_be_bytes.size();
-        lastDebug.export_expected_bytes = expected_bytes;
+    // Validate version byte
+    if (bytes[0] != 0x01) {
+        throw std::runtime_error("Invalid index: unsupported version byte 0x" + std::to_string(static_cast<int>(bytes[0])) + " (expected 0x01)");
     }
 
-    // pack bytes
+    // Read header fields (little-endian)
+    auto num_frames = static_cast<uint32_t>(bytes[1]) | (static_cast<uint32_t>(bytes[2]) << 8) | (static_cast<uint32_t>(bytes[3]) << 16) |
+                      (static_cast<uint32_t>(bytes[4]) << 24);
+
+    auto sample_rate = static_cast<uint32_t>(bytes[5]) | (static_cast<uint32_t>(bytes[6]) << 8) | (static_cast<uint32_t>(bytes[7]) << 16) |
+                       (static_cast<uint32_t>(bytes[8]) << 24);
+
+    auto bit_depth = static_cast<uint16_t>(bytes[9]) | (static_cast<uint16_t>(bytes[10]) << 8);
+
+    auto num_channels = static_cast<uint16_t>(bytes[11]) | (static_cast<uint16_t>(bytes[12]) << 8);
+
+    // Validate bit depth
+    if (!isBitDepthSupported(bit_depth)) {
+        std::ostringstream ss;
+        ss << "Unsupported bit depth in index header: " << bit_depth;
+        throw std::runtime_error(ss.str());
+    }
+
+    // Validate header consistency with PCM data size
+    size_t bytes_per_sample   = bit_depth / BITS_PER_BYTE;
+    size_t expected_pcm_bytes = static_cast<size_t>(num_frames) * static_cast<size_t>(num_channels) * bytes_per_sample;
+    size_t actual_pcm_bytes   = bytes.size() - 13;
+
+    if (expected_pcm_bytes != actual_pcm_bytes) {
+        std::ostringstream ss;
+        ss << "Index header mismatch: num_frames=" << num_frames << " * num_channels=" << num_channels << " * bytes_per_sample=" << bytes_per_sample
+           << " = " << expected_pcm_bytes << " bytes expected, but found " << actual_pcm_bytes << " bytes of PCM data";
+        throw std::runtime_error(ss.str());
+    }
+
+    // Extract PCM samples (bytes 13 onward, already in little-endian per-sample format)
     AudioData audioData{};
-    audioData.audio_format = 1;
+    audioData.audio_format = PCM_FORMAT_CODE; // PCM = 1
     audioData.num_channels = num_channels;
     audioData.sample_rate  = sample_rate;
     audioData.bit_rate     = bit_depth;
-    // reuse bytes_per_sample computed above
-    audioData.samples.resize(total_samples * bytes_per_sample);
+    audioData.num_frames   = num_frames;
 
-    for (size_t sampleIndex = 0; sampleIndex < total_samples; sampleIndex++) {
-        uint64_t v = samples[sampleIndex];
-        for (size_t byteIndex = 0; byteIndex < bytes_per_sample; byteIndex++) {
-            audioData.samples[(sampleIndex * bytes_per_sample) + byteIndex] = static_cast<uint8_t>((v >> (byteIndex * BITS_PER_BYTE)) & BYTE_MASK);
-        }
-    }
-    audioData.num_frames = static_cast<size_t>(num_frames);
+    // Copy PCM data (skip the 13-byte header)
+    audioData.samples.assign(bytes.begin() + 13, bytes.end());
+
+    // Record export stats
+    lastDebug.export_pcm_bytes      = actual_pcm_bytes;
+    lastDebug.export_expected_bytes = expected_pcm_bytes;
+
     return audioData;
 }
 

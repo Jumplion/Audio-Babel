@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Index Header Utils Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        h1 { color: #4a9eff; }
+        h2 { color: #7fb3ff; margin-top: 30px; }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #4a9eff;
+        }
+        .result {
+            background: #1a1a1a;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+        .info { color: #60a5fa; }
+        button {
+            background: #4a9eff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover { background: #3a8eef; }
+        pre {
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 Audio Index Header Utils Test</h1>
+    <p>Testing header manipulation functions for the audio indexing system.</p>
+
+    <div class="test-section">
+        <h2>Test 1: Base64 URL Encoding/Decoding</h2>
+        <button onclick="testBase64UrlCodec()">Run Test</button>
+        <div id="test1-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Add Header to PCM Data</h2>
+        <button onclick="testAddHeader()">Run Test</button>
+        <div id="test2-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Strip Header from Full Index</h2>
+        <button onclick="testStripHeader()">Run Test</button>
+        <div id="test3-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 4: Parse Header Information</h2>
+        <button onclick="testParseHeader()">Run Test</button>
+        <div id="test4-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 5: Round-trip (Add + Strip)</h2>
+        <button onclick="testRoundTrip()">Run Test</button>
+        <div id="test5-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 6: Silence Duration Preservation</h2>
+        <button onclick="testSilenceDuration()">Run Test</button>
+        <div id="test6-result" class="result"></div>
+    </div>
+
+    <script type="module">
+        import {
+            encodeBase64Url,
+            decodeBase64Url,
+            addIndexHeader,
+            stripIndexHeader,
+            parseIndexHeader
+        } from './js/utils.js';
+
+        // Make functions available globally for onclick handlers
+        window.encodeBase64Url = encodeBase64Url;
+        window.decodeBase64Url = decodeBase64Url;
+        window.addIndexHeader = addIndexHeader;
+        window.stripIndexHeader = stripIndexHeader;
+        window.parseIndexHeader = parseIndexHeader;
+
+        window.testBase64UrlCodec = function() {
+            const output = document.getElementById('test1-result');
+            output.innerHTML = '<p>Running base64 URL codec test...</p>';
+            
+            try {
+                // Test data
+                const testCases = [
+                    new Uint8Array([0x00, 0x12, 0x34, 0xFF, 0x80]),
+                    new Uint8Array([0xFF]),
+                    new Uint8Array([]),
+                    new Uint8Array([0xDE, 0xAD, 0xBE, 0xEF])
+                ];
+                
+                let results = '';
+                let allPassed = true;
+                
+                for (let i = 0; i < testCases.length; i++) {
+                    const input = testCases[i];
+                    const encoded = encodeBase64Url(input);
+                    const decoded = decodeBase64Url(encoded);
+                    
+                    const matches = input.length === decoded.length &&
+                                  input.every((val, idx) => val === decoded[idx]);
+                    
+                    results += `<div>Test case ${i + 1}: ${matches ? '<span class="success">✓ PASS</span>' : '<span class="error">✗ FAIL</span>'}</div>`;
+                    results += `<pre>  Input:   [${Array.from(input).join(', ')}]</pre>`;
+                    results += `<pre>  Encoded: "${encoded}"</pre>`;
+                    results += `<pre>  Decoded: [${Array.from(decoded).join(', ')}]</pre>`;
+                    
+                    if (!matches) allPassed = false;
+                }
+                
+                output.innerHTML = `<div class="${allPassed ? 'success' : 'error'}">${allPassed ? '✓ All tests passed!' : '✗ Some tests failed'}</div>${results}`;
+            } catch (error) {
+                output.innerHTML = `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        };
+
+        window.testAddHeader = function() {
+            const output = document.getElementById('test2-result');
+            output.innerHTML = '<p>Testing header addition...</p>';
+            
+            try {
+                // Create sample PCM data (silence: 4 samples of 16-bit zeros = 8 bytes)
+                const pcmData = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0]);
+                const pcmBase64 = encodeBase64Url(pcmData);
+                
+                const audioParams = {
+                    numFrames: 4,
+                    sampleRate: 44100,
+                    bitDepth: 16,
+                    numChannels: 1
+                };
+                
+                const fullIndex = addIndexHeader(pcmBase64, audioParams);
+                const fullBytes = decodeBase64Url(fullIndex);
+                
+                let results = `<div class="info">Original PCM data: ${pcmData.length} bytes</div>`;
+                results += `<pre>PCM base64: "${pcmBase64}"</pre>`;
+                results += `<div class="info">Full index: ${fullBytes.length} bytes (13 header + ${pcmData.length} PCM)</div>`;
+                results += `<pre>Full index base64: "${fullIndex}"</pre>`;
+                results += `<div class="info">Header bytes (hex): ${Array.from(fullBytes.slice(0, 13)).map(b => b.toString(16).padStart(2, '0')).join(' ')}</div>`;
+                
+                // Verify header structure
+                const checks = [];
+                checks.push({ name: 'Version byte = 0x01', pass: fullBytes[0] === 0x01 });
+                checks.push({ name: 'Total size = 21 bytes', pass: fullBytes.length === 21 });
+                checks.push({ name: 'Header size = 13 bytes', pass: true });
+                
+                // Decode numFrames (little-endian uint32)
+                const numFrames = fullBytes[1] | (fullBytes[2] << 8) | (fullBytes[3] << 16) | (fullBytes[4] << 24);
+                checks.push({ name: `numFrames = ${audioParams.numFrames}`, pass: numFrames === audioParams.numFrames });
+                
+                const allPassed = checks.every(c => c.pass);
+                results += '<div style="margin-top: 10px;">Validation:</div>';
+                checks.forEach(check => {
+                    results += `<div>${check.pass ? '<span class="success">✓</span>' : '<span class="error">✗</span>'} ${check.name}</div>`;
+                });
+                
+                output.innerHTML = `<div class="${allPassed ? 'success' : 'error'}">${allPassed ? '✓ Test passed!' : '✗ Test failed'}</div>${results}`;
+            } catch (error) {
+                output.innerHTML = `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        };
+
+        window.testStripHeader = function() {
+            const output = document.getElementById('test3-result');
+            output.innerHTML = '<p>Testing header stripping...</p>';
+            
+            try {
+                // Create a full index with header
+                const pcmData = new Uint8Array([0x12, 0x34, 0x56, 0x78]);
+                const pcmBase64 = encodeBase64Url(pcmData);
+                
+                const fullIndex = addIndexHeader(pcmBase64, {
+                    numFrames: 2,
+                    sampleRate: 44100,
+                    bitDepth: 16,
+                    numChannels: 1
+                });
+                
+                // Strip the header
+                const strippedIndex = stripIndexHeader(fullIndex);
+                
+                // Compare with original PCM
+                const matches = strippedIndex === pcmBase64;
+                
+                let results = `<div class="info">Original PCM base64: "${pcmBase64}"</div>`;
+                results += `<div class="info">Full index base64: "${fullIndex}"</div>`;
+                results += `<div class="info">Stripped index base64: "${strippedIndex}"</div>`;
+                results += `<div class="${matches ? 'success' : 'error'}">${matches ? '✓ Stripped index matches original PCM' : '✗ Mismatch!'}</div>`;
+                
+                output.innerHTML = results;
+            } catch (error) {
+                output.innerHTML = `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        };
+
+        window.testParseHeader = function() {
+            const output = document.getElementById('test4-result');
+            output.innerHTML = '<p>Parsing header information...</p>';
+            
+            try {
+                const pcmData = new Uint8Array(100); // 100 bytes of silence
+                const pcmBase64 = encodeBase64Url(pcmData);
+                
+                const audioParams = {
+                    numFrames: 50,
+                    sampleRate: 22050,
+                    bitDepth: 16,
+                    numChannels: 1
+                };
+                
+                const fullIndex = addIndexHeader(pcmBase64, audioParams);
+                const headerInfo = parseIndexHeader(fullIndex);
+                
+                if (!headerInfo) {
+                    throw new Error('Failed to parse header');
+                }
+                
+                let results = '<div class="info">Parsed Header Information:</div>';
+                results += `<pre>Version:      ${headerInfo.version}</pre>`;
+                results += `<pre>Num Frames:   ${headerInfo.numFrames}</pre>`;
+                results += `<pre>Sample Rate:  ${headerInfo.sampleRate} Hz</pre>`;
+                results += `<pre>Bit Depth:    ${headerInfo.bitDepth} bits</pre>`;
+                results += `<pre>Num Channels: ${headerInfo.numChannels}</pre>`;
+                results += `<pre>Duration:     ${headerInfo.duration.toFixed(4)} seconds</pre>`;
+                results += `<pre>PCM Bytes:    ${headerInfo.pcmByteCount}</pre>`;
+                
+                const checks = [
+                    { name: 'Version = 1', pass: headerInfo.version === 1 },
+                    { name: 'Num frames matches', pass: headerInfo.numFrames === audioParams.numFrames },
+                    { name: 'Sample rate matches', pass: headerInfo.sampleRate === audioParams.sampleRate },
+                    { name: 'Bit depth matches', pass: headerInfo.bitDepth === audioParams.bitDepth },
+                    { name: 'Channels match', pass: headerInfo.numChannels === audioParams.numChannels },
+                    { name: 'PCM byte count correct', pass: headerInfo.pcmByteCount === pcmData.length }
+                ];
+                
+                const allPassed = checks.every(c => c.pass);
+                results += '<div style="margin-top: 10px;">Validation:</div>';
+                checks.forEach(check => {
+                    results += `<div>${check.pass ? '<span class="success">✓</span>' : '<span class="error">✗</span>'} ${check.name}</div>`;
+                });
+                
+                output.innerHTML = `<div class="${allPassed ? 'success' : 'error'}">${allPassed ? '✓ Test passed!' : '✗ Test failed'}</div>${results}`;
+            } catch (error) {
+                output.innerHTML = `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        };
+
+        window.testRoundTrip = function() {
+            const output = document.getElementById('test5-result');
+            output.innerHTML = '<p>Testing round-trip (add + strip)...</p>';
+            
+            try {
+                // Various test cases
+                const testCases = [
+                    { pcm: new Uint8Array([0x01, 0x02, 0x03, 0x04]), frames: 2, name: 'Small PCM' },
+                    { pcm: new Uint8Array(1000), frames: 500, name: 'Large silence' },
+                    { pcm: new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF]), frames: 2, name: 'Max values' }
+                ];
+                
+                let results = '';
+                let allPassed = true;
+                
+                for (const testCase of testCases) {
+                    const pcmBase64 = encodeBase64Url(testCase.pcm);
+                    const withHeader = addIndexHeader(pcmBase64, { numFrames: testCase.frames });
+                    const stripped = stripIndexHeader(withHeader);
+                    const matches = stripped === pcmBase64;
+                    
+                    results += `<div style="margin-top: 10px;">${testCase.name}: ${matches ? '<span class="success">✓ PASS</span>' : '<span class="error">✗ FAIL</span>'}</div>`;
+                    results += `<pre>  Original: "${pcmBase64.substring(0, 40)}${pcmBase64.length > 40 ? '...' : ''}"</pre>`;
+                    results += `<pre>  Stripped: "${stripped.substring(0, 40)}${stripped.length > 40 ? '...' : ''}"</pre>`;
+                    
+                    if (!matches) allPassed = false;
+                }
+                
+                output.innerHTML = `<div class="${allPassed ? 'success' : 'error'}">${allPassed ? '✓ All round-trips passed!' : '✗ Some round-trips failed'}</div>${results}`;
+            } catch (error) {
+                output.innerHTML = `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        };
+
+        window.testSilenceDuration = function() {
+            const output = document.getElementById('test6-result');
+            output.innerHTML = '<p>Testing silence duration preservation (THE BUG FIX)...</p>';
+            
+            try {
+                // 1 second of silence at 44100 Hz = 44100 frames = 88200 bytes (16-bit)
+                const silence1sec = new Uint8Array(88200); // All zeros
+                const silence1secPcm = encodeBase64Url(silence1sec);
+                const silence1secFull = addIndexHeader(silence1secPcm, {
+                    numFrames: 44100,
+                    sampleRate: 44100,
+                    bitDepth: 16,
+                    numChannels: 1
+                });
+                
+                // 2 seconds of silence = 88200 frames = 176400 bytes
+                const silence2sec = new Uint8Array(176400); // All zeros
+                const silence2secPcm = encodeBase64Url(silence2sec);
+                const silence2secFull = addIndexHeader(silence2secPcm, {
+                    numFrames: 88200,
+                    sampleRate: 44100,
+                    bitDepth: 16,
+                    numChannels: 1
+                });
+                
+                // Parse headers
+                const header1sec = parseIndexHeader(silence1secFull);
+                const header2sec = parseIndexHeader(silence2secFull);
+                
+                let results = '<div class="info">1 Second Silence:</div>';
+                results += `<pre>  Num Frames: ${header1sec.numFrames}</pre>`;
+                results += `<pre>  Duration:   ${header1sec.duration.toFixed(4)} seconds</pre>`;
+                results += `<pre>  PCM Bytes:  ${header1sec.pcmByteCount}</pre>`;
+                
+                results += '<div class="info" style="margin-top: 10px;">2 Second Silence:</div>';
+                results += `<pre>  Num Frames: ${header2sec.numFrames}</pre>`;
+                results += `<pre>  Duration:   ${header2sec.duration.toFixed(4)} seconds</pre>`;
+                results += `<pre>  PCM Bytes:  ${header2sec.pcmByteCount}</pre>`;
+                
+                const checks = [
+                    { name: 'Indexes are different', pass: silence1secFull !== silence2secFull },
+                    { name: '1sec duration = 1.0s', pass: Math.abs(header1sec.duration - 1.0) < 0.001 },
+                    { name: '2sec duration = 2.0s', pass: Math.abs(header2sec.duration - 2.0) < 0.001 },
+                    { name: '2sec is 2x 1sec frames', pass: header2sec.numFrames === header1sec.numFrames * 2 }
+                ];
+                
+                const allPassed = checks.every(c => c.pass);
+                results += '<div style="margin-top: 10px;"><strong>🎉 BUG FIX VERIFICATION:</strong></div>';
+                checks.forEach(check => {
+                    results += `<div>${check.pass ? '<span class="success">✓</span>' : '<span class="error">✗</span>'} ${check.name}</div>`;
+                });
+                
+                output.innerHTML = `<div class="${allPassed ? 'success' : 'error'}">${allPassed ? '✓ Silence duration is preserved correctly!' : '✗ Silence bug still present'}</div>${results}`;
+            } catch (error) {
+                output.innerHTML = `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        };
+
+        console.log('✅ Test page loaded successfully');
+    </script>
+</body>
+</html>

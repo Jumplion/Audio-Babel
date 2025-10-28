@@ -65,6 +65,21 @@ class AudioIndexWASM {
     }
 
     /**
+     * Reconstruct audio data from a base64 index
+     * @param {string} base64Index - Base64-encoded index (URL-safe, no padding)
+     * @returns {Uint8Array} PCM sample data
+     */
+    reconstructAudioFromIndex(base64Index) {
+        this._ensureInitialized();
+
+        const result = this.module.reconstructAudio(base64Index);
+        if (!result) {
+            throw new Error('Failed to reconstruct audio from index');
+        }
+        return result;
+    }
+
+    /**
      * Convert audio samples to WAV format (client-side)
      * @param {Uint8Array} samples - PCM samples
      * @param {number} sampleRate - Sample rate

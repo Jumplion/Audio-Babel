@@ -458,6 +458,64 @@ auto main(int argc, char** argv) -> int {
         return ok;
     });
 
+    runner.add("AudioIndex: position calculation with header system", [&runner]() -> bool {
+        const std::string name = "AudioIndex: position calculation with header system";
+        bool              ok   = true;
+        try {
+            // Create two different audio clips with different durations
+            // 1 second of a simple pattern at 44100 Hz
+            std::vector<int32_t> pattern_1sec;
+            pattern_1sec.reserve(44100);
+            for (int i = 0; i < 44100; i++) {
+                pattern_1sec.push_back(i % 1000); // Simple repeating pattern
+            }
+
+            auto ad1  = AudioIndex::extractAudioDataFromSamples(pattern_1sec, 44100, 16);
+            auto idx1 = AudioIndex::audioDataToIndex(ad1);
+
+            // 2 seconds of the same pattern
+            std::vector<int32_t> pattern_2sec;
+            pattern_2sec.reserve(88200);
+            for (int i = 0; i < 88200; i++) {
+                pattern_2sec.push_back(i % 1000); // Same pattern, longer duration
+            }
+
+            auto ad2  = AudioIndex::extractAudioDataFromSamples(pattern_2sec, 44100, 16);
+            auto idx2 = AudioIndex::audioDataToIndex(ad2);
+
+            // Calculate positions for both indexes (which include headers)
+            auto pos1 = calculateLibraryPosition(idx1);
+            auto pos2 = calculateLibraryPosition(idx2);
+
+            // Verify positions are different (because headers make indexes different)
+            bool positions_different = (pos1.room != pos2.room) || (pos1.wall != pos2.wall) || (pos1.shelf != pos2.shelf) ||
+                                       (pos1.album != pos2.album) || (pos1.track != pos2.track);
+
+            ok &= RUN_CHECK(runner, name, positions_different, "Different duration audio maps to different positions");
+
+            // Verify roundtrip: reconstructIndexFromPosition should give same index
+            auto idx1_reconstructed = reconstructIndexFromPosition(pos1);
+            auto idx2_reconstructed = reconstructIndexFromPosition(pos2);
+
+            ok &= RUN_CHECK(runner, name, idx1 == idx1_reconstructed, "Position roundtrip works for 1sec audio");
+            ok &= RUN_CHECK(runner, name, idx2 == idx2_reconstructed, "Position roundtrip works for 2sec audio");
+
+            // Verify we can reconstruct audio from the position-based index
+            auto audio1_from_pos = AudioIndex::indexToAudioData(idx1_reconstructed);
+            auto audio2_from_pos = AudioIndex::indexToAudioData(idx2_reconstructed);
+
+            ok &= RUN_CHECK(runner, name, audio1_from_pos.num_frames == 44100, "Audio reconstructed from position has correct frames (1sec)");
+            ok &= RUN_CHECK(runner, name, audio2_from_pos.num_frames == 88200, "Audio reconstructed from position has correct frames (2sec)");
+            ok &= RUN_CHECK(runner, name, audio1_from_pos.sample_rate == 44100, "Audio reconstructed from position has correct sample rate");
+            ok &= RUN_CHECK(runner, name, audio1_from_pos.bit_rate == 16, "Audio reconstructed from position has correct bit depth");
+
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
     runner.add("AudioIndex: zero sampleRate duration is zero", [&runner]() -> bool {
         const std::string    name = "AudioIndex: zero sampleRate duration is zero";
         std::vector<int32_t> samples(10, 1000);

@@ -13,19 +13,24 @@ using boost::multiprecision::cpp_int;
  * Represents a unique position in the library hierarchy.
  * Room → Wall (4 per room) → Shelf (5 per wall) → Album (32 per shelf) → Track (15 per album)
  * 
- * This provides a deterministic, collision-free mapping from any audio index
+ * This provides a deterministic, lossless encoding from any audio index
  * to a unique location in the record shop structure.
+ * 
+ * NEW ARCHITECTURE (Lossless):
+ * - Room = Base64-encoded string representing the bulk of the index
+ * - Wall/Shelf/Album/Track = Lower-order bits (0-9599) encoded hierarchically
+ * - Position ↔ Index is perfectly bijective (no information loss)
  */
 struct LibraryPosition {
-    cpp_int room;  // Infinite rooms (0, 1, 2, ...)
-    uint8_t wall;  // 0-3 (4 walls per room, representing "genre")
-    uint8_t shelf; // 0-4 (5 shelves/longboxes per wall, representing "artist")
-    uint8_t album; // 0-31 (32 albums per shelf)
-    uint8_t track; // 0-14 (15 tracks per album)
+    std::string room;  // Base64-encoded room "name" (index / 9600, encoded)
+    uint8_t     wall;  // 0-3 (4 walls per room)
+    uint8_t     shelf; // 0-4 (5 shelves per wall)
+    uint8_t     album; // 0-31 (32 albums per shelf)
+    uint8_t     track; // 0-14 (15 tracks per album)
 
     /**
      * Convert the position to a human-readable string.
-     * Format: "Room X, Wall Y, Shelf Z, Album A, Track T"
+     * Format: "Room [base64], Wall Y, Shelf Z, Album A, Track T"
      */
     auto toString() const -> std::string;
 };

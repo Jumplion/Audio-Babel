@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <sstream>
 
+#include "../include/Utilities.h"
 
 namespace AudioBabel {
 
@@ -11,39 +12,48 @@ using namespace LibraryConstants;
 auto calculateLibraryPosition(const cpp_int& index) -> LibraryPosition {
     LibraryPosition pos;
 
-    // Use modular arithmetic to determine position in hierarchy
-    // This ensures every unique index maps to exactly one position
+    // Split index into two parts:
+    // 1. Room number (index / 9600) - will be base64-encoded
+    // 2. Position within room (index % 9600) - encodes wall/shelf/album/track
 
-    // Calculate room number (infinite rooms possible)
-    pos.room = index / ITEMS_PER_ROOM;
+    cpp_int roomNumber = index / ITEMS_PER_ROOM;
+    cpp_int withinRoom = index % ITEMS_PER_ROOM;
 
-    // Calculate position within the room
-    cpp_int remainder = index % ITEMS_PER_ROOM;
+    // Encode room number as base64
+    // Room 0 special case: use empty string for simplicity
+    if (roomNumber == 0) {
+        pos.room = "";
+    } else {
+        std::vector<uint8_t> roomBytes;
+        boost::multiprecision::export_bits(roomNumber, std::back_inserter(roomBytes), 8, true);
+        pos.room = Utilities::encodeBase64Url(roomBytes);
+    }
 
-    // Wall (0-3): 4 walls per room
-    pos.wall = static_cast<uint8_t>((remainder / ITEMS_PER_WALL) % WALLS_PER_ROOM);
+    // Calculate hierarchical position within the room using modular arithmetic
+    pos.wall = static_cast<uint8_t>((withinRoom / ITEMS_PER_WALL) % WALLS_PER_ROOM);
 
-    remainder = remainder % ITEMS_PER_WALL;
-
-    // Shelf (0-4): 5 shelves per wall
-    pos.shelf = static_cast<uint8_t>((remainder / ITEMS_PER_SHELF) % SHELVES_PER_WALL);
+    cpp_int remainder = withinRoom % ITEMS_PER_WALL;
+    pos.shelf         = static_cast<uint8_t>((remainder / ITEMS_PER_SHELF) % SHELVES_PER_WALL);
 
     remainder = remainder % ITEMS_PER_SHELF;
-
-    // Album (0-31): 32 albums per shelf
     pos.album = static_cast<uint8_t>((remainder / ITEMS_PER_ALBUM) % ALBUMS_PER_SHELF);
 
-    // Track (0-14): 15 tracks per album
     pos.track = static_cast<uint8_t>(remainder % TRACKS_PER_ALBUM);
 
     return pos;
 }
 
 auto reconstructIndexFromPosition(const LibraryPosition& pos) -> cpp_int {
-    // Inverse operation: reconstruct index from position
-    // This allows bidirectional navigation between index and position
+    // Decode room from base64
+    std::vector<uint8_t> roomBytes = Utilities::decodeBase64Url(pos.room);
 
-    cpp_int index = pos.room * cpp_int(ITEMS_PER_ROOM);
+    cpp_int roomNumber = 0;
+    if (!roomBytes.empty()) {
+        boost::multiprecision::import_bits(roomNumber, roomBytes.begin(), roomBytes.end(), 8, true);
+    }
+
+    // Reconstruct index from room number and hierarchical position
+    cpp_int index = roomNumber * cpp_int(ITEMS_PER_ROOM);
     index += cpp_int(pos.wall) * ITEMS_PER_WALL;
     index += cpp_int(pos.shelf) * ITEMS_PER_SHELF;
     index += cpp_int(pos.album) * ITEMS_PER_ALBUM;

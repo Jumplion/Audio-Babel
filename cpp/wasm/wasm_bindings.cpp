@@ -167,6 +167,106 @@ int calculateAudioSize(int durationSeconds, int sampleRate, int bitDepth, int ch
     return bytes;
 }
 
+/**
+ * Reconstruct a base64 index from a library position
+ * Takes room (as string to support BigInt), wall, shelf, album, track
+ * Returns base64-encoded index WITH VALID HEADER for audio playback
+ * 
+ * This generates synthetic audio by:
+ * 1. Calculating mathematical index from position
+ * 2. Converting that index to PCM bytes (treating it as audio data)
+ * 3. Adding a 13-byte header with default params (44100Hz, 16-bit, mono, ~1sec)
+ */
+EMSCRIPTEN_KEEPALIVE
+char* reconstructIndexFromPosition(const char* roomStr, int wall, int shelf, int album, int track) {
+    try {
+        // Parse room as cpp_int (to handle large numbers from JavaScript BigInt)
+        cpp_int room(roomStr);
+
+        // Create LibraryPosition
+        LibraryPosition pos;
+        pos.room  = room;
+        pos.wall  = static_cast<uint8_t>(wall);
+        pos.shelf = static_cast<uint8_t>(shelf);
+        pos.album = static_cast<uint8_t>(album);
+        pos.track = static_cast<uint8_t>(track);
+
+        // Get mathematical index from position
+        cpp_int mathIndex = AudioBabel::reconstructIndexFromPosition(pos);
+
+        // Convert mathematical index to bytes (this will be our PCM data)
+        std::vector<uint8_t> pcmBytes;
+        boost::multiprecision::export_bits(mathIndex, std::back_inserter(pcmBytes), 8, true);
+
+        // Determine audio parameters based on PCM size
+        // Aim for ~1 second of audio at 44100Hz, 16-bit, mono = 88200 bytes
+        // If mathIndex is smaller, pad to at least 1 second
+        const size_t MIN_PCM_SIZE = 88200;  // 1 second at 44100Hz, 16-bit
+        const size_t MAX_PCM_SIZE = 176400; // 2 seconds max (browser limit 2 minutes, but let's keep it short)
+
+        if (pcmBytes.size() < MIN_PCM_SIZE) {
+            // Pad with repeated pattern derived from the bytes we have
+            std::vector<uint8_t> original = pcmBytes;
+            pcmBytes.reserve(MIN_PCM_SIZE);
+            while (pcmBytes.size() < MIN_PCM_SIZE) {
+                for (size_t i = 0; i < original.size() && pcmBytes.size() < MIN_PCM_SIZE; i++) {
+                    pcmBytes.push_back(original[i]);
+                }
+            }
+        } else if (pcmBytes.size() > MAX_PCM_SIZE) {
+            // Truncate to max size
+            pcmBytes.resize(MAX_PCM_SIZE);
+        }
+
+        // Build header (13 bytes, little-endian)
+        std::vector<uint8_t> fullIndex;
+        fullIndex.reserve(13 + pcmBytes.size());
+
+        // Byte 0: VERSION
+        fullIndex.push_back(0x01);
+
+        // Bytes 1-4: num_frames (uint32_t)
+        uint32_t numFrames = static_cast<uint32_t>(pcmBytes.size() / 2); // 16-bit = 2 bytes per frame
+        fullIndex.push_back(static_cast<uint8_t>(numFrames & 0xFF));
+        fullIndex.push_back(static_cast<uint8_t>((numFrames >> 8) & 0xFF));
+        fullIndex.push_back(static_cast<uint8_t>((numFrames >> 16) & 0xFF));
+        fullIndex.push_back(static_cast<uint8_t>((numFrames >> 24) & 0xFF));
+
+        // Bytes 5-8: sample_rate (uint32_t) - 44100Hz
+        uint32_t sampleRate = 44100;
+        fullIndex.push_back(static_cast<uint8_t>(sampleRate & 0xFF));
+        fullIndex.push_back(static_cast<uint8_t>((sampleRate >> 8) & 0xFF));
+        fullIndex.push_back(static_cast<uint8_t>((sampleRate >> 16) & 0xFF));
+        fullIndex.push_back(static_cast<uint8_t>((sampleRate >> 24) & 0xFF));
+
+        // Bytes 9-10: bit_depth (uint16_t) - 16 bits
+        uint16_t bitDepth = 16;
+        fullIndex.push_back(static_cast<uint8_t>(bitDepth & 0xFF));
+        fullIndex.push_back(static_cast<uint8_t>((bitDepth >> 8) & 0xFF));
+
+        // Bytes 11-12: num_channels (uint16_t) - mono
+        uint16_t numChannels = 1;
+        fullIndex.push_back(static_cast<uint8_t>(numChannels & 0xFF));
+        fullIndex.push_back(static_cast<uint8_t>((numChannels >> 8) & 0xFF));
+
+        // Append PCM data
+        fullIndex.insert(fullIndex.end(), pcmBytes.begin(), pcmBytes.end());
+
+        // Encode as base64
+        std::string base64 = AudioBabel::Utilities::encodeBase64Url(fullIndex);
+
+        char* result = (char*) malloc(base64.length() + 1);
+        strcpy(result, base64.c_str());
+        return result;
+
+    } catch (const std::exception& e) {
+        std::string error  = "error:" + std::string(e.what());
+        char*       result = (char*) malloc(error.length() + 1);
+        strcpy(result, error.c_str());
+        return result;
+    }
+}
+
 } // extern "C"
 
 // Wrapper functions that return std::string for embind compatibility
@@ -179,6 +279,13 @@ std::string getMetadataWrapper(const std::string& base64Index) {
 
 std::string generateRandomWrapper(int targetLength) {
     char*       result = generateRandomIndex(targetLength);
+    std::string str(result);
+    free(result);
+    return str;
+}
+
+std::string reconstructIndexWrapper(const std::string& roomStr, int wall, int shelf, int album, int track) {
+    char*       result = reconstructIndexFromPosition(roomStr.c_str(), wall, shelf, album, track);
     std::string str(result);
     free(result);
     return str;
@@ -218,6 +325,7 @@ EMSCRIPTEN_BINDINGS(audio_index_module) {
     function("getMetadata", &getMetadataWrapper);
     function("generateRandom", &generateRandomWrapper);
     function("reconstructAudio", &reconstructAudioWrapper);
+    function("reconstructIndex", &reconstructIndexWrapper);
 
     // Functions that don't need wrappers
     function("calculateSize", &calculateAudioSize);

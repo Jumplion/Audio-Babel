@@ -5842,6 +5842,7 @@ var _reconstructAudioFromBase64 = Module['_reconstructAudioFromBase64'] = makeIn
 var _generateIndexFromSamples = Module['_generateIndexFromSamples'] = makeInvalidEarlyAccess('_generateIndexFromSamples');
 var _generateRandomIndex = Module['_generateRandomIndex'] = makeInvalidEarlyAccess('_generateRandomIndex');
 var _calculateAudioSize = Module['_calculateAudioSize'] = makeInvalidEarlyAccess('_calculateAudioSize');
+var _reconstructIndexFromPosition = Module['_reconstructIndexFromPosition'] = makeInvalidEarlyAccess('_reconstructIndexFromPosition');
 var _free = makeInvalidEarlyAccess('_free');
 var _fflush = makeInvalidEarlyAccess('_fflush');
 var _emscripten_stack_get_end = makeInvalidEarlyAccess('_emscripten_stack_get_end');
@@ -5881,6 +5882,8 @@ function assignWasmExports(wasmExports) {
   _generateRandomIndex = Module['_generateRandomIndex'] = createExportWrapper('generateRandomIndex', 1);
   assert(wasmExports['calculateAudioSize'], 'missing Wasm export: calculateAudioSize');
   _calculateAudioSize = Module['_calculateAudioSize'] = createExportWrapper('calculateAudioSize', 4);
+  assert(wasmExports['reconstructIndexFromPosition'], 'missing Wasm export: reconstructIndexFromPosition');
+  _reconstructIndexFromPosition = Module['_reconstructIndexFromPosition'] = createExportWrapper('reconstructIndexFromPosition', 5);
   assert(wasmExports['free'], 'missing Wasm export: free');
   _free = createExportWrapper('free', 1);
   assert(wasmExports['fflush'], 'missing Wasm export: fflush');
@@ -6038,6 +6041,8 @@ var wasmImports = {
   invoke_viiii,
   /** @export */
   invoke_viiiii,
+  /** @export */
+  invoke_viiiiii,
   /** @export */
   invoke_viiiiiii,
   /** @export */
@@ -6232,6 +6237,17 @@ function invoke_i(index) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)();
+  } catch(e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_viiiiii(index,a1,a2,a3,a4,a5,a6) {
+  var sp = stackSave();
+  try {
+    getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6);
   } catch(e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;

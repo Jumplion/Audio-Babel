@@ -919,11 +919,12 @@ auto main(int argc, char** argv) -> int {
             auto    pos   = calculateLibraryPosition(index);
 
             // index 42 should be in room 0 (since 42 < 9600)
+            // Room 0 should encode as "A" (single zero byte)
             // wall = (42 / 2400) % 4 = 0
             // shelf = (42 / 480) % 5 = 0
             // album = (42 / 15) % 32 = 2
             // track = 42 % 15 = 12
-            ok &= RUN_CHECK(runner, name, pos.room == 0, "room is 0");
+            ok &= RUN_CHECK(runner, name, pos.room == "", "room is \"\" (empty = 0)");
             ok &= RUN_CHECK(runner, name, pos.wall == 0, "wall is 0");
             ok &= RUN_CHECK(runner, name, pos.shelf == 0, "shelf is 0");
             ok &= RUN_CHECK(runner, name, pos.album == 2, "album is 2");
@@ -945,7 +946,8 @@ auto main(int argc, char** argv) -> int {
             cpp_int reconstructed  = reconstructIndexFromPosition(pos);
 
             ok &= RUN_CHECK(runner, name, original_index == reconstructed, "index roundtrip successful");
-            ok &= RUN_CHECK(runner, name, pos.room == 1, "correct room");
+            // Room 1 should be base64-encoded representation of 1
+            ok &= RUN_CHECK(runner, name, !pos.room.empty(), "room is not empty");
             ok &= RUN_CHECK(runner, name, pos.wall == 1, "correct wall");
             ok &= RUN_CHECK(runner, name, pos.shelf == 0, "correct shelf");
             ok &= RUN_CHECK(runner, name, pos.album == 23, "correct album");
@@ -965,11 +967,15 @@ auto main(int argc, char** argv) -> int {
             cpp_int index = 9600; // First index in room 1
             auto    pos   = calculateLibraryPosition(index);
 
-            ok &= RUN_CHECK(runner, name, pos.room == 1, "room is 1");
+            ok &= RUN_CHECK(runner, name, !pos.room.empty(), "room is not empty (should be room 1)");
             ok &= RUN_CHECK(runner, name, pos.wall == 0, "wall is 0");
             ok &= RUN_CHECK(runner, name, pos.shelf == 0, "shelf is 0");
             ok &= RUN_CHECK(runner, name, pos.album == 0, "album is 0");
             ok &= RUN_CHECK(runner, name, pos.track == 0, "track is 0");
+
+            // Verify roundtrip
+            cpp_int reconstructed = reconstructIndexFromPosition(pos);
+            ok &= RUN_CHECK(runner, name, index == reconstructed, "boundary roundtrip successful");
         } catch (const std::exception& e) {
             runner.failMsg(name, std::string("exception: ") + e.what());
             ok = false;
@@ -987,7 +993,7 @@ auto main(int argc, char** argv) -> int {
             cpp_int reconstructed = reconstructIndexFromPosition(pos);
 
             ok &= RUN_CHECK(runner, name, index == reconstructed, "large index roundtrip successful");
-            ok &= RUN_CHECK(runner, name, pos.room == 5, "correct room (5)");
+            ok &= RUN_CHECK(runner, name, !pos.room.empty(), "room is not empty (large room number)");
         } catch (const std::exception& e) {
             runner.failMsg(name, std::string("exception: ") + e.what());
             ok = false;
@@ -1010,7 +1016,7 @@ auto main(int argc, char** argv) -> int {
             ok &= RUN_CHECK(runner, name, !meta.artist.empty(), "artist non-empty");
             ok &= RUN_CHECK(runner, name, !meta.album.empty(), "album non-empty");
             ok &= RUN_CHECK(runner, name, !meta.track.empty(), "track non-empty");
-            ok &= RUN_CHECK(runner, name, meta.position.room >= 0, "position has room field");
+            ok &= RUN_CHECK(runner, name, !meta.position.room.empty(), "position has room field (base64 string)");
         } catch (const std::exception& e) {
             runner.failMsg(name, std::string("exception: ") + e.what());
             ok = false;
@@ -1049,11 +1055,15 @@ auto main(int argc, char** argv) -> int {
             cpp_int index = 0;
             auto    pos   = calculateLibraryPosition(index);
 
-            ok &= RUN_CHECK(runner, name, pos.room == 0, "room is 0");
+            ok &= RUN_CHECK(runner, name, pos.room == "", "room is \"\" (empty = 0)");
             ok &= RUN_CHECK(runner, name, pos.wall == 0, "wall is 0");
             ok &= RUN_CHECK(runner, name, pos.shelf == 0, "shelf is 0");
             ok &= RUN_CHECK(runner, name, pos.album == 0, "album is 0");
             ok &= RUN_CHECK(runner, name, pos.track == 0, "track is 0");
+
+            // Verify roundtrip
+            cpp_int reconstructed = reconstructIndexFromPosition(pos);
+            ok &= RUN_CHECK(runner, name, index == reconstructed, "zero roundtrip successful");
         } catch (const std::exception& e) {
             runner.failMsg(name, std::string("exception: ") + e.what());
             ok = false;
@@ -1118,8 +1128,14 @@ auto main(int argc, char** argv) -> int {
         try {
             // Test all positions in first album (room 0, wall 0, shelf 0, album 0)
             for (uint8_t track = 0; track < TRACKS_PER_ALBUM; track++) {
-                LibraryPosition pos{0, 0, 0, 0, track};
-                cpp_int         reconstructed = reconstructIndexFromPosition(pos);
+                LibraryPosition pos;
+                pos.room  = ""; // Room 0 is empty string
+                pos.wall  = 0;
+                pos.shelf = 0;
+                pos.album = 0;
+                pos.track = track;
+
+                cpp_int reconstructed = reconstructIndexFromPosition(pos);
 
                 // Should be 0-14
                 ok &= RUN_CHECK(runner, name, reconstructed == track, "track " + std::to_string(track) + " reconstructs correctly");
@@ -1127,9 +1143,15 @@ auto main(int argc, char** argv) -> int {
 
             // Test first position of each album in first shelf (room 0, wall 0, shelf 0)
             for (uint8_t album = 0; album < ALBUMS_PER_SHELF; album++) {
-                LibraryPosition pos{0, 0, 0, album, 0};
-                cpp_int         reconstructed = reconstructIndexFromPosition(pos);
-                cpp_int         expected      = album * ITEMS_PER_ALBUM;
+                LibraryPosition pos;
+                pos.room  = ""; // Room 0 is empty string
+                pos.wall  = 0;
+                pos.shelf = 0;
+                pos.album = album;
+                pos.track = 0;
+
+                cpp_int reconstructed = reconstructIndexFromPosition(pos);
+                cpp_int expected      = album * ITEMS_PER_ALBUM;
 
                 ok &= RUN_CHECK(runner, name, reconstructed == expected, "album " + std::to_string(album) + " starts at correct index");
             }
@@ -1150,7 +1172,7 @@ auto main(int argc, char** argv) -> int {
             {
                 cpp_int index = 14;
                 auto    pos   = calculateLibraryPosition(index);
-                ok &= RUN_CHECK(runner, name, pos.room == 0, "last track room 0");
+                ok &= RUN_CHECK(runner, name, pos.room == "", "last track room \"\" (empty = 0)");
                 ok &= RUN_CHECK(runner, name, pos.album == 0, "last track album 0");
                 ok &= RUN_CHECK(runner, name, pos.track == 14, "last track is 14");
             }
@@ -1159,7 +1181,7 @@ auto main(int argc, char** argv) -> int {
             {
                 cpp_int index = 15;
                 auto    pos   = calculateLibraryPosition(index);
-                ok &= RUN_CHECK(runner, name, pos.room == 0, "second album room 0");
+                ok &= RUN_CHECK(runner, name, pos.room == "", "second album room \"\" (empty = 0)");
                 ok &= RUN_CHECK(runner, name, pos.album == 1, "second album is 1");
                 ok &= RUN_CHECK(runner, name, pos.track == 0, "second album first track is 0");
             }
@@ -1168,7 +1190,7 @@ auto main(int argc, char** argv) -> int {
             {
                 cpp_int index = 479;
                 auto    pos   = calculateLibraryPosition(index);
-                ok &= RUN_CHECK(runner, name, pos.room == 0, "last shelf track room 0");
+                ok &= RUN_CHECK(runner, name, pos.room == "", "last shelf track room \"\" (empty = 0)");
                 ok &= RUN_CHECK(runner, name, pos.shelf == 0, "last shelf track shelf 0");
                 ok &= RUN_CHECK(runner, name, pos.album == 31, "last shelf track album 31");
                 ok &= RUN_CHECK(runner, name, pos.track == 14, "last shelf track track 14");
@@ -1178,7 +1200,7 @@ auto main(int argc, char** argv) -> int {
             {
                 cpp_int index = 480;
                 auto    pos   = calculateLibraryPosition(index);
-                ok &= RUN_CHECK(runner, name, pos.room == 0, "second shelf room 0");
+                ok &= RUN_CHECK(runner, name, pos.room == "", "second shelf room \"\" (empty = 0)");
                 ok &= RUN_CHECK(runner, name, pos.shelf == 1, "second shelf is 1");
                 ok &= RUN_CHECK(runner, name, pos.album == 0, "second shelf album 0");
                 ok &= RUN_CHECK(runner, name, pos.track == 0, "second shelf track 0");
@@ -1188,7 +1210,7 @@ auto main(int argc, char** argv) -> int {
             {
                 cpp_int index = 2399;
                 auto    pos   = calculateLibraryPosition(index);
-                ok &= RUN_CHECK(runner, name, pos.room == 0, "last wall track room 0");
+                ok &= RUN_CHECK(runner, name, pos.room == "", "last wall track room \"\" (empty = 0)");
                 ok &= RUN_CHECK(runner, name, pos.wall == 0, "last wall track wall 0");
                 ok &= RUN_CHECK(runner, name, pos.shelf == 4, "last wall track shelf 4");
                 ok &= RUN_CHECK(runner, name, pos.album == 31, "last wall track album 31");
@@ -1199,7 +1221,7 @@ auto main(int argc, char** argv) -> int {
             {
                 cpp_int index = 2400;
                 auto    pos   = calculateLibraryPosition(index);
-                ok &= RUN_CHECK(runner, name, pos.room == 0, "second wall room 0");
+                ok &= RUN_CHECK(runner, name, pos.room == "", "second wall room \"\" (empty = 0)");
                 ok &= RUN_CHECK(runner, name, pos.wall == 1, "second wall is 1");
                 ok &= RUN_CHECK(runner, name, pos.shelf == 0, "second wall shelf 0");
                 ok &= RUN_CHECK(runner, name, pos.album == 0, "second wall album 0");
@@ -1210,7 +1232,7 @@ auto main(int argc, char** argv) -> int {
             {
                 cpp_int index = 9599;
                 auto    pos   = calculateLibraryPosition(index);
-                ok &= RUN_CHECK(runner, name, pos.room == 0, "last room track room 0");
+                ok &= RUN_CHECK(runner, name, pos.room == "", "last room track room \"\" (empty = 0)");
                 ok &= RUN_CHECK(runner, name, pos.wall == 3, "last room track wall 3");
                 ok &= RUN_CHECK(runner, name, pos.shelf == 4, "last room track shelf 4");
                 ok &= RUN_CHECK(runner, name, pos.album == 31, "last room track album 31");

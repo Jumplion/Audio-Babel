@@ -22,8 +22,9 @@ export const ITEMS_PER_ROOM = WALLS_PER_ROOM * ITEMS_PER_WALL;     // 9,600
  * Represents a position in the library hierarchy
  */
 export class LibraryPosition {
-    constructor(room = 0n, wall = 0, shelf = 0, album = 0, track = 0) {
-        this.room = BigInt(room);
+    constructor(room = "", wall = 0, shelf = 0, album = 0, track = 0) {
+        // Room is now a base64 string (empty string "" represents room 0)
+        this.room = room;
         this.wall = wall;
         this.shelf = shelf;
         this.album = album;
@@ -31,7 +32,8 @@ export class LibraryPosition {
     }
 
     toString() {
-        return `Room ${this.room}, Wall ${this.wall}, Shelf ${this.shelf}, Album ${this.album}, Track ${this.track}`;
+        const roomDisplay = this.room === "" ? "0" : this.room;
+        return `Room ${roomDisplay}, Wall ${this.wall}, Shelf ${this.shelf}, Album ${this.album}, Track ${this.track}`;
     }
 }
 
@@ -62,7 +64,15 @@ export function calculateLibraryPosition(index) {
     const idx = BigInt(index);
     
     // Calculate room number (infinite rooms possible)
-    const room = idx / BigInt(ITEMS_PER_ROOM);
+    const roomNumber = idx / BigInt(ITEMS_PER_ROOM);
+    
+    // Encode room as base64 string (empty string for room 0)
+    let room;
+    if (roomNumber === 0n) {
+        room = "";
+    } else {
+        room = indexToBase64(roomNumber);
+    }
     
     // Calculate position within the room
     let remainder = idx % BigInt(ITEMS_PER_ROOM);
@@ -92,7 +102,22 @@ export function calculateLibraryPosition(index) {
  * @returns {BigInt} - The audio index
  */
 export function reconstructIndexFromPosition(pos) {
-    let index = BigInt(pos.room) * BigInt(ITEMS_PER_ROOM);
+    // Decode room from base64 string (empty string = 0)
+    let roomNumber;
+    if (pos.room === "") {
+        roomNumber = 0n;
+    } else {
+        // Convert base64 to bytes
+        const bytes = base64UrlToBytes(pos.room);
+        
+        // Convert bytes to BigInt (big-endian)
+        roomNumber = 0n;
+        for (const byte of bytes) {
+            roomNumber = (roomNumber << 8n) | BigInt(byte);
+        }
+    }
+    
+    let index = roomNumber * BigInt(ITEMS_PER_ROOM);
     index += BigInt(pos.wall) * BigInt(ITEMS_PER_WALL);
     index += BigInt(pos.shelf) * BigInt(ITEMS_PER_SHELF);
     index += BigInt(pos.album) * BigInt(ITEMS_PER_ALBUM);

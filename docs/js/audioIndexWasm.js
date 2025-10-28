@@ -46,25 +46,6 @@ class AudioIndexWASM {
     }
 
     /**
-     * Validate a base64 index string
-     * @param {string} base64Index - Index to validate
-     * @returns {boolean} True if valid
-     */
-    validateIndex(base64Index) {
-        this._ensureInitialized();
-
-        try {
-            const isValid = this.module._validateBase64Index(
-                this.module.allocateUTF8(base64Index)
-            );
-            return isValid === 1;
-        } catch (error) {
-            console.error('Error validating index:', error);
-            return false;
-        }
-    }
-
-    /**
      * Calculate expected audio size for given parameters
      * @param {number} durationSeconds - Duration in seconds
      * @param {number} sampleRate - Sample rate (default: 44100)
@@ -75,7 +56,7 @@ class AudioIndexWASM {
     calculateAudioSize(durationSeconds, sampleRate = 44100, bitDepth = 16, channels = 1) {
         this._ensureInitialized();
 
-        return this.module._calculateAudioSize(
+        return this.module.calculateSize(
             durationSeconds,
             sampleRate,
             bitDepth,
@@ -148,113 +129,6 @@ class AudioIndexWASM {
         });
 
         return audio;
-    }
-
-    // ========================================
-    // SAMPLE-BASED BASE64 FUNCTIONS (Primary Format)
-    // ========================================
-
-    /**
-     * Encode 16-bit audio samples to sample-based base64 (3 chars per sample)
-     * This is the primary index format used throughout the application
-     * @param {Uint8Array} samples - Raw 16-bit PCM samples (little-endian)
-     * @param {number} sampleRate - Sample rate (default: 44100)
-     * @param {number} channels - Number of channels (default: 1)
-     * @returns {string} Base64 string with 3 characters per sample
-     */
-    encodeToSampleBase64(samples, sampleRate = 44100, channels = 1) {
-        this._ensureInitialized();
-
-        try {
-            const sampleCount = samples.length / 2; // 16-bit = 2 bytes per sample
-
-            // Allocate memory for samples
-            const samplesPtr = this.module._malloc(samples.length);
-            this.module.HEAPU8.set(samples, samplesPtr);
-
-            // Call C++ function
-            const resultPtr = this.module._audioSamplesToSampleBase64(
-                samplesPtr,
-                sampleCount,
-                sampleRate,
-                channels
-            );
-
-            // Free sample memory
-            this.module._free(samplesPtr);
-
-            // Convert C string to JavaScript string
-            const base64 = this.module.UTF8ToString(resultPtr);
-
-            // Free the C string
-            this.module._free(resultPtr);
-
-            if (base64.startsWith('error:')) {
-                throw new Error(base64.substring(6));
-            }
-
-            return base64;
-        } catch (error) {
-            console.error('Error encoding to sample base64:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Decode sample-based base64 string back to audio samples
-     * This is the primary index format used throughout the application
-     * @param {string} base64String - Base64 string with 3 characters per sample
-     * @param {number} sampleRate - Sample rate (default: 44100)
-     * @param {number} channels - Number of channels (default: 1)
-     * @returns {Uint8Array} Raw 16-bit PCM samples
-     */
-    decodeFromSampleBase64(base64String, sampleRate = 44100, channels = 1) {
-        this._ensureInitialized();
-
-        try {
-            // Allocate output length variable
-            const lengthPtr = this.module._malloc(4);
-
-            // Call C++ function
-            const dataPtr = this.module._sampleBase64ToAudioSamples(
-                this.module.allocateUTF8(base64String),
-                sampleRate,
-                channels,
-                lengthPtr
-            );
-
-            // Get the length
-            const length = this.module.getValue(lengthPtr, 'i32');
-            this.module._free(lengthPtr);
-
-            if (length === 0 || !dataPtr) {
-                throw new Error('Failed to decode sample base64');
-            }
-
-            // Copy data to JavaScript array
-            const audioData = new Uint8Array(length);
-            audioData.set(this.module.HEAPU8.subarray(dataPtr, dataPtr + length));
-
-            // Free the C memory
-            this.module._free(dataPtr);
-
-            return audioData;
-        } catch (error) {
-            console.error('Error decoding from sample base64:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Calculate the expected base64 size for given audio parameters
-     * @param {number} durationSeconds - Duration in seconds
-     * @param {number} sampleRate - Sample rate (default: 44100)
-     * @param {number} channels - Number of channels (default: 1)
-     * @returns {number} Expected base64 string length (3 chars per sample)
-     */
-    calculateSampleBase64Size(durationSeconds, sampleRate = 44100, channels = 1) {
-        const numSamples = durationSeconds * sampleRate * channels;
-        return numSamples * 3; // 3 base64 characters per sample
     }
 }
 

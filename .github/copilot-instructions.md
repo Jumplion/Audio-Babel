@@ -4,8 +4,8 @@ This repository contains a native C++ audio-indexing library with WebAssembly bi
 
 ### Big picture (where things live)
 - `cpp/` — core C++ library (`include/`, `src/`), CLI examples (`examples/`), unit tests (`tests/`), and tools (`tools/` contains extract/reconstruct CLIs).
-- `cpp/wasm/` — WebAssembly build system: `CMakeLists.txt`, `wasm_bindings.cpp`, and build scripts (`build-wasm.ps1`, `build-wasm.sh`). Outputs to `audio-babel-record-store/public/wasm/`.
-- `audio-babel-record-store/` — serverless web app for GitHub Pages. Uses WASM module for client-side index generation. Contains `public/` (HTML/CSS/JS), `src/` (models/services), documentation (`.md` files).
+- `cpp/wasm/` — WebAssembly build system: `CMakeLists.txt`, `wasm_bindings.cpp`, and build scripts (`build-wasm.ps1`, `build-wasm.sh`). Outputs to `docs/wasm/`.
+- `docs/` — serverless web app for GitHub Pages. Uses WASM module for client-side index generation. Contains HTML/CSS/JS files and documentation.
 - `tools/` — convenience build/test/run scripts for native builds on Windows (PowerShell) and *nix shells: `build.ps1`, `run_tests.ps1`, `run_example.ps1`, and their `*.sh` counterparts.
 - `build/` — CMake-generated native build artifacts (binaries like `example_main.exe`, `tests_runner.exe`). Separate from `cpp/wasm/build/`.
 - `emsdk/` — Emscripten SDK installation (not tracked in git, installed locally).
@@ -21,7 +21,7 @@ This repository contains a native C++ audio-indexing library with WebAssembly bi
 **WebAssembly builds (requires Emscripten):**
 - **Prerequisites**: Emscripten SDK must be installed at repo root (`emsdk/`) and activated with `.\emsdk\emsdk_env.ps1` (Windows) or `source ./emsdk/emsdk_env.sh` (*nix).
 - **Install Boost headers for WASM**: `embuilder build boost_headers` (only needed once, installs to Emscripten cache).
-- **Build WASM module** (PowerShell): `cd cpp/wasm; .\build-wasm.ps1` — outputs `audio-index.wasm` and `audio-index.js` to `audio-babel-record-store/public/wasm/`.
+- **Build WASM module** (PowerShell): `cd cpp/wasm; .\build-wasm.ps1` — outputs `audio-index.wasm` and `audio-index.js` to `docs/wasm/`.
 - **Build WASM module** (bash): `cd cpp/wasm; ./build-wasm.sh` — same output location.
 - **Clean WASM build**: Add `-Clean` flag to build scripts.
 
@@ -69,7 +69,7 @@ Use the included VS Code tasks if available (labels like "Build (PowerShell)", "
 - WASM bindings in `cpp/wasm/wasm_bindings.cpp` use Emscripten's `embind` API (see `#include <emscripten/bind.h>`).
 - Functions taking raw pointers (`const char*`) must be wrapped with `allow_raw_pointers()` in `EMSCRIPTEN_BINDINGS` block (see line 194 in wasm_bindings.cpp).
 - Emscripten compiler flags in `cpp/wasm/CMakeLists.txt` use `-sFLAG=value` format (no space after `-s`). Example: `-sWASM=1`, `-sALLOW_MEMORY_GROWTH=1`.
-- WASM build outputs two files: `audio-index.wasm` (binary) and `audio-index.js` (glue code). Both are copied to `audio-babel-record-store/public/wasm/` automatically.
+- WASM build outputs two files: `audio-index.wasm` (binary) and `audio-index.js` (glue code). Both are copied to `docs/wasm/` automatically.
 - Memory limits: WASM module configured with 64MB initial, 2GB max (see `INITIAL_MEMORY` and `MAXIMUM_MEMORY` in CMakeLists.txt).
 - **Critical**: If WASM build fails with "undefined symbol: _embind_register_*" errors, ensure `--bind` link flag is set in `set_target_properties` (see cpp/wasm/CMakeLists.txt line 68-71).
 
@@ -86,8 +86,8 @@ Use the included VS Code tasks if available (labels like "Build (PowerShell)", "
 - **MinGW make**: WASM build scripts use `mingw32-make` on Windows (part of MSYS2 MinGW64 toolchain).
 
 **Web application:**
-- The web app in `audio-babel-record-store/` is serverless (GitHub Pages). It loads the WASM module (`public/wasm/audio-index.wasm`) in the browser for client-side index generation.
-- No server-side Node.js required for deployment (fully static). JavaScript wrapper at `public/js/audioIndexWasm.js` provides clean API for WASM module.
+- The web app in `docs/` is serverless (GitHub Pages). It loads the WASM module (`wasm/audio-index.wasm`) in the browser for client-side index generation.
+- No server-side Node.js required for deployment (fully static). JavaScript wrapper at `js/audioIndexWasm.js` provides clean API for WASM module.
 
 **Common dependency issues:**
 - If native build fails with "Boost.Multiprecision header not found", install Boost via vcpkg or MSYS2 (`pacman -S mingw-w64-x86_64-boost`).
@@ -106,13 +106,11 @@ Use the included VS Code tasks if available (labels like "Build (PowerShell)", "
 - `cpp/wasm/wasm_bindings.cpp` — Emscripten bindings exposing C++ functions to JavaScript (uses embind API).
 - `cpp/wasm/CMakeLists.txt` — WASM build configuration (Emscripten flags, output paths, Boost detection).
 - `cpp/wasm/build-wasm.ps1` / `build-wasm.sh` — convenience build scripts with Emscripten environment checks.
-- `audio-babel-record-store/public/js/audioIndexWasm.js` — JavaScript wrapper providing clean API for WASM module.
+- `docs/js/audioIndexWasm.js` — JavaScript wrapper providing clean API for WASM module.
 
 **Web application:**
-- `audio-babel-record-store/public/` — HTML/CSS/JS for GitHub Pages deployment.
-- `audio-babel-record-store/src/` — data models (Room, Wall, Shelf, Track) and services (position encoder, index parser).
-- `audio-babel-record-store/WASM_IMPLEMENTATION_GUIDE.md` — comprehensive guide for WASM setup and usage.
-- `audio-babel-record-store/SERVERLESS_ARCHITECTURE.md` — architecture decisions and deployment strategy.
+- `docs/` — HTML/CSS/JS for GitHub Pages deployment.
+- `docs/js/` — JavaScript modules for audio processing, UI, and WASM integration.
 
 **Build infrastructure:**
 - `CMakeLists.txt` (root) — native build configuration for library and CLI tools.
@@ -131,8 +129,8 @@ Use the included VS Code tasks if available (labels like "Build (PowerShell)", "
 - Memory management example: see `getMetadataFromBase64` in wasm_bindings.cpp (uses `malloc`/`strcpy` for returning strings to JavaScript).
 
 **Web application patterns:**
-- Position encoding: see `audio-babel-record-store/src/services/positionEncoder.js` for mapping base64 indexes to Room/Wall/Shelf/Track hierarchy.
-- Index validation: see `audio-babel-record-store/src/services/audioConstraints.js` for validating 2-minute limit and format requirements.
+- Position encoding: see `docs/js/positionEncoder.js` for mapping base64 indexes to Room/Wall/Shelf/Track hierarchy.
+- Audio processing: see `docs/js/audioIndexWasm.js` for WASM integration and WAV file generation.
 
 ### Troubleshooting common issues
 

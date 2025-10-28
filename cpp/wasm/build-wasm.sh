@@ -23,7 +23,7 @@ echo "✓ Emscripten found: $(emcc --version | head -n1)"
 # Directories
 WASM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="$WASM_DIR/build"
-OUTPUT_DIR="$WASM_DIR/../../audio-babel-record-store/public/wasm"
+OUTPUT_DIR="$WASM_DIR/../../docs/wasm"
 
 # Parse arguments
 CONFIG_TYPE="Release"

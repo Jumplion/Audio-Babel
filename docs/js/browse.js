@@ -355,7 +355,7 @@ async function generateAndDisplayTrack() {
         }
         
         // Decode audio from index
-        const pcmData = wasm.decodeFromIndex(base64Index);
+        const pcmData = wasm.reconstructAudioFromIndex(base64Index);
         
         // Calculate duration
         const duration = calculateDuration(pcmData.length, 44100, 16, 1);

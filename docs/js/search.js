@@ -28,20 +28,14 @@ export async function generateFromIndex(inputEl, btnEl, handleJsonResponse, setL
     return;
   }
   
-  // Validate length is divisible by 3 (sample-based format requirement)
-  if (indexString.length % 3 !== 0) {
-    alert('Invalid index length. Sample-based indexes must have length divisible by 3 (3 characters per sample).');
-    return;
-  }
-  
   try {
     setLoading(true);
     
-    // Use WASM for sample-based format (only format supported)
+    // Use WASM to reconstruct audio from index
     const wasm = await getWasmModule();
     
-    // Decode the sample-based base64
-    const pcmData = wasm.decodeFromSampleBase64(indexString);
+    // Reconstruct audio from the index
+    const pcmData = wasm.reconstructAudioFromIndex(indexString);
     
     // Calculate duration
     const duration = calculateDuration(pcmData.length, 44100, 16, 1);

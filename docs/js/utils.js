@@ -61,7 +61,7 @@ export function bytesToBase64Chunked(bytes, chunkSize = 0x8000) {
 }
 
 /**
- * Encode text to URL-safe base64 (for sample-based indexes)
+ * Encode text to URL-safe base64
  * @param {string} text - Text to encode
  * @returns {string} URL-safe base64 string (A-Z, a-z, 0-9, -, _)
  */

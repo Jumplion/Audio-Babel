@@ -75,21 +75,21 @@ export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) 
       }
     }
     
-    // Use WASM for sample-based encoding
+    // Use WASM to generate audio index
     const wasm = await getWasmModule();
-    const sampleBase64 = wasm.encodeToSampleBase64(randomBytes, 44100, 1);
+    const audioIndex = wasm.generateIndex(randomBytes, 44100, 16, 1);
     
     // Calculate duration
     const duration = calculateDuration(randomBytes.length, 44100, 16, 1);
     
     // Create result object
     const result = {
-      indexBase64: sampleBase64,
+      indexBase64: audioIndex,
       metadata: {
         genre: 'random',
         artist: 'generated',
         album: `${duration.toFixed(2)}s`,
-        track: `${(sampleBase64.length / 1024).toFixed(2)} KB`,
+        track: `${(audioIndex.length / 1024).toFixed(2)} KB`,
         cover: ''
       },
       sampleRate: 44100,

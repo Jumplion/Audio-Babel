@@ -27,27 +27,27 @@ export async function uploadFile(file, handleJsonResponse, setLoading) {
   try {
     setLoading(true);
     
-    // Use WASM for sample-based format
+    // Use WASM to generate audio index
     const wasm = await getWasmModule();
     
     // Read file as ArrayBuffer and parse WAV
     const arrayBuffer = await file.arrayBuffer();
     const { pcmData, sampleRate, numChannels, bitDepth } = parseWavFile(arrayBuffer);
     
-    // Encode to sample-based base64 using WASM
-    const sampleBase64 = wasm.encodeToSampleBase64(pcmData, sampleRate, numChannels);
+    // Generate audio index from PCM data using WASM
+    const audioIndex = wasm.generateIndex(pcmData, sampleRate, 16, numChannels);
     
     // Calculate duration
     const duration = calculateDuration(pcmData.length, sampleRate, 16, numChannels);
     
     // Create result object
     const result = {
-      indexBase64: sampleBase64,
+      indexBase64: audioIndex,
       metadata: {
         genre: 'uploaded',
         artist: file.name,
         album: `${duration.toFixed(2)}s`,
-        track: `${(sampleBase64.length / 1024).toFixed(2)} KB`,
+        track: `${(audioIndex.length / 1024).toFixed(2)} KB`,
         cover: ''
       },
       sampleRate: sampleRate,

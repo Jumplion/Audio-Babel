@@ -2,6 +2,7 @@
 import AudioIndexWASM from './audioIndexWasm.js';
 import { calculateDuration } from './audioIndex.js';
 import { bytesToBase64Chunked } from './utils.js';
+import { indexToBase64 } from './positionEncoder.js';
 
 // Library hierarchy constants (from C++)
 const TRACKS_PER_ALBUM = 15;
@@ -183,27 +184,42 @@ function enterRoom() {
     const input = $('roomInput');
     if (!input) return;
     
-    const roomNum = input.value.trim();
-    if (roomNum === '') return;
+    const roomInput = input.value.trim();
     
-    try {
-        const room = BigInt(roomNum);
-        if (room < 0n) {
-            alert('Room number must be 0 or greater');
+    // Room can be empty string (for room 0) or a base64 string
+    // Accept numeric input and convert to base64, or accept base64 directly
+    let room;
+    
+    if (roomInput === '' || roomInput === '0') {
+        // Empty string or "0" both represent room 0
+        room = "";
+    } else if (/^\d+$/.test(roomInput)) {
+        // Numeric input - convert to base64
+        try {
+            const roomNum = BigInt(roomInput);
+            if (roomNum < 0n) {
+                alert('Room number must be 0 or greater');
+                return;
+            }
+            // Convert room number to base64 using our encoder
+            room = indexToBase64(roomNum);
+        } catch (e) {
+            alert('Invalid room number');
             return;
         }
-        
-        navState.room = room;
-        navState.wall = null;
-        navState.shelf = null;
-        navState.album = null;
-        navState.track = null;
-        
-        showSection('wallSection');
-        updateBreadcrumb();
-    } catch (e) {
-        alert('Invalid room number');
+    } else {
+        // Assume it's already a base64 string
+        room = roomInput;
     }
+    
+    navState.room = room;
+    navState.wall = null;
+    navState.shelf = null;
+    navState.album = null;
+    navState.track = null;
+    
+    showSection('wallSection');
+    updateBreadcrumb();
 }
 
 /**

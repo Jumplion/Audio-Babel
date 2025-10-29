@@ -1,4 +1,5 @@
 import { loadFragment } from './loadFragment.js';
+import { calculatePositionFromBase64 } from './positionEncoder.js';
 
 let resultFrag = null;
 
@@ -169,6 +170,27 @@ export async function handleJsonResponse(j, originalIndexB64) {
   const indexToShow = originalIndexB64 || j.indexBase64 || '';
   if (indexDisplay && indexToShow) {
     indexDisplay = makeIndexClickable(indexDisplay, indexToShow);
+  }
+
+  // Calculate and display position in library
+  const positionDisplay = frag.get('#positionDisplay');
+  if (positionDisplay && indexToShow) {
+    try {
+      const position = calculatePositionFromBase64(indexToShow);
+      const roomDisplay = position.room === "" ? "0" : position.room;
+      positionDisplay.innerHTML = `
+        <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px;">
+          <span><strong>Room:</strong> ${roomDisplay}</span>
+          <span><strong>Wall:</strong> ${position.wall}</span>
+          <span><strong>Shelf:</strong> ${position.shelf}</span>
+          <span><strong>Album:</strong> ${position.album}</span>
+          <span><strong>Track:</strong> ${position.track}</span>
+        </div>
+      `;
+    } catch (error) {
+      console.error('Error calculating position:', error);
+      positionDisplay.textContent = 'Unable to calculate position';
+    }
   }
 
   // metadata with expandable sections

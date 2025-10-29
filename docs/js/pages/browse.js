@@ -1,9 +1,9 @@
 // browse.js - Hierarchical navigation through the Record Shop library
-import { getWasmModule } from './wasmModule.js';
-import { calculateDuration } from './audioIndex.js';
-import { indexToBase64 } from './positionEncoder.js';
-import { addIndexHeader, decodeBase64Url, escapeHtml } from './utils.js';
-import { showValidationError, handleError } from './errorHandler.js';
+import { getWasmModule } from '../core/wasmModule.js';
+import { calculateDuration } from '../utils/audioIndex.js';
+import { indexToBase64 } from '../core/positionEncoder.js';
+import { addIndexHeader, decodeBase64Url, escapeHtml } from '../utils/utils.js';
+import { showValidationError, handleError } from '../utils/errorHandler.js';
 
 // Library hierarchy constants (from C++)
 const TRACKS_PER_ALBUM = 15;

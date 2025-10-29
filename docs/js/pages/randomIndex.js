@@ -6,10 +6,10 @@
  * and generates playback audio with metadata.
  */
 
-import { getWasmModule } from './wasmModule.js';
-import { calculateDuration } from './audioIndex.js';
-import { bytesToBase64Chunked, encodeBase64Url } from './utils.js';
-import { handleError } from './errorHandler.js';
+import { getWasmModule } from '../core/wasmModule.js';
+import { calculateDuration } from '../utils/audioIndex.js';
+import { bytesToBase64Chunked, encodeBase64Url } from '../utils/utils.js';
+import { handleError } from '../utils/errorHandler.js';
 
 /**
  * Generate random audio data and send to API for processing

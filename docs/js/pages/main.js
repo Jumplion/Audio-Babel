@@ -10,9 +10,9 @@ import { generateAndSend } from './randomIndex.js';
 import { generateFromIndex, attachSearchInputFilter } from './search.js';
 import { uploadFile } from './fileUpload.js';
 import { createRecorder } from './recorder.js';
-import { handleJsonResponse } from './resultHandler.js';
-import { createSizeValidator } from './validationUtils.js';
-import { showValidationError, handleError } from './errorHandler.js';
+import { handleJsonResponse } from '../core/resultHandler.js';
+import { createSizeValidator } from '../utils/validationUtils.js';
+import { showValidationError, handleError } from '../utils/errorHandler.js';
 
 // Note: No longer using fetch interception - using direct function calls instead
 

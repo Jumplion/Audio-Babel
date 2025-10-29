@@ -7,7 +7,7 @@
  * Album (32) → Track (15)
  */
 
-import { encodeBase64Url, decodeBase64Url } from './utils.js';
+import { encodeBase64Url, decodeBase64Url } from '../utils/utils.js';
 
 // Library structure constants (matching C++ LibraryConstants)
 export const TRACKS_PER_ALBUM = 15;

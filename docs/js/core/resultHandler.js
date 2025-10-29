@@ -6,7 +6,7 @@
  * audio playback controls, and download functionality.
  */
 
-import { loadFragment } from './loadFragment.js';
+import { loadFragment } from '../ui/loadFragment.js';
 import { calculatePositionFromBase64 } from './positionEncoder.js';
 
 let resultFrag = null;

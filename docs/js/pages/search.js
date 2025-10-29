@@ -6,10 +6,10 @@
  * input filtering to ensure only valid base64 characters are entered.
  */
 
-import { isValidBase64Url, calculateDuration } from './audioIndex.js';
-import { getWasmModule } from './wasmModule.js';
-import { bytesToBase64Chunked, addIndexHeader, decodeBase64Url } from './utils.js';
-import { showValidationError, handleError } from './errorHandler.js';
+import { isValidBase64Url, calculateDuration } from '../utils/audioIndex.js';
+import { getWasmModule } from '../core/wasmModule.js';
+import { bytesToBase64Chunked, addIndexHeader, decodeBase64Url } from '../utils/utils.js';
+import { showValidationError, handleError } from '../utils/errorHandler.js';
 
 /**
  * Generate audio from an index string

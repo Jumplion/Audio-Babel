@@ -1,7 +1,7 @@
 import AudioIndexWASM from './audioIndexWasm.js';
 import { calculateDuration } from './audioIndex.js';
 import { parseWavFile, convertWebMToWav } from './wavUtils.js';
-import { bytesToBase64Chunked } from './utils.js';
+import { bytesToBase64Chunked, encodeBase64Url } from './utils.js';
 
 // Initialize WASM module (lazy-loaded)
 let wasmModule = null;
@@ -130,8 +130,8 @@ export function createRecorder({ recordPlayer, recordStatus, recordDurationEl, u
       const arrayBuffer = await file.arrayBuffer();
       const { pcmData, sampleRate, numChannels } = parseWavFile(arrayBuffer);
       
-      // Generate audio index from PCM data using WASM
-      const audioIndex = wasm.generateIndex(pcmData, sampleRate, 16, numChannels);
+      // Encode PCM data as URL-safe base64 (this IS the user-facing index)
+      const audioIndex = encodeBase64Url(pcmData);
       
       // Calculate duration
       const duration = calculateDuration(pcmData.length, sampleRate, 16, numChannels);

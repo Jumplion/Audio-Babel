@@ -29,33 +29,32 @@
                 <h2>Enter a Room</h2>
                 <div class="input-row">
                     <label for="roomInput">Room Number:</label>
-                    <input type="number" id="roomInput" placeholder="0" min="0" />
+                    <input type="text" id="roomInput" placeholder="0" maxlength="100" />
                     <button class="btn" id="enterRoomBtn">Enter</button>
                 </div>
             </section>
 
             <!-- Wall Selection (Hexagon) -->
             <section id="wallSection" class="nav-section" style="display: none;">
-                <h2>Select a Wall (Genre)</h2>
+                <h2>Select a Wall</h2>
                 <div id="hexagonContainer" class="hexagon-container">
                     <svg viewBox="0 0 200 200" class="hexagon-svg">
-                        <!-- Hexagon with 4 clickable walls -->
+                        <!-- Full hexagon outline -->
+                        <polygon class="hexagon-outline" points="100,20 160,60 160,140 100,180 40,140 40,60" />
+                        
+                        <!-- 4 clickable wall segments -->
                         <g id="wallGroup">
-                            <!-- North wall -->
-                            <polygon class="wall" data-wall="0" points="100,20 160,60 160,80 100,50 40,80 40,60" />
-                            <text class="wall-label" x="100" y="55" text-anchor="middle">Wall 0</text>
+                            <!-- North wall (top) -->
+                            <polygon class="wall" data-wall="0" points="100,20 160,60 140,70 100,40 60,70 40,60" />
                             
-                            <!-- East wall -->
-                            <polygon class="wall" data-wall="1" points="160,60 180,100 180,120 160,140 160,80 160,60" />
-                            <text class="wall-label" x="170" y="105" text-anchor="middle">Wall 1</text>
+                            <!-- East wall (right) -->
+                            <polygon class="wall" data-wall="1" points="160,60 170,100 160,140 140,130 150,100 140,70" />
                             
-                            <!-- South wall -->
-                            <polygon class="wall" data-wall="2" points="160,140 100,180 40,140 40,120 100,150 160,120" />
-                            <text class="wall-label" x="100" y="150" text-anchor="middle">Wall 2</text>
+                            <!-- South wall (bottom) -->
+                            <polygon class="wall" data-wall="2" points="160,140 100,180 40,140 60,130 100,160 140,130" />
                             
-                            <!-- West wall -->
-                            <polygon class="wall" data-wall="3" points="40,60 40,80 40,140 20,120 20,100 40,60" />
-                            <text class="wall-label" x="30" y="105" text-anchor="middle">Wall 3</text>
+                            <!-- West wall (left) -->
+                            <polygon class="wall" data-wall="3" points="40,60 40,140 60,130 50,100 60,70" />
                         </g>
                     </svg>
                 </div>
@@ -63,7 +62,7 @@
 
             <!-- Shelf Selection -->
             <section id="shelfSection" class="nav-section" style="display: none;">
-                <h2>Select a Shelf (Artist)</h2>
+                <h2>Select a Shelf</h2>
                 <div id="shelvesContainer" class="shelves-container">
                     <!-- 5 shelves will be generated here -->
                 </div>

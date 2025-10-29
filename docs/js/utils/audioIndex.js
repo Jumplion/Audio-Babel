@@ -7,7 +7,7 @@
  * This module provides a clean interface to the WASM functionality.
  */
 
-import AudioIndexWASM from './audioIndexWasm.js';
+import AudioIndexWASM from '../core/audioIndexWasm.js';
 
 // Constants (from cpp/include/Constants.h)
 const DEFAULT_NUM_CHANNELS = 1;

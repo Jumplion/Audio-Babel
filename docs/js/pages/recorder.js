@@ -1,7 +1,7 @@
-import { getWasmModule } from './wasmModule.js';
-import { calculateDuration } from './audioIndex.js';
-import { parseWavFile, convertWebMToWav } from './wavUtils.js';
-import { bytesToBase64Chunked, encodeBase64Url } from './utils.js';
+import { getWasmModule } from '../core/wasmModule.js';
+import { calculateDuration } from '../utils/audioIndex.js';
+import { parseWavFile, convertWebMToWav } from '../utils/wavUtils.js';
+import { bytesToBase64Chunked, encodeBase64Url } from '../utils/utils.js';
 
 /**
  * Format duration in milliseconds to MM:SS

@@ -1,6 +1,6 @@
 import { isValidBase64Url, calculateDuration } from './audioIndex.js';
 import AudioIndexWASM from './audioIndexWasm.js';
-import { bytesToBase64Chunked } from './utils.js';
+import { bytesToBase64Chunked, addIndexHeader, decodeBase64Url } from './utils.js';
 
 // Initialize WASM module (lazy-loaded)
 let wasmModule = null;
@@ -34,8 +34,22 @@ export async function generateFromIndex(inputEl, btnEl, handleJsonResponse, setL
     // Use WASM to reconstruct audio from index
     const wasm = await getWasmModule();
     
-    // Reconstruct audio from the index
-    const pcmData = wasm.reconstructAudioFromIndex(indexString);
+    // The user input is PCM-only (no header). We need to add a header to make it a valid audio index.
+    const pcmBytes = decodeBase64Url(indexString);
+    const bytesPerSample = 16 / 8; // 16-bit
+    const numChannels = 1; // mono
+    const numFrames = Math.floor(pcmBytes.length / bytesPerSample / numChannels);
+    
+    // Add 13-byte header to create a valid audio index
+    const fullIndex = addIndexHeader(indexString, {
+      numFrames: numFrames,
+      sampleRate: 44100,
+      bitDepth: 16,
+      numChannels: 1
+    });
+    
+    // Reconstruct audio from the full index (with header)
+    const pcmData = wasm.reconstructAudioFromIndex(fullIndex);
     
     // Calculate duration
     const duration = calculateDuration(pcmData.length, 44100, 16, 1);

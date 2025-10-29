@@ -1,8 +1,8 @@
 // browse.js - Hierarchical navigation through the Record Shop library
 import AudioIndexWASM from './audioIndexWasm.js';
 import { calculateDuration } from './audioIndex.js';
-import { bytesToBase64Chunked } from './utils.js';
 import { indexToBase64 } from './positionEncoder.js';
+import { addIndexHeader, decodeBase64Url } from './utils.js';
 
 // Library hierarchy constants (from C++)
 const TRACKS_PER_ALBUM = 15;
@@ -250,7 +250,7 @@ function renderShelves() {
     for (let i = 0; i < SHELVES_PER_WALL; i++) {
         const btn = document.createElement('button');
         btn.className = 'shelf-btn';
-        btn.textContent = `Shelf ${i}`;
+        btn.textContent = `${i}`;
         btn.addEventListener('click', () => selectShelf(i));
         container.appendChild(btn);
     }
@@ -283,7 +283,7 @@ function renderAlbums() {
     for (let i = 0; i < ALBUMS_PER_SHELF; i++) {
         const btn = document.createElement('button');
         btn.className = 'album-btn';
-        btn.textContent = `Album ${i}`;
+        btn.textContent = `${i}`;
         btn.addEventListener('click', () => selectAlbum(i));
         container.appendChild(btn);
     }
@@ -343,44 +343,78 @@ async function generateAndDisplayTrack() {
     const container = $('resultContainer');
     if (!container) return;
     
-    container.innerHTML = '<p>Generating track...</p>';
+    // Show a more descriptive loading message
+    container.innerHTML = '<p>Generating track... This may take a moment for longer audio.</p>';
     
     try {
+        console.log('Starting track generation for position:', {
+            room: navState.room,
+            wall: navState.wall,
+            shelf: navState.shelf,
+            album: navState.album,
+            track: navState.track
+        });
+        
         // Get WASM module
         const wasm = await getWasmModule();
+        console.log('WASM module ready');
         
         // Reconstruct base64 index from position using WASM
-        const base64Index = wasm.module.reconstructIndex(
+        // This returns the position index (PCM data only, no header)
+        const positionIndexBase64 = wasm.module.reconstructIndex(
             navState.room.toString(),
             navState.wall,
             navState.shelf,
             navState.album,
             navState.track
         );
+        console.log('Position index (PCM only):', positionIndexBase64?.substring(0, 50) + '...');
         
-        if (!base64Index || base64Index.startsWith('error:')) {
-            throw new Error(base64Index || 'Failed to reconstruct index');
+        if (!positionIndexBase64 || positionIndexBase64.startsWith('error:')) {
+            throw new Error(positionIndexBase64 || 'Failed to reconstruct position index');
         }
         
+        // The position index is just the PCM data. We need to add a header to make it a valid audio index.
+        // Decode to get actual byte count
+        const pcmBytes = decodeBase64Url(positionIndexBase64);
+        const bytesPerSample = 16 / 8; // 16-bit
+        const numChannels = 1; // mono
+        const numFrames = Math.floor(pcmBytes.length / bytesPerSample / numChannels);
+        
+        // Add 13-byte header to create a valid audio index
+        console.log('PCM size:', pcmBytes.length, 'bytes, numFrames:', numFrames);
+        const base64Index = addIndexHeader(positionIndexBase64, {
+            numFrames: numFrames,
+            sampleRate: 44100,
+            bitDepth: 16,
+            numChannels: 1
+        });
+        console.log('Full audio index (with header):', base64Index?.substring(0, 50) + '...');
+        
         // Get metadata from WASM
+        console.log('Getting metadata...');
         const metadataJson = wasm.module.getMetadata(base64Index);
         const metadata = JSON.parse(metadataJson);
         
         if (metadata.error) {
             throw new Error(metadata.error);
         }
+        console.log('Metadata retrieved:', metadata);
         
         // Decode audio from index
+        console.log('Reconstructing audio from index...');
         const pcmData = wasm.reconstructAudioFromIndex(base64Index);
+        console.log('PCM data reconstructed, size:', pcmData?.length, 'bytes');
         
         // Calculate duration
         const duration = calculateDuration(pcmData.length, 44100, 16, 1);
+        console.log('Audio duration:', duration.toFixed(2), 'seconds');
         
-        // Generate WAV blob
+        // Generate WAV blob directly (no intermediate base64 conversion)
+        console.log('Creating WAV blob...');
         const wavBlob = wasm.samplesToWav(pcmData, 44100, 16, 1);
-        const wavArrayBuffer = await wavBlob.arrayBuffer();
-        const wavBytes = new Uint8Array(wavArrayBuffer);
-        const wavBase64 = bytesToBase64Chunked(wavBytes);
+        const url = URL.createObjectURL(wavBlob);
+        console.log('WAV blob created, size:', wavBlob.size, 'bytes');
         
         // Display results
         container.innerHTML = '';
@@ -436,13 +470,6 @@ async function generateAndDisplayTrack() {
         container.appendChild(metaContainer);
         
         // Audio player
-        const byteChars = atob(wavBase64);
-        const len = byteChars.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; ++i) bytes[i] = byteChars.charCodeAt(i);
-        const blob = new Blob([bytes], { type: 'audio/wav' });
-        const url = URL.createObjectURL(blob);
-        
         const audio = document.createElement('audio');
         audio.controls = true;
         audio.src = url;
@@ -479,6 +506,17 @@ function init() {
     }
     
     if (roomInput) {
+        // Add input validation - only allow URL-safe base64 characters and numbers
+        roomInput.addEventListener('input', (e) => {
+            const input = e.target;
+            const value = input.value;
+            // Allow: 0-9 (numbers), A-Z, a-z, -, _ (URL-safe base64 alphabet)
+            const filtered = value.replace(/[^0-9A-Za-z\-_]/g, '');
+            if (value !== filtered) {
+                input.value = filtered;
+            }
+        });
+        
         roomInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();

@@ -1,6 +1,6 @@
 import AudioIndexWASM from './audioIndexWasm.js';
 import { calculateDuration } from './audioIndex.js';
-import { bytesToBase64Chunked } from './utils.js';
+import { bytesToBase64Chunked, encodeBase64Url } from './utils.js';
 
 // Initialize WASM module (lazy-loaded)
 let wasmModule = null;
@@ -75,9 +75,8 @@ export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) 
       }
     }
     
-    // Use WASM to generate audio index
-    const wasm = await getWasmModule();
-    const audioIndex = wasm.generateIndex(randomBytes, 44100, 16, 1);
+    // Encode random PCM bytes as URL-safe base64 (this IS the user-facing index)
+    const audioIndex = encodeBase64Url(randomBytes);
     
     // Calculate duration
     const duration = calculateDuration(randomBytes.length, 44100, 16, 1);
@@ -99,6 +98,7 @@ export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) 
     };
     
     // Generate WAV for playback
+    const wasm = await getWasmModule();
     const wavBlob = wasm.samplesToWav(randomBytes, 44100, 16, 1);
     const wavArrayBuffer = await wavBlob.arrayBuffer();
     const wavBytes = new Uint8Array(wavArrayBuffer);

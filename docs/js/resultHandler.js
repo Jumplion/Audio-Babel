@@ -1,3 +1,11 @@
+/**
+ * resultHandler.js
+ * 
+ * Manages the display of audio generation results.
+ * Handles metadata display, expandable text, clickable indexes,
+ * audio playback controls, and download functionality.
+ */
+
 import { loadFragment } from './loadFragment.js';
 import { calculatePositionFromBase64 } from './positionEncoder.js';
 
@@ -30,6 +38,32 @@ export async function ensureResultFrag() {
 }
 
 /**
+ * Toggle the expanded state of metadata
+ * @param {HTMLElement} element - Metadata element
+ * @param {string} expandedId - Unique ID for expanded section
+ * @param {string} fullText - Complete text to show when expanded
+ * @param {string} truncatedText - Truncated text to show when collapsed
+ */
+function toggleMetadataExpansion(element, expandedId, fullText, truncatedText) {
+  const existingExpanded = document.getElementById(expandedId);
+  
+  if (existingExpanded) {
+    // Collapse: remove expanded view
+    existingExpanded.remove();
+    element.textContent = truncatedText;
+  } else {
+    // Expand: create and insert expanded view
+    const expandedDiv = document.createElement('div');
+    expandedDiv.id = expandedId;
+    expandedDiv.className = 'metadata-expanded';
+    expandedDiv.textContent = fullText;
+    
+    element.parentNode.insertBefore(expandedDiv, element.nextSibling);
+    element.textContent = truncatedText + ' ▼';
+  }
+}
+
+/**
  * Create a clickable metadata element that can expand to show full text
  * @param {HTMLElement} element - The metadata element
  * @param {string} fullText - The complete metadata string
@@ -39,49 +73,108 @@ export async function ensureResultFrag() {
 function makeMetadataExpandable(element, fullText, truncatedText, fieldName) {
   if (!element || !fullText) return;
   
-  // Create a unique ID for the expanded view
   const expandedId = `expanded-${fieldName}`;
   
-  // Set initial truncated text and apply expandable styling
+  // Set initial state
   element.textContent = truncatedText;
   element.classList.add('metadata-expandable');
   element.title = 'Click to expand/collapse';
   
-  // Add click handler
+  // Add toggle handler
   element.addEventListener('click', () => {
-    const existingExpanded = document.getElementById(expandedId);
-    
-    if (existingExpanded) {
-      // Remove expanded view
-      existingExpanded.remove();
-      element.textContent = truncatedText;
-    } else {
-      // Create expanded view
-      const expandedDiv = document.createElement('div');
-      expandedDiv.id = expandedId;
-      expandedDiv.className = 'metadata-expanded';
-      expandedDiv.textContent = fullText;
-      
-      // Insert after the element
-      element.parentNode.insertBefore(expandedDiv, element.nextSibling);
-      element.textContent = truncatedText + ' ▼';
-    }
+    toggleMetadataExpansion(element, expandedId, fullText, truncatedText);
   });
+}
+
+/**
+ * Trigger a file download from a blob
+ * @param {Blob} blob - File content as blob
+ * @param {string} filename - Name for downloaded file
+ */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  // Clean up blob URL
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+
+/**
+ * Generate HTML for index viewer page
+ * @param {string} indexContent - Full index string to display
+ * @returns {string} Complete HTML page
+ */
+function generateIndexViewerHTML(indexContent) {
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Audio Index</title>
+      <style>
+        body {
+          font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+          background: #1a1f2e;
+          color: #e0e0e0;
+          padding: 20px;
+          margin: 0;
+        }
+        pre {
+          white-space: pre-wrap;
+          word-break: break-all;
+          background: #0f1419;
+          padding: 20px;
+          border-radius: 8px;
+          border: 1px solid #2a3f5f;
+          line-height: 1.5;
+        }
+        h1 {
+          color: #64b5f6;
+          margin-bottom: 20px;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>Audio Index</h1>
+      <pre>${indexContent}</pre>
+    </body>
+    </html>
+  `;
+}
+
+/**
+ * Open index content in a new browser tab
+ * @param {string} fullIndex - Complete index string
+ */
+function openIndexInNewTab(fullIndex) {
+  const newWindow = window.open('', '_blank');
+  if (newWindow) {
+    newWindow.document.write(generateIndexViewerHTML(fullIndex));
+    newWindow.document.close();
+  }
 }
 
 /**
  * Create a clickable index display that downloads and opens the full index in a new tab
  * @param {HTMLElement} indexDisplay - The index display element
  * @param {string} fullIndex - The complete index string
+ * @returns {HTMLElement} Updated index display element
  */
 function makeIndexClickable(indexDisplay, fullIndex) {
-  if (!indexDisplay || !fullIndex) return;
+  if (!indexDisplay || !fullIndex) return indexDisplay;
   
-  // Remove any existing click handlers by cloning the element
+  // Remove existing handlers by cloning
   const newIndexDisplay = indexDisplay.cloneNode(false);
   indexDisplay.parentNode.replaceChild(newIndexDisplay, indexDisplay);
   
-  // Truncate the display text
+  // Set truncated display text
   const maxDisplayLength = 200;
   const truncated = fullIndex.length > maxDisplayLength
     ? fullIndex.substring(0, 100) + '...' + fullIndex.substring(fullIndex.length - 100)
@@ -91,66 +184,11 @@ function makeIndexClickable(indexDisplay, fullIndex) {
   newIndexDisplay.classList.add('index-clickable');
   newIndexDisplay.title = 'Click to download and view full index';
   
-  // Add click handler
+  // Add click handler for download + view
   newIndexDisplay.addEventListener('click', () => {
-    // Create a blob with the full index
     const blob = new Blob([fullIndex], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    
-    // Create a temporary download link
-    const downloadLink = document.createElement('a');
-    downloadLink.href = url;
-    downloadLink.download = 'audio-index.txt';
-    
-    // Trigger download
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-    
-    // Open in new tab
-    const newWindow = window.open('', '_blank');
-    if (newWindow) {
-      newWindow.document.write(`
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Audio Index</title>
-          <style>
-            body {
-              font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-              background: #1a1f2e;
-              color: #e0e0e0;
-              padding: 20px;
-              margin: 0;
-            }
-            pre {
-              white-space: pre-wrap;
-              word-break: break-all;
-              background: #0f1419;
-              padding: 20px;
-              border-radius: 8px;
-              border: 1px solid #2a3f5f;
-              line-height: 1.5;
-            }
-            h1 {
-              color: #64b5f6;
-              margin-bottom: 20px;
-            }
-          </style>
-        </head>
-        <body>
-          <h1>Audio Index</h1>
-          <pre>${fullIndex}</pre>
-        </body>
-        </html>
-      `);
-      newWindow.document.close();
-    }
-    
-    // Clean up the blob URL after a short delay
-    setTimeout(() => URL.revokeObjectURL(url), 100);
+    downloadBlob(blob, 'audio-index.txt');
+    openIndexInNewTab(fullIndex);
   });
   
   return newIndexDisplay;

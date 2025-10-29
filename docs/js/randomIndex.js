@@ -1,3 +1,11 @@
+/**
+ * randomIndex.js
+ * 
+ * Generates random audio data for testing and demonstration.
+ * Creates cryptographically random PCM data, encodes as base64 index,
+ * and generates playback audio with metadata.
+ */
+
 import { getWasmModule } from './wasmModule.js';
 import { calculateDuration } from './audioIndex.js';
 import { bytesToBase64Chunked, encodeBase64Url } from './utils.js';
@@ -5,6 +13,8 @@ import { handleError } from './errorHandler.js';
 
 /**
  * Generate random audio data and send to API for processing
+ * Creates random PCM data between configurable size limits,
+ * encodes as base64 index, and generates result with metadata
  * @param {Function} handleJsonResponse - Callback for handling response
  * @param {Function} setLoading - Callback for loading state
  */

@@ -1,3 +1,11 @@
+/**
+ * main.js
+ * 
+ * Main entry point for page-specific functionality.
+ * Coordinates page initialization, event handlers, and UI state management
+ * for random generation, search, file upload, and recording pages.
+ */
+
 import { generateAndSend } from './randomIndex.js';
 import { generateFromIndex, attachSearchInputFilter } from './search.js';
 import { uploadFile } from './fileUpload.js';
@@ -8,6 +16,11 @@ import { showValidationError, handleError } from './errorHandler.js';
 
 // Note: No longer using fetch interception - using direct function calls instead
 
+/**
+ * Set loading state for the UI
+ * Shows/hides spinner, updates status message, and disables/enables controls
+ * @param {boolean} on - True to show loading state, false to hide
+ */
 function setLoading(on) {
   const spinner = document.getElementById('statusSpinner');
   const msg = document.getElementById('statusMsg');

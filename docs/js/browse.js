@@ -20,12 +20,18 @@ const navState = {
     track: null
 };
 
+/**
+ * Get element by ID (shorthand helper)
+ * @param {string} id - Element ID
+ * @returns {HTMLElement|null} Element or null if not found
+ */
 function $(id) {
     return document.getElementById(id);
 }
 
 /**
- * Update the breadcrumb navigation
+ * Update the breadcrumb navigation display
+ * Shows the current position in the hierarchy with clickable links
  */
 function updateBreadcrumb() {
     const nav = $('breadcrumb');
@@ -99,7 +105,8 @@ function updateBreadcrumb() {
 }
 
 /**
- * Show only the specified section
+ * Show only the specified section, hiding all others
+ * @param {string} sectionId - ID of section to display
  */
 function showSection(sectionId) {
     const sections = ['roomSection', 'wallSection', 'shelfSection', 'albumSection', 'trackSection', 'resultSection'];
@@ -110,14 +117,33 @@ function showSection(sectionId) {
 }
 
 /**
+ * Clear navigation state from a given level downward
+ * @param {string[]} levelsToClear - Navigation levels to clear (e.g., ['wall', 'shelf', 'album', 'track'])
+ */
+function clearNavLevels(levelsToClear) {
+    levelsToClear.forEach(level => {
+        navState[level] = null;
+    });
+}
+
+/**
+ * Navigate to a specific level in the hierarchy
+ * @param {string} section - Section to show (e.g., 'wallSection')
+ * @param {string[]} clearLevels - Levels to clear from nav state
+ * @param {Function} [renderFn] - Optional render function to call after navigation
+ */
+function navigateToLevel(section, clearLevels, renderFn = null) {
+    clearNavLevels(clearLevels);
+    showSection(section);
+    if (renderFn) renderFn();
+    updateBreadcrumb();
+}
+
+/**
  * Navigate to room selection
  */
 function goToRoom() {
-    navState.wall = null;
-    navState.shelf = null;
-    navState.album = null;
-    navState.track = null;
-    
+    clearNavLevels(['wall', 'shelf', 'album', 'track']);
     showSection('roomSection');
     showSection('wallSection');
     updateBreadcrumb();
@@ -127,39 +153,26 @@ function goToRoom() {
  * Navigate to wall selection
  */
 function goToWall() {
-    navState.shelf = null;
-    navState.album = null;
-    navState.track = null;
-    
-    showSection('wallSection');
-    updateBreadcrumb();
+    navigateToLevel('wallSection', ['shelf', 'album', 'track']);
 }
 
 /**
  * Navigate to shelf selection
  */
 function goToShelf() {
-    navState.album = null;
-    navState.track = null;
-    
-    showSection('shelfSection');
-    renderShelves();
-    updateBreadcrumb();
+    navigateToLevel('shelfSection', ['album', 'track'], renderShelves);
 }
 
 /**
  * Navigate to album selection
  */
 function goToAlbum() {
-    navState.track = null;
-    
-    showSection('albumSection');
-    renderAlbums();
-    updateBreadcrumb();
+    navigateToLevel('albumSection', ['track'], renderAlbums);
 }
 
 /**
- * Enter a room
+ * Enter a room by ID or base64 string
+ * Validates input and converts numeric room IDs to base64 format
  */
 function enterRoom() {
     const input = $('roomInput');
@@ -204,15 +217,14 @@ function enterRoom() {
 }
 
 /**
- * Select a wall
+ * Select a wall and navigate to shelf selection
+ * @param {number} wallNum - Wall number (0-3)
  */
 function selectWall(wallNum) {
     if (navState.room === null) return;
     
     navState.wall = wallNum;
-    navState.shelf = null;
-    navState.album = null;
-    navState.track = null;
+    clearNavLevels(['shelf', 'album', 'track']);
     
     showSection('shelfSection');
     renderShelves();
@@ -220,32 +232,46 @@ function selectWall(wallNum) {
 }
 
 /**
- * Render the shelves for the current wall
+ * Render numbered buttons in a container
+ * @param {string} containerId - ID of container element
+ * @param {number} count - Number of buttons to create
+ * @param {string} className - CSS class for buttons
+ * @param {Function} clickHandler - Click handler function
+ * @param {Function} [labelFn] - Optional function to generate button label (default: index number)
  */
-function renderShelves() {
-    const container = $('shelvesContainer');
+function renderButtons(containerId, count, className, clickHandler, labelFn = (i) => `${i}`) {
+    const container = $(containerId);
     if (!container) return;
     
     container.innerHTML = '';
     
-    for (let i = 0; i < SHELVES_PER_WALL; i++) {
+    for (let i = 0; i < count; i++) {
         const btn = document.createElement('button');
-        btn.className = 'shelf-btn';
-        btn.textContent = `${i}`;
-        btn.addEventListener('click', () => selectShelf(i));
+        btn.className = className;
+        btn.textContent = labelFn(i);
+        btn.addEventListener('click', () => clickHandler(i));
         container.appendChild(btn);
     }
 }
 
 /**
- * Select a shelf
+ * Render the shelves for the current wall
+ * Creates numbered buttons (0-4) for shelf selection
+ */
+function renderShelves() {
+    renderButtons('shelvesContainer', SHELVES_PER_WALL, 'shelf-btn', selectShelf);
+}
+
+/**
+ * Select a shelf and navigate to album selection
+ * Validates that room and wall have been selected first
+ * @param {number} shelfNum - Shelf number (0-4)
  */
 function selectShelf(shelfNum) {
     if (navState.room === null || navState.wall === null) return;
     
     navState.shelf = shelfNum;
-    navState.album = null;
-    navState.track = null;
+    clearNavLevels(['album', 'track']);
     
     showSection('albumSection');
     renderAlbums();
@@ -254,30 +280,22 @@ function selectShelf(shelfNum) {
 
 /**
  * Render the albums for the current shelf
+ * Creates numbered buttons (0-31) for album selection
  */
 function renderAlbums() {
-    const container = $('albumsContainer');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    for (let i = 0; i < ALBUMS_PER_SHELF; i++) {
-        const btn = document.createElement('button');
-        btn.className = 'album-btn';
-        btn.textContent = `${i}`;
-        btn.addEventListener('click', () => selectAlbum(i));
-        container.appendChild(btn);
-    }
+    renderButtons('albumsContainer', ALBUMS_PER_SHELF, 'album-btn', selectAlbum);
 }
 
 /**
- * Select an album
+ * Select an album and navigate to track selection
+ * Validates that room, wall, and shelf have been selected first
+ * @param {number} albumNum - Album number (0-31)
  */
 function selectAlbum(albumNum) {
     if (navState.room === null || navState.wall === null || navState.shelf === null) return;
     
     navState.album = albumNum;
-    navState.track = null;
+    clearNavLevels(['track']);
     
     showSection('trackSection');
     renderTracks();
@@ -286,24 +304,16 @@ function selectAlbum(albumNum) {
 
 /**
  * Render the tracks for the current album
+ * Creates numbered buttons (0-14) labeled "Track N" for track selection
  */
 function renderTracks() {
-    const container = $('tracksContainer');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    for (let i = 0; i < TRACKS_PER_ALBUM; i++) {
-        const btn = document.createElement('button');
-        btn.className = 'track-btn';
-        btn.textContent = `Track ${i}`;
-        btn.addEventListener('click', () => selectTrack(i));
-        container.appendChild(btn);
-    }
+    renderButtons('tracksContainer', TRACKS_PER_ALBUM, 'track-btn', selectTrack, (i) => `Track ${i}`);
 }
 
 /**
- * Select a track and display the result
+ * Select a track and display its audio content
+ * Validates that all parent levels have been selected
+ * @param {number} trackNum - Track number (0-14)
  */
 async function selectTrack(trackNum) {
     if (navState.room === null || navState.wall === null || 
@@ -319,6 +329,9 @@ async function selectTrack(trackNum) {
 
 /**
  * Generate and display the selected track
+ * Reconstructs the audio index from the current position,
+ * extracts metadata, generates audio, and displays the result
+ * with playback controls and download options
  */
 async function generateAndDisplayTrack() {
     const container = $('resultContainer');
@@ -474,7 +487,9 @@ async function generateAndDisplayTrack() {
 }
 
 /**
- * Initialize the page
+ * Initialize the browse page
+ * Sets up event listeners for room input, wall selection, and navigation
+ * Initializes the breadcrumb and shows the room selection section by default
  */
 function init() {
     // Room input

@@ -1,14 +1,14 @@
 import { getWasmModule } from './wasmModule.js';
 import { calculateDuration } from './audioIndex.js';
 import { bytesToBase64Chunked, encodeBase64Url } from './utils.js';
+import { handleError } from './errorHandler.js';
 
 /**
  * Generate random audio data and send to API for processing
- * @param {HTMLElement} regenBtn - Button element (unused but kept for consistency)
  * @param {Function} handleJsonResponse - Callback for handling response
  * @param {Function} setLoading - Callback for loading state
  */
-export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) {
+export async function generateAndSend(handleJsonResponse, setLoading) {
   try {
     setLoading(true);
     
@@ -98,8 +98,7 @@ export async function generateAndSend(regenBtn, handleJsonResponse, setLoading) 
     
     await handleJsonResponse(result, result.indexBase64);
   } catch (error) {
-    console.error('Error generating random index:', error);
-    alert('Error: ' + error.message);
+    handleError('randomIndex.js:generateAndSend', error, error.message);
   } finally {
     setLoading(false);
   }

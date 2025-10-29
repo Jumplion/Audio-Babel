@@ -7,6 +7,8 @@
  * Album (32) → Track (15)
  */
 
+import { encodeBase64Url, decodeBase64Url } from './utils.js';
+
 // Library structure constants (matching C++ LibraryConstants)
 export const TRACKS_PER_ALBUM = 15;
 export const ALBUMS_PER_SHELF = 32;
@@ -44,7 +46,7 @@ export class LibraryPosition {
  */
 export function calculatePositionFromBase64(base64Index) {
     // Convert base64 to bytes
-    const bytes = base64UrlToBytes(base64Index);
+    const bytes = decodeBase64Url(base64Index);
     
     // Convert bytes to BigInt (big-endian)
     let index = 0n;
@@ -108,7 +110,7 @@ export function reconstructIndexFromPosition(pos) {
         roomNumber = 0n;
     } else {
         // Convert base64 to bytes
-        const bytes = base64UrlToBytes(pos.room);
+        const bytes = decodeBase64Url(pos.room);
         
         // Convert bytes to BigInt (big-endian)
         roomNumber = 0n;
@@ -143,70 +145,7 @@ export function indexToBase64(index) {
         temp = temp >> 8n;
     }
     
-    return bytesToBase64Url(bytes);
-}
-
-/**
- * Convert bytes array to base64 URL-safe string (no padding)
- * @param {number[]} bytes
- * @returns {string}
- */
-function bytesToBase64Url(bytes) {
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-    let result = '';
-    let acc = 0;
-    let accBits = 0;
-    
-    for (const byte of bytes) {
-        acc = (acc << 8) | byte;
-        accBits += 8;
-        
-        while (accBits >= 6) {
-            accBits -= 6;
-            const idx = (acc >> accBits) & 0x3F;
-            result += alphabet[idx];
-        }
-    }
-    
-    if (accBits > 0) {
-        const idx = (acc << (6 - accBits)) & 0x3F;
-        result += alphabet[idx];
-    }
-    
-    return result;
-}
-
-/**
- * Convert base64 URL-safe string to bytes array
- * @param {string} base64
- * @returns {number[]}
- */
-function base64UrlToBytes(base64) {
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-    const lookup = {};
-    for (let i = 0; i < alphabet.length; i++) {
-        lookup[alphabet[i]] = i;
-    }
-    
-    const bytes = [];
-    let acc = 0;
-    let accBits = 0;
-    
-    for (const char of base64) {
-        if (!(char in lookup)) {
-            throw new Error(`Invalid base64 character: ${char}`);
-        }
-        
-        acc = (acc << 6) | lookup[char];
-        accBits += 6;
-        
-        if (accBits >= 8) {
-            accBits -= 8;
-            bytes.push((acc >> accBits) & 0xFF);
-        }
-    }
-    
-    return bytes;
+    return encodeBase64Url(new Uint8Array(bytes));
 }
 
 console.info('positionEncoder.js loaded');

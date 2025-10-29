@@ -1,24 +1,14 @@
 // browse.js - Hierarchical navigation through the Record Shop library
-import AudioIndexWASM from './audioIndexWasm.js';
+import { getWasmModule } from './wasmModule.js';
 import { calculateDuration } from './audioIndex.js';
 import { indexToBase64 } from './positionEncoder.js';
-import { addIndexHeader, decodeBase64Url } from './utils.js';
+import { addIndexHeader, decodeBase64Url, escapeHtml } from './utils.js';
 
 // Library hierarchy constants (from C++)
 const TRACKS_PER_ALBUM = 15;
 const ALBUMS_PER_SHELF = 32;
 const SHELVES_PER_WALL = 5;
 const WALLS_PER_ROOM = 4;
-
-// Initialize WASM module (lazy-loaded)
-let wasmModule = null;
-async function getWasmModule() {
-    if (!wasmModule) {
-        wasmModule = new AudioIndexWASM();
-        await wasmModule.initialize();
-    }
-    return wasmModule;
-}
 
 // Current navigation state
 const navState = {
@@ -28,16 +18,6 @@ const navState = {
     album: null,
     track: null
 };
-
-function escapeHtml(s) {
-    if (!s && s !== 0) return '';
-    return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
 
 function $(id) {
     return document.getElementById(id);

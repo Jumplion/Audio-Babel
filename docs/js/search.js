@@ -1,16 +1,6 @@
 import { isValidBase64Url, calculateDuration } from './audioIndex.js';
-import AudioIndexWASM from './audioIndexWasm.js';
+import { getWasmModule } from './wasmModule.js';
 import { bytesToBase64Chunked, addIndexHeader, decodeBase64Url } from './utils.js';
-
-// Initialize WASM module (lazy-loaded)
-let wasmModule = null;
-async function getWasmModule() {
-    if (!wasmModule) {
-        wasmModule = new AudioIndexWASM();
-        await wasmModule.initialize();
-    }
-    return wasmModule;
-}
 
 /**
  * Generate audio from an index string

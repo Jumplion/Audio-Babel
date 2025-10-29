@@ -49,37 +49,102 @@
     display: flex;
     justify-content: center;
     padding: 20px;
+
+    /* Configurable hexagon properties */
+    --hex-size: 300px;
+    --hex-center: 110;
+    --hex-inner-scale: 0.55;
+    /* Adjust this to make trapezoids thinner (0.5-0.7 recommended) */
 }
 
 .hexagon-svg {
-    width: 300px;
-    height: 300px;
+    width: var(--hex-size);
+    height: var(--hex-size);
     max-width: 100%;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
 }
 
 .hexagon-outline {
-    fill: none;
-    stroke: rgba(100, 120, 200, 0.4);
-    stroke-width: 2;
-}
-
-.wall {
-    fill: rgba(100, 120, 200, 0.3);
+    fill: rgba(20, 25, 35, 0.5);
     stroke: rgba(100, 120, 200, 0.8);
-    stroke-width: 2;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.wall:hover,
-.wall.hover {
-    fill: rgba(100, 120, 200, 0.6);
-    stroke: rgba(150, 170, 255, 1);
     stroke-width: 3;
 }
 
+.hexagon-inner {
+    fill: rgba(20, 25, 35, 0.8);
+    stroke: rgba(80, 100, 180, 0.6);
+    stroke-width: 2;
+}
+
+/* All segments share base styling */
+.segment {
+    stroke: rgba(255, 255, 255, 0.3);
+    stroke-width: 1.5;
+    transition: all 0.3s ease;
+}
+
+/* Non-selectable segments - darker/grayed out */
+.segment-disabled {
+    fill: rgba(50, 60, 80, 0.4);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+/* Selectable wall segments */
+.wall {
+    cursor: pointer;
+}
+
+/* Top segment (Wall 0) - Blue */
+.wall[data-wall="0"] {
+    fill: rgba(70, 130, 220, 0.6);
+}
+
+.wall[data-wall="0"]:hover,
+.wall[data-wall="0"].hover {
+    fill: rgba(100, 160, 255, 0.85);
+    stroke: rgba(150, 200, 255, 0.9);
+    stroke-width: 2.5;
+}
+
+/* Bottom-right segment (Wall 1) - Green */
+.wall[data-wall="1"] {
+    fill: rgba(80, 180, 100, 0.6);
+}
+
+.wall[data-wall="1"]:hover,
+.wall[data-wall="1"].hover {
+    fill: rgba(110, 220, 130, 0.85);
+    stroke: rgba(150, 255, 180, 0.9);
+    stroke-width: 2.5;
+}
+
+/* Bottom segment (Wall 2) - Orange */
+.wall[data-wall="2"] {
+    fill: rgba(220, 140, 60, 0.6);
+}
+
+.wall[data-wall="2"]:hover,
+.wall[data-wall="2"].hover {
+    fill: rgba(255, 170, 90, 0.85);
+    stroke: rgba(255, 200, 130, 0.9);
+    stroke-width: 2.5;
+}
+
+/* Top-left segment (Wall 3) - Purple */
+.wall[data-wall="3"] {
+    fill: rgba(150, 80, 180, 0.6);
+}
+
+.wall[data-wall="3"]:hover,
+.wall[data-wall="3"].hover {
+    fill: rgba(180, 110, 220, 0.85);
+    stroke: rgba(210, 150, 255, 0.9);
+    stroke-width: 2.5;
+}
+
 .wall:active {
-    fill: rgba(100, 120, 200, 0.8);
+    filter: brightness(1.2);
 }
 
 /* Shelves container - vertical stack */

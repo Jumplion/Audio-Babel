@@ -33,6 +33,13 @@ export function createRecorder({ recordPlayer, recordStatus, recordDurationEl, u
   let recordStartTime = 0;
   let recordTimerId = null;
 
+  /**
+   * Ensure MediaRecorder is initialized
+   * Creates and configures MediaRecorder on first call, returns cached instance on subsequent calls
+   * @returns {Promise<MediaRecorder>} Initialized MediaRecorder instance
+   * @throws {Error} If Media devices API is not available
+   * @private
+   */
   async function ensureMediaRecorder() {
     if (mediaRecorder) return mediaRecorder;
     
@@ -67,6 +74,11 @@ export function createRecorder({ recordPlayer, recordStatus, recordDurationEl, u
     return mediaRecorder;
   }
 
+  /**
+   * Check if an audio input device is available
+   * @returns {Promise<boolean>} True if audio input device exists
+   * @private
+   */
   async function hasInputDevice() {
     try {
       if (!navigator.mediaDevices?.enumerateDevices) {
@@ -80,6 +92,12 @@ export function createRecorder({ recordPlayer, recordStatus, recordDurationEl, u
     }
   }
 
+  /**
+   * Start recording audio from the microphone
+   * Initializes MediaRecorder, starts recording, and begins duration timer
+   * @returns {Promise<void>}
+   * @private
+   */
   async function startRecording() {
     setLoading(true);
     recordStatus.textContent = 'Recording...';
@@ -97,6 +115,11 @@ export function createRecorder({ recordPlayer, recordStatus, recordDurationEl, u
     setLoading(false);
   }
 
+  /**
+   * Stop the current recording
+   * Stops MediaRecorder and duration timer, updates final duration display
+   * @private
+   */
   function stopRecording() {
     setLoading(true);
     if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
@@ -104,6 +127,13 @@ export function createRecorder({ recordPlayer, recordStatus, recordDurationEl, u
     setLoading(false);
   }
 
+  /**
+   * Upload the recorded audio and generate index
+   * Converts WebM recording to WAV, generates base64 index, and displays result
+   * @returns {Promise<void>}
+   * @throws {Error} If no recording available
+   * @private
+   */
   async function uploadRecorded() {
     if (!recordedBlob) throw new Error('No recording available');
     try {

@@ -1,3 +1,11 @@
+/**
+ * search.js
+ * 
+ * Handles decoding and playback of base64 audio indexes.
+ * Validates input, reconstructs audio from indexes, and provides
+ * input filtering to ensure only valid base64 characters are entered.
+ */
+
 import { isValidBase64Url, calculateDuration } from './audioIndex.js';
 import { getWasmModule } from './wasmModule.js';
 import { bytesToBase64Chunked, addIndexHeader, decodeBase64Url } from './utils.js';
@@ -5,6 +13,7 @@ import { showValidationError, handleError } from './errorHandler.js';
 
 /**
  * Generate audio from an index string
+ * Validates the index, reconstructs PCM data, and generates playback audio
  * @param {HTMLElement} inputEl - Input element containing the index
  * @param {Function} handleJsonResponse - Callback for handling response
  * @param {Function} setLoading - Callback for loading state
@@ -76,58 +85,104 @@ export async function generateFromIndex(inputEl, handleJsonResponse, setLoading)
   }
 }
 
+/**
+ * Filter a string to only contain valid base64 URL-safe characters
+ * @param {string} text - Text to filter
+ * @returns {string} Filtered text containing only A-Z, a-z, 0-9, -, _
+ */
+function filterToValidChars(text) {
+  const allowed = /[A-Za-z0-9_-]/;
+  return text.split('').filter((c) => allowed.test(c)).join('');
+}
+
+/**
+ * Auto-resize a textarea to fit its content
+ * @param {HTMLTextAreaElement} element - Textarea element to resize
+ */
+function autosizeTextarea(element) {
+  try {
+    element.style.height = 'auto';
+    const height = element.scrollHeight;
+    element.style.height = Math.max(24, height) + 'px';
+  } catch (e) {
+    // Silently ignore errors
+  }
+}
+
+/**
+ * Handle paste event to filter invalid characters
+ * @param {ClipboardEvent} e - Paste event
+ * @param {HTMLInputElement|HTMLTextAreaElement} inputEl - Input element
+ */
+function handlePaste(e, inputEl) {
+  try {
+    const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+    const filtered = filterToValidChars(text);
+    
+    if (filtered !== text) {
+      e.preventDefault();
+      
+      // Insert filtered text at caret position
+      const start = inputEl.selectionStart || 0;
+      const end = inputEl.selectionEnd || 0;
+      const currentValue = inputEl.value || '';
+      
+      inputEl.value = currentValue.slice(0, start) + filtered + currentValue.slice(end);
+      
+      const newPosition = start + filtered.length;
+      inputEl.setSelectionRange(newPosition, newPosition);
+      autosizeTextarea(inputEl);
+    }
+  } catch (err) {
+    // Fallback: allow default paste behavior
+  }
+}
+
+/**
+ * Handle input event to sanitize programmatically inserted text
+ * @param {HTMLInputElement|HTMLTextAreaElement} inputEl - Input element
+ */
+function handleInput(inputEl) {
+  const value = inputEl.value || '';
+  const filtered = filterToValidChars(value);
+  
+  if (filtered !== value) {
+    const cursorPos = inputEl.selectionStart || filtered.length;
+    inputEl.value = filtered;
+    
+    // Restore cursor position (adjust by 1 if character was removed)
+    const newPos = Math.max(0, cursorPos - 1);
+    inputEl.setSelectionRange(newPos, newPos);
+  }
+  
+  autosizeTextarea(inputEl);
+}
+
+/**
+ * Attach input filter to prevent invalid characters in base64 URL-safe input
+ * Filters input to only allow A-Z, a-z, 0-9, -, _
+ * Also auto-resizes textarea elements to fit content
+ * @param {HTMLInputElement|HTMLTextAreaElement} inputEl - Input element to filter
+ */
 export function attachSearchInputFilter(inputEl) {
   if (!inputEl) return;
+  
   const allowed = /[A-Za-z0-9_-]/;
-
-  function autosize() {
-    try {
-      inputEl.style.height = 'auto';
-      const h = inputEl.scrollHeight;
-      inputEl.style.height = Math.max(24, h) + 'px';
-    } catch (e) {
-      /* ignore */
-    }
-  }
-
-  // prevent invalid key input
+  
+  // Prevent invalid keypress
   inputEl.addEventListener('keypress', (e) => {
-    const ch = String.fromCharCode(e.charCode || e.which || 0);
-    if (!allowed.test(ch)) e.preventDefault();
-  });
-
-  // sanitize pasted content
-  inputEl.addEventListener('paste', (e) => {
-    try {
-      const txt = (e.clipboardData || window.clipboardData).getData('text') || '';
-      const filtered = txt.split('').filter((c) => allowed.test(c)).join('');
-      if (filtered !== txt) {
-        e.preventDefault();
-        // insert filtered text at caret
-  const start = inputEl.selectionStart || 0;
-  const end = inputEl.selectionEnd || 0;
-  const v = inputEl.value || '';
-  inputEl.value = v.slice(0, start) + filtered + v.slice(end);
-  const pos = start + filtered.length;
-  inputEl.setSelectionRange(pos, pos);
-  autosize();
-      }
-    } catch (err) {
-      // fallback: do nothing
+    const char = String.fromCharCode(e.charCode || e.which || 0);
+    if (!allowed.test(char)) {
+      e.preventDefault();
     }
   });
-
-  // sanitize programmatic input (e.g., drag/drop) on input event
-  inputEl.addEventListener('input', () => {
-    const v = inputEl.value || '';
-    const filtered = v.split('').filter((c) => allowed.test(c)).join('');
-    if (filtered !== v) {
-      const pos = inputEl.selectionStart || filtered.length;
-      inputEl.value = filtered;
-      inputEl.setSelectionRange(Math.max(0, pos - 1), Math.max(0, pos - 1));
-    }
-    autosize();
-  });
-  // initial size
-  autosize();
+  
+  // Sanitize pasted content
+  inputEl.addEventListener('paste', (e) => handlePaste(e, inputEl));
+  
+  // Sanitize programmatic input (drag/drop, etc.)
+  inputEl.addEventListener('input', () => handleInput(inputEl));
+  
+  // Set initial size
+  autosizeTextarea(inputEl);
 }

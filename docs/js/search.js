@@ -1,20 +1,20 @@
 import { isValidBase64Url, calculateDuration } from './audioIndex.js';
 import { getWasmModule } from './wasmModule.js';
 import { bytesToBase64Chunked, addIndexHeader, decodeBase64Url } from './utils.js';
+import { showValidationError, handleError } from './errorHandler.js';
 
 /**
  * Generate audio from an index string
  * @param {HTMLElement} inputEl - Input element containing the index
- * @param {HTMLElement} btnEl - Button element (unused but kept for consistency)
  * @param {Function} handleJsonResponse - Callback for handling response
  * @param {Function} setLoading - Callback for loading state
  */
-export async function generateFromIndex(inputEl, btnEl, handleJsonResponse, setLoading) {
+export async function generateFromIndex(inputEl, handleJsonResponse, setLoading) {
   const indexString = inputEl.value || '';
   
   // Validate index characters (A-Z, a-z, 0-9, -, _)
   if (!isValidBase64Url(indexString)) {
-    alert('Invalid characters in index. Only A-Z, a-z, 0-9, - and _ are allowed.');
+    showValidationError('Invalid characters in index. Only A-Z, a-z, 0-9, - and _ are allowed.');
     return;
   }
   
@@ -70,8 +70,7 @@ export async function generateFromIndex(inputEl, btnEl, handleJsonResponse, setL
     
     await handleJsonResponse(result, indexString);
   } catch (error) {
-    console.error(error);
-    alert('Error: ' + error.message);
+    handleError('search.js:generateFromIndex', error, error.message);
   } finally {
     setLoading(false);
   }

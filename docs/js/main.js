@@ -3,6 +3,8 @@ import { generateFromIndex, attachSearchInputFilter } from './search.js';
 import { uploadFile } from './fileUpload.js';
 import { createRecorder } from './recorder.js';
 import { handleJsonResponse } from './resultHandler.js';
+import { createSizeValidator } from './validationUtils.js';
+import { showValidationError, handleError } from './errorHandler.js';
 
 // Note: No longer using fetch interception - using direct function calls instead
 
@@ -33,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Random page: Generate button and input validation
   const regenBtn = document.getElementById('regenBtn');
   if (regenBtn) {
-    regenBtn.addEventListener('click', () => generateAndSend(regenBtn, handleJsonResponse, setLoading));
+    regenBtn.addEventListener('click', () => generateAndSend(handleJsonResponse, setLoading));
     
     // Set up input validation for random page size inputs
     const minSizeInput = document.getElementById('minSize');
@@ -43,104 +45,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const rangeError = document.getElementById('rangeError');
     
     if (minSizeInput && maxSizeInput && minSizeWarning && maxSizeWarning && rangeError) {
-      const HARD_MAX_KB = 61440; // 60 MB - hard limit
-      const RECOMMENDED_MAX_KB = 61440; // 60 MB
-      const WARNING_THRESHOLD_KB = 102400; // 100 MB
+      const validator = createSizeValidator({
+        minSizeInput,
+        maxSizeInput,
+        minSizeWarning,
+        maxSizeWarning,
+        rangeError
+      });
       
-      function validateInputs() {
-        let hasWarning = false;
-        let hasError = false;
-        
-        const minValue = parseInt(minSizeInput.value, 10);
-        const maxValue = parseInt(maxSizeInput.value, 10);
-        
-        // Check min size warnings
-        if (minSizeInput.value && !isNaN(minValue)) {
-          if (minValue > HARD_MAX_KB) {
-            minSizeWarning.textContent = `⚠ Error: ${minValue} KB exceeds maximum allowed (60 MB)`;
-            minSizeWarning.style.display = 'block';
-            minSizeWarning.style.color = '#ff4444';
-            minSizeInput.classList.add('error');
-            hasError = true;
-          } else if (minValue > WARNING_THRESHOLD_KB) {
-            minSizeWarning.textContent = `⚠ Warning: ${minValue} KB is very large and may cause performance issues`;
-            minSizeWarning.style.display = 'block';
-            minSizeWarning.style.color = '#ffaa00';
-            minSizeInput.classList.add('warning');
-            minSizeInput.classList.remove('error');
-            hasWarning = true;
-          } else if (minValue > RECOMMENDED_MAX_KB) {
-            minSizeWarning.textContent = `⚠ Warning: ${minValue} KB exceeds recommended maximum (60 MB)`;
-            minSizeWarning.style.display = 'block';
-            minSizeWarning.style.color = '#ffaa00';
-            minSizeInput.classList.add('warning');
-            minSizeInput.classList.remove('error');
-            hasWarning = true;
-          } else {
-            minSizeWarning.style.display = 'none';
-            minSizeInput.classList.remove('warning');
-            minSizeInput.classList.remove('error');
-          }
-        } else {
-          minSizeWarning.style.display = 'none';
-          minSizeInput.classList.remove('warning');
-          minSizeInput.classList.remove('error');
-        }
-        
-        // Check max size warnings
-        if (maxSizeInput.value && !isNaN(maxValue)) {
-          if (maxValue > HARD_MAX_KB) {
-            maxSizeWarning.textContent = `⚠ Error: ${maxValue} KB exceeds maximum allowed (60 MB)`;
-            maxSizeWarning.style.display = 'block';
-            maxSizeWarning.style.color = '#ff4444';
-            maxSizeInput.classList.add('error');
-            hasError = true;
-          } else if (maxValue > WARNING_THRESHOLD_KB) {
-            maxSizeWarning.textContent = `⚠ Warning: ${maxValue} KB is very large and may cause performance issues`;
-            maxSizeWarning.style.display = 'block';
-            maxSizeWarning.style.color = '#ffaa00';
-            maxSizeInput.classList.add('warning');
-            maxSizeInput.classList.remove('error');
-            hasWarning = true;
-          } else if (maxValue > RECOMMENDED_MAX_KB) {
-            maxSizeWarning.textContent = `⚠ Warning: ${maxValue} KB exceeds recommended maximum (60 MB)`;
-            maxSizeWarning.style.display = 'block';
-            maxSizeWarning.style.color = '#ffaa00';
-            maxSizeInput.classList.add('warning');
-            maxSizeInput.classList.remove('error');
-            hasWarning = true;
-          } else {
-            maxSizeWarning.style.display = 'none';
-            maxSizeInput.classList.remove('warning');
-            maxSizeInput.classList.remove('error');
-          }
-        } else {
-          maxSizeWarning.style.display = 'none';
-          maxSizeInput.classList.remove('warning');
-          maxSizeInput.classList.remove('error');
-        }
-        
-        // Check if min >= max
-        if (minSizeInput.value && maxSizeInput.value && !isNaN(minValue) && !isNaN(maxValue)) {
-          if (minValue >= maxValue) {
-            rangeError.style.display = 'block';
-            minSizeInput.classList.add('error');
-            maxSizeInput.classList.add('error');
-            hasError = true;
-          } else {
-            rangeError.style.display = 'none';
-            minSizeInput.classList.remove('error');
-            maxSizeInput.classList.remove('error');
-          }
-        } else {
-          rangeError.style.display = 'none';
-          minSizeInput.classList.remove('error');
-          maxSizeInput.classList.remove('error');
-        }
-      }
-      
-      minSizeInput.addEventListener('input', validateInputs);
-      maxSizeInput.addEventListener('input', validateInputs);
+      // Attach validator to input events
+      validator.attach();
     }
   }
 
@@ -153,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Generate button click handler
     doSearchGenerate.addEventListener('click', () => {
-      generateFromIndex(searchInput, doSearchGenerate, handleJsonResponse, setLoading);
+      generateFromIndex(searchInput, handleJsonResponse, setLoading);
     });
     
     // Enable/disable generate button based on input
@@ -176,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     doFileSearch.addEventListener('click', async () => {
       const file = fileInput.files?.[0];
       if (!file) {
-        alert('Please select a .wav file first');
+        showValidationError('Please select a .wav file first');
         return;
       }
       await uploadFile(file, handleJsonResponse, setLoading);
@@ -207,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!recording) {
           const hasDevice = await recorder.hasInputDevice();
           if (!hasDevice) {
-            alert('No audio input devices were detected. Please plug in or enable a microphone and try again.');
+            showValidationError('No audio input devices were detected. Please plug in or enable a microphone and try again.');
             return;
           }
           await recorder.startRecording();
@@ -219,8 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
           recordStartStop.textContent = 'Start Recording';
         }
       } catch (e) {
-        console.error(e);
-        alert('Recording failed: ' + e.message);
+        handleError('main.js:recordStartStop', e, 'Recording failed: ' + e.message);
       }
     });
 
@@ -228,8 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         await recorder.uploadRecorded();
       } catch (e) {
-        console.error(e);
-        alert('Upload failed: ' + e.message);
+        handleError('main.js:uploadRecording', e, 'Upload failed: ' + e.message);
       }
     });
   }

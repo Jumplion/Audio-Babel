@@ -3,6 +3,7 @@ import { getWasmModule } from './wasmModule.js';
 import { calculateDuration } from './audioIndex.js';
 import { indexToBase64 } from './positionEncoder.js';
 import { addIndexHeader, decodeBase64Url, escapeHtml } from './utils.js';
+import { showValidationError, handleError } from './errorHandler.js';
 
 // Library hierarchy constants (from C++)
 const TRACKS_PER_ALBUM = 15;
@@ -178,13 +179,13 @@ function enterRoom() {
         try {
             const roomNum = BigInt(roomInput);
             if (roomNum < 0n) {
-                alert('Room number must be 0 or greater');
+                showValidationError('Room number must be 0 or greater');
                 return;
             }
             // Convert room number to base64 using our encoder
             room = indexToBase64(roomNum);
         } catch (e) {
-            alert('Invalid room number');
+            showValidationError('Invalid room number');
             return;
         }
     } else {
@@ -468,8 +469,7 @@ async function generateAndDisplayTrack() {
         container.appendChild(downloadBtn);
         
     } catch (err) {
-        console.error('Error generating track:', err);
-        container.innerHTML = `<p style="color:var(--error)">Error: ${escapeHtml(err.message || String(err))}</p>`;
+        handleError('browse.js:generateAndDisplayTrack', err, err.message || String(err));
     }
 }
 

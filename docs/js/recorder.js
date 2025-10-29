@@ -1,17 +1,7 @@
-import AudioIndexWASM from './audioIndexWasm.js';
+import { getWasmModule } from './wasmModule.js';
 import { calculateDuration } from './audioIndex.js';
 import { parseWavFile, convertWebMToWav } from './wavUtils.js';
 import { bytesToBase64Chunked, encodeBase64Url } from './utils.js';
-
-// Initialize WASM module (lazy-loaded)
-let wasmModule = null;
-async function getWasmModule() {
-    if (!wasmModule) {
-        wasmModule = new AudioIndexWASM();
-        await wasmModule.initialize();
-    }
-    return wasmModule;
-}
 
 /**
  * Format duration in milliseconds to MM:SS

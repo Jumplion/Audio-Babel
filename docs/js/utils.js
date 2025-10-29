@@ -3,6 +3,21 @@
  */
 
 /**
+ * Escape HTML special characters to prevent XSS attacks
+ * @param {string|number} s - String to escape
+ * @returns {string} HTML-escaped string
+ */
+export function escapeHtml(s) {
+  if (!s && s !== 0) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Convert ArrayBuffer/Uint8Array to standard base64 string
  * @param {ArrayBuffer|Uint8Array} buffer - Data to encode
  * @returns {string} Standard base64 string
@@ -29,19 +44,6 @@ export function base64ToBytes(b64) {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
-}
-
-/**
- * Convert Uint8Array to standard base64 string
- * @param {Uint8Array} bytes - Bytes to encode
- * @returns {string} Standard base64 string
- */
-export function bytesToBase64(bytes) {
-  let binaryString = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binaryString += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binaryString);
 }
 
 /**

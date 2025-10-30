@@ -88,23 +88,9 @@ void FileWriters::writeIndexToFile(const boost::multiprecision::cpp_int& index, 
         return;
     }
 
-    static const char b64[]    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    uint32_t          acc      = 0;
-    int               acc_bits = 0;
-    for (uint8_t byte : bytes) {
-        acc = (acc << 8) | byte;
-        acc_bits += 8;
-        while (acc_bits >= 6) {
-            acc_bits -= 6;
-            auto idx = static_cast<uint8_t>((acc >> acc_bits) & 0x3F);
-            out.put(b64[idx]);
-        }
-    }
-    if (acc_bits > 0) {
-        auto idx = static_cast<uint8_t>((acc << (6 - acc_bits)) & 0x3F);
-        out.put(b64[idx]);
-    }
-    out.put('\n');
+    // Use the centralized URL-safe base64 encoder from Utilities.h
+    std::string base64Str = encodeBase64Url(bytes);
+    out << base64Str << '\n';
     out.close();
 }
 

@@ -1,6 +1,23 @@
 /**
- * WebAssembly bindings for Audio Index library
- * Exposes C++ functions to JavaScript
+ * @file wasm_bindings.cpp
+ * @brief WebAssembly bindings for Audio Index library
+ * 
+ * Exposes C++ functions to JavaScript for browser-based audio indexing.
+ * Uses Emscripten's embind API to create JavaScript-callable wrappers
+ * for the core AudioBabel library.
+ * 
+ * @section memory_management Memory Management
+ * Functions returning char* allocate memory with malloc() that must be
+ * freed by JavaScript using Module._free(). See docs/js/audioIndexWasm.js
+ * for proper usage patterns.
+ * 
+ * @section exported_functions Exported Functions
+ * - getMetadataFromBase64: Extract metadata from base64 index string
+ * - reconstructAudioFromBase64: Decode index to PCM samples
+ * - generateIndexFromSamples: Encode PCM samples to base64 index
+ * - getPositionFromBase64: Calculate library position from index
+ * 
+ * @see docs/js/audioIndexWasm.js for JavaScript integration wrapper
  */
 
 #include <emscripten/bind.h>
@@ -26,8 +43,22 @@ using boost::multiprecision::cpp_int;
 extern "C" {
 
 /**
- * Convert base64 string to index and reconstruct audio metadata
- * Returns JSON string with position and metadata
+ * @brief Extract metadata from a base64-encoded audio index.
+ * 
+ * Decodes a URL-safe base64 string and extracts hierarchical metadata
+ * (genre, artist, album, track) and SVG cover art. Returns results as
+ * a JSON string.
+ * 
+ * @param base64Index URL-safe base64 string (no padding) representing the index
+ * @return Heap-allocated JSON string with metadata fields (must be freed by caller)
+ * 
+ * @par Return Format
+ * Success: {"genre":"...", "artist":"...", "album":"...", "track":"...", "cover":"..."}
+ * Error: {"error":"error message"}
+ * 
+ * @warning Caller must free the returned pointer using Module._free() in JavaScript
+ * 
+ * @see IndexMetadata::extractMetadataFromIndex for the underlying C++ implementation
  */
 EMSCRIPTEN_KEEPALIVE
 char* getMetadataFromBase64(const char* base64Index) {
@@ -60,8 +91,24 @@ char* getMetadataFromBase64(const char* base64Index) {
 }
 
 /**
- * Reconstruct audio samples from base64 index
- * Returns pointer to audio data structure (passed to JS as typed array)
+ * @brief Reconstruct PCM audio samples from a base64-encoded index.
+ * 
+ * Decodes a URL-safe base64 string back to bytes, converts to a big integer
+ * index, and reconstructs the original audio sample data. Returns raw PCM
+ * bytes suitable for WAV file construction.
+ * 
+ * @param base64Index URL-safe base64 string (no padding) representing the index
+ * @param[out] outLength Pointer to receive the length of returned byte array
+ * @return Heap-allocated byte array with PCM samples (must be freed by caller)
+ *         Returns nullptr and sets outLength=0 on error
+ * 
+ * @par Output Format
+ * Raw PCM bytes in little-endian per-sample format, matching the original
+ * audio encoding (8, 16, or 32 bits per sample).
+ * 
+ * @warning Caller must free the returned pointer using Module._free() in JavaScript
+ * 
+ * @see AudioIndex::indexToAudioData for the underlying C++ reconstruction
  */
 EMSCRIPTEN_KEEPALIVE
 uint8_t* reconstructAudioFromBase64(const char* base64Index, int* outLength) {
@@ -105,8 +152,27 @@ uint8_t* reconstructAudioFromBase64(const char* base64Index, int* outLength) {
 }
 
 /**
- * Generate index from audio samples
- * Takes sample data and returns base64 index
+ * @brief Generate a base64-encoded index from raw PCM samples.
+ * 
+ * Converts raw PCM sample bytes to a deterministic big integer index and
+ * encodes it as a URL-safe base64 string. This is the primary function for
+ * creating indexes from user-recorded audio in the browser.
+ * 
+ * @param samples Raw PCM sample bytes (little-endian per-sample)
+ * @param sampleCount Total number of bytes in the samples array
+ * @param sampleRate Sample rate in Hz (e.g., 44100)
+ * @param bitDepth Bits per sample (8, 16, or 32)
+ * @return Heap-allocated URL-safe base64 string (must be freed by caller)
+ *         Returns "error:<message>" string on failure
+ * 
+ * @par Input Format
+ * - samples: Raw PCM bytes, little-endian per sample
+ * - sampleCount: Total byte count (not frame count)
+ * - Mono audio expected (num_channels = 1)
+ * 
+ * @warning Caller must free the returned pointer using Module._free() in JavaScript
+ * 
+ * @see AudioIndex::audioDataToIndex for the underlying C++ encoding
  */
 EMSCRIPTEN_KEEPALIVE
 char* generateIndexFromSamples(const uint8_t* samples, int sampleCount, int sampleRate, int bitDepth) {

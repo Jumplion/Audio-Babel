@@ -1,10 +1,13 @@
-# Simple workflow for deploying static content to GitHub Pages
+# Workflow for deploying static content to GitHub Pages
 name: Deploy static content to Pages
 
 on:
   # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/static.yml'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -31,13 +34,60 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      
+      - name: Verify WASM files exist
+        run: |
+          echo "Checking for required WASM files..."
+          if [ ! -f "docs/wasm/audio-index.wasm" ]; then
+            echo "ERROR: docs/wasm/audio-index.wasm not found!"
+            exit 1
+          fi
+          if [ ! -f "docs/wasm/audio-index.js" ]; then
+            echo "ERROR: docs/wasm/audio-index.js not found!"
+            exit 1
+          fi
+          echo "✓ WASM files found"
+          echo "  audio-index.wasm: $(stat -c%s docs/wasm/audio-index.wasm) bytes"
+          echo "  audio-index.js: $(stat -c%s docs/wasm/audio-index.js) bytes"
+      
+      - name: Verify .nojekyll exists
+        run: |
+          if [ ! -f "docs/.nojekyll" ]; then
+            echo "WARNING: docs/.nojekyll not found. Creating it..."
+            touch docs/.nojekyll
+          else
+            echo "✓ .nojekyll file exists"
+          fi
+      
+      - name: List docs directory structure
+        run: |
+          echo "Contents of docs/ directory:"
+          ls -lah docs/
+          echo ""
+          echo "Contents of docs/wasm/ directory:"
+          ls -lah docs/wasm/
+      
       - name: Setup Pages
         uses: actions/configure-pages@v5
+      
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
-          path: '.'
+          # Upload docs directory only (contains the static site)
+          path: 'docs'
+      
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      
+      - name: Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Successfully deployed to GitHub Pages" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Site URL:** ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployed Files" >> $GITHUB_STEP_SUMMARY
+          echo "- Static site from \`docs/\` directory" >> $GITHUB_STEP_SUMMARY
+          echo "- WASM module: \`audio-index.wasm\`" >> $GITHUB_STEP_SUMMARY
+          echo "- WASM glue code: \`audio-index.js\`" >> $GITHUB_STEP_SUMMARY

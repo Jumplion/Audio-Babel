@@ -28,11 +28,17 @@ class AudioIndexWASM {
             
             // Initialize with cache-busting for the .wasm file
             // Update this version number whenever you rebuild the WASM module
-            const wasmVersion = '8';
+            const wasmVersion = '9';
+            
+            // Use absolute path from site root to ensure it works from any page
+            const siteRoot = window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/').replace(/\/[^\/]*$/, '');
+            const wasmBasePath = `${window.location.origin}/Audio-Babel/wasm/`;
+            
             this.module = await AudioIndexModule({
                 locateFile: (path) => {
                     if (path.endsWith('.wasm')) {
-                        return `../../wasm/${path}?v=${wasmVersion}`;
+                        console.log(`Loading WASM from: ${wasmBasePath}${path}?v=${wasmVersion}`);
+                        return `${wasmBasePath}${path}?v=${wasmVersion}`;
                     }
                     return path;
                 }

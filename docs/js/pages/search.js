@@ -8,7 +8,7 @@
 
 import { isValidBase64Url, calculateDuration } from '../utils/audioIndex.js';
 import { getWasmModule } from '../core/wasmModule.js';
-import { bytesToBase64Chunked, addIndexHeader, decodeBase64Url } from '../utils/utils.js';
+import { bytesToBase64Chunked, addIndexHeader, decodeBase64Url, encodeBase64Url } from '../utils/utils.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
 
 /**
@@ -34,17 +34,38 @@ export async function generateFromIndex(inputEl, handleJsonResponse, setLoading)
     const wasm = await getWasmModule();
     
     // The user input is PCM-only (no header). We need to add a header to make it a valid audio index.
-    const pcmBytes = decodeBase64Url(indexString);
+    let pcmBytes = decodeBase64Url(indexString);
     const bytesPerSample = 16 / 8; // 16-bit
     const numChannels = 1; // mono
-    const numFrames = Math.floor(pcmBytes.length / bytesPerSample / numChannels);
+    
+    // Pad with zero byte if odd number of bytes (required for 16-bit audio)
+    let pcmBase64 = indexString; // Will be updated if we pad
+    if (pcmBytes.length % bytesPerSample !== 0) {
+      console.log(`[search.js] Padding PCM data from ${pcmBytes.length} to ${pcmBytes.length + 1} bytes`);
+      const paddedBytes = new Uint8Array(pcmBytes.length + 1);
+      paddedBytes.set(pcmBytes, 0);
+      paddedBytes[pcmBytes.length] = 0; // Pad with zero byte
+      pcmBytes = paddedBytes;
+      // Re-encode to base64 so addIndexHeader gets the padded data
+      pcmBase64 = encodeBase64Url(pcmBytes);
+    }
+    
+    const numFrames = pcmBytes.length / bytesPerSample / numChannels;
     
     // Add 13-byte header to create a valid audio index
-    const fullIndex = addIndexHeader(indexString, {
+    const fullIndex = addIndexHeader(pcmBase64, {
       numFrames: numFrames,
       sampleRate: 44100,
       bitDepth: 16,
       numChannels: 1
+    });
+    
+    console.log('[search.js] Debug info:', {
+      inputLength: indexString.length,
+      pcmBytesLength: pcmBytes.length,
+      numFrames: numFrames,
+      fullIndexLength: fullIndex.length,
+      fullIndexStart: fullIndex.substring(0, 20)
     });
     
     // Reconstruct audio from the full index (with header)

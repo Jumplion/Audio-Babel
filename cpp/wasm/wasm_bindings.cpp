@@ -9,6 +9,8 @@
 #include <boost/multiprecision/cpp_int.hpp>
 #include <cstdint>
 #include <cstring>
+#include <iomanip>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -65,16 +67,28 @@ EMSCRIPTEN_KEEPALIVE
 uint8_t* reconstructAudioFromBase64(const char* base64Index, int* outLength) {
     try {
         std::string indexStr(base64Index);
+        std::cout << "[reconstructAudioFromBase64] Input string length: " << indexStr.length() << std::endl;
 
         // Decode base64 to get index
         std::vector<uint8_t> indexBytes = AudioBabel::Utilities::decodeBase64Url(indexStr);
+        std::cout << "[reconstructAudioFromBase64] Decoded bytes: " << indexBytes.size() << std::endl;
+
+        if (indexBytes.size() > 0) {
+            std::cout << "[reconstructAudioFromBase64] First few bytes: ";
+            for (size_t i = 0; i < std::min(size_t(20), indexBytes.size()); ++i) {
+                std::cout << std::hex << std::setw(2) << std::setfill('0') << (int) indexBytes[i] << " ";
+            }
+            std::cout << std::dec << std::endl;
+        }
 
         // Convert bytes to cpp_int
         cpp_int index = 0;
         boost::multiprecision::import_bits(index, indexBytes.begin(), indexBytes.end(), 8, true);
+        std::cout << "[reconstructAudioFromBase64] Converted to cpp_int" << std::endl;
 
         // Reconstruct audio data
         AudioIndex::AudioData audioData = AudioIndex::indexToAudioData(index);
+        std::cout << "[reconstructAudioFromBase64] Successfully reconstructed " << audioData.samples.size() << " sample bytes" << std::endl;
 
         // Return sample data
         *outLength      = static_cast<int>(audioData.samples.size());
@@ -84,6 +98,7 @@ uint8_t* reconstructAudioFromBase64(const char* base64Index, int* outLength) {
         return result;
 
     } catch (const std::exception& e) {
+        std::cerr << "[reconstructAudioFromBase64] EXCEPTION: " << e.what() << std::endl;
         *outLength = 0;
         return nullptr;
     }
@@ -294,12 +309,17 @@ std::string reconstructIndexWrapper(const std::string& roomStr, int wall, int sh
 // Wrapper for reconstructAudioFromBase64 that returns a JavaScript-compatible typed array
 emscripten::val reconstructAudioWrapper(const std::string& base64Index) {
     try {
+        std::cout << "[reconstructAudioWrapper] Input length: " << base64Index.length() << " chars" << std::endl;
+
         int      length = 0;
         uint8_t* data   = reconstructAudioFromBase64(base64Index.c_str(), &length);
 
         if (data == nullptr || length == 0) {
+            std::cerr << "[reconstructAudioWrapper] Returned null or zero length" << std::endl;
             return emscripten::val::null();
         }
+
+        std::cout << "[reconstructAudioWrapper] Successfully reconstructed " << length << " bytes" << std::endl;
 
         // Create a Uint8Array from the data
         emscripten::val result = emscripten::val(emscripten::typed_memory_view(length, data));
@@ -312,7 +332,7 @@ emscripten::val reconstructAudioWrapper(const std::string& base64Index) {
 
         return copy;
     } catch (const std::exception& e) {
-        std::cerr << "Error in reconstructAudioWrapper: " << e.what() << std::endl;
+        std::cerr << "[reconstructAudioWrapper] Exception: " << e.what() << std::endl;
         return emscripten::val::null();
     }
 }

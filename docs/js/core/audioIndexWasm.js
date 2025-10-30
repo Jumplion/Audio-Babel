@@ -28,7 +28,7 @@ class AudioIndexWASM {
             
             // Initialize with cache-busting for the .wasm file
             // Update this version number whenever you rebuild the WASM module
-            const wasmVersion = '6';
+            const wasmVersion = '8';
             this.module = await AudioIndexModule({
                 locateFile: (path) => {
                     if (path.endsWith('.wasm')) {

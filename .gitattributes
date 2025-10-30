@@ -1,0 +1,38 @@
+# Ensure WASM files are treated as binary
+*.wasm binary
+*.wasm.map binary
+
+# JavaScript glue code for WASM (text but ensure proper line endings)
+docs/wasm/*.js text eol=lf
+
+# Audio files
+*.wav binary
+*.mp3 binary
+*.ogg binary
+*.flac binary
+*.aac binary
+
+# Binary formats
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.a binary
+*.lib binary
+*.o binary
+*.obj binary
+
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+*.bz2 binary
+*.7z binary

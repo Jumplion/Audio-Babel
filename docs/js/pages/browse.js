@@ -1,8 +1,7 @@
 // browse.js - Hierarchical navigation through the Record Shop library
 import { getWasmModule } from '../core/wasmModule.js';
 import { calculateDuration } from '../utils/audioIndex.js';
-import { indexToBase64 } from '../core/positionEncoder.js';
-import { addIndexHeader, decodeBase64Url, escapeHtml } from '../utils/utils.js';
+import { addIndexHeader, decodeBase64Url, escapeHtml, indexToBase64 } from '../utils/utils.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
 
 // Library hierarchy constants (from C++)

@@ -5842,6 +5842,7 @@ var _reconstructAudioFromBase64 = Module['_reconstructAudioFromBase64'] = makeIn
 var _generateIndexFromSamples = Module['_generateIndexFromSamples'] = makeInvalidEarlyAccess('_generateIndexFromSamples');
 var _generateRandomIndex = Module['_generateRandomIndex'] = makeInvalidEarlyAccess('_generateRandomIndex');
 var _calculateAudioSize = Module['_calculateAudioSize'] = makeInvalidEarlyAccess('_calculateAudioSize');
+var _calculatePositionFromIndex = Module['_calculatePositionFromIndex'] = makeInvalidEarlyAccess('_calculatePositionFromIndex');
 var _reconstructIndexFromPosition = Module['_reconstructIndexFromPosition'] = makeInvalidEarlyAccess('_reconstructIndexFromPosition');
 var _free = makeInvalidEarlyAccess('_free');
 var _fflush = makeInvalidEarlyAccess('_fflush');
@@ -5882,6 +5883,8 @@ function assignWasmExports(wasmExports) {
   _generateRandomIndex = Module['_generateRandomIndex'] = createExportWrapper('generateRandomIndex', 1);
   assert(wasmExports['calculateAudioSize'], 'missing Wasm export: calculateAudioSize');
   _calculateAudioSize = Module['_calculateAudioSize'] = createExportWrapper('calculateAudioSize', 4);
+  assert(wasmExports['calculatePositionFromIndex'], 'missing Wasm export: calculatePositionFromIndex');
+  _calculatePositionFromIndex = Module['_calculatePositionFromIndex'] = createExportWrapper('calculatePositionFromIndex', 1);
   assert(wasmExports['reconstructIndexFromPosition'], 'missing Wasm export: reconstructIndexFromPosition');
   _reconstructIndexFromPosition = Module['_reconstructIndexFromPosition'] = createExportWrapper('reconstructIndexFromPosition', 5);
   assert(wasmExports['free'], 'missing Wasm export: free');

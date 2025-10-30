@@ -35,13 +35,19 @@ if(EXISTS ${EXAMPLE_SRC})
     target_include_directories(example_main PRIVATE ${CPP_ROOT}/include)
 endif()
 
-# Tests executable (simple runner)
-set(TEST_SRC "${CPP_ROOT}/tests/test_main.cpp")
-if(EXISTS ${TEST_SRC})
-    add_executable(tests_runner ${TEST_SRC})
-    target_link_libraries(tests_runner PRIVATE audiolib)
-    target_include_directories(tests_runner PRIVATE ${CPP_ROOT}/include)
-endif()
+# Tests executable (modular test suite)
+set(TEST_SOURCES
+    "${CPP_ROOT}/tests/test_main.cpp"
+    "${CPP_ROOT}/tests/test_base64.cpp"
+    "${CPP_ROOT}/tests/test_metadata.cpp"
+    "${CPP_ROOT}/tests/test_library_position.cpp"
+    "${CPP_ROOT}/tests/test_wav_parsing.cpp"
+    "${CPP_ROOT}/tests/test_audio_index.cpp"
+    "${CPP_ROOT}/tests/test_integration.cpp"
+)
+add_executable(tests_runner ${TEST_SOURCES})
+target_link_libraries(tests_runner PRIVATE audiolib)
+target_include_directories(tests_runner PRIVATE ${CPP_ROOT}/include ${CPP_ROOT}/tests)
 
 # Small reconstruction CLI used by the web server
 set(RECON_SRC "${CPP_ROOT}/tools/reconstruct_cli.cpp")

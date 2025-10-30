@@ -7,7 +7,7 @@
  */
 
 import { loadFragment } from '../ui/loadFragment.js';
-import { calculatePositionFromBase64 } from './positionEncoder.js';
+import { getWasmModule } from './wasmModule.js';
 
 let resultFrag = null;
 
@@ -210,15 +210,30 @@ export async function handleJsonResponse(j, originalIndexB64) {
     indexDisplay = makeIndexClickable(indexDisplay, indexToShow);
   }
 
-  // Calculate and display position in library
+  // Calculate and display position in library using C++ WASM
   const positionDisplay = frag.get('#positionDisplay');
   if (positionDisplay && indexToShow) {
     try {
-      const position = calculatePositionFromBase64(indexToShow);
-      const roomDisplay = position.room === "" ? "0" : position.room;
+      const wasm = await getWasmModule();
+      const positionJson = wasm.module.calculatePosition(indexToShow);
+      const position = JSON.parse(positionJson);
+      
+      if (position.error) {
+        throw new Error(position.error);
+      }
+      
+      // Truncate room display if it's too long
+      let roomDisplay = position.room === "" ? "0" : position.room;
+      const maxRoomLength = 20;
+      if (roomDisplay.length > maxRoomLength) {
+        const start = roomDisplay.substring(0, 8);
+        const end = roomDisplay.substring(roomDisplay.length - 8);
+        roomDisplay = `${start}...${end}`;
+      }
+      
       positionDisplay.innerHTML = `
         <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px;">
-          <span><strong>Room:</strong> ${roomDisplay}</span>
+          <span><strong>Room:</strong> <code style="font-size: 13px;">${roomDisplay}</code></span>
           <span><strong>Wall:</strong> ${position.wall}</span>
           <span><strong>Shelf:</strong> ${position.shelf}</span>
           <span><strong>Album:</strong> ${position.album}</span>

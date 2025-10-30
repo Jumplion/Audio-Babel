@@ -168,6 +168,51 @@ int calculateAudioSize(int durationSeconds, int sampleRate, int bitDepth, int ch
 }
 
 /**
+ * Calculate library position from a base64 index (LOSSLESS)
+ * Takes a base64-encoded index and returns JSON with position information
+ * Returns: {"room": "base64", "wall": 0-3, "shelf": 0-4, "album": 0-31, "track": 0-14}
+ * 
+ * This is a pure encoding operation - converts any index to its unique position
+ */
+EMSCRIPTEN_KEEPALIVE
+char* calculatePositionFromIndex(const char* base64Index) {
+    try {
+        std::string indexStr(base64Index);
+
+        // Decode base64 to get index bytes
+        std::vector<uint8_t> indexBytes = AudioBabel::Utilities::decodeBase64Url(indexStr);
+
+        // Convert bytes to cpp_int (big-endian)
+        cpp_int index = 0;
+        if (!indexBytes.empty()) {
+            boost::multiprecision::import_bits(index, indexBytes.begin(), indexBytes.end(), 8, true);
+        }
+
+        // Calculate library position using C++ function
+        LibraryPosition pos = AudioBabel::calculateLibraryPosition(index);
+
+        // Build JSON response
+        std::string json = "{";
+        json += "\"room\":\"" + pos.room + "\",";
+        json += "\"wall\":" + std::to_string(pos.wall) + ",";
+        json += "\"shelf\":" + std::to_string(pos.shelf) + ",";
+        json += "\"album\":" + std::to_string(pos.album) + ",";
+        json += "\"track\":" + std::to_string(pos.track);
+        json += "}";
+
+        char* result = (char*) malloc(json.length() + 1);
+        strcpy(result, json.c_str());
+        return result;
+
+    } catch (const std::exception& e) {
+        std::string error  = "{\"error\":\"" + std::string(e.what()) + "\"}";
+        char*       result = (char*) malloc(error.length() + 1);
+        strcpy(result, error.c_str());
+        return result;
+    }
+}
+
+/**
  * Reconstruct a base64 index from a library position (LOSSLESS)
  * Takes room (base64 string), wall, shelf, album, track
  * Returns the EXACT original base64-encoded index
@@ -232,6 +277,13 @@ std::string generateRandomWrapper(int targetLength) {
     return str;
 }
 
+std::string calculatePositionWrapper(const std::string& base64Index) {
+    char*       result = calculatePositionFromIndex(base64Index.c_str());
+    std::string str(result);
+    free(result);
+    return str;
+}
+
 std::string reconstructIndexWrapper(const std::string& roomStr, int wall, int shelf, int album, int track) {
     char*       result = reconstructIndexFromPosition(roomStr.c_str(), wall, shelf, album, track);
     std::string str(result);
@@ -273,6 +325,7 @@ EMSCRIPTEN_BINDINGS(audio_index_module) {
     function("getMetadata", &getMetadataWrapper);
     function("generateRandom", &generateRandomWrapper);
     function("reconstructAudio", &reconstructAudioWrapper);
+    function("calculatePosition", &calculatePositionWrapper);
     function("reconstructIndex", &reconstructIndexWrapper);
 
     // Functions that don't need wrappers

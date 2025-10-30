@@ -18,6 +18,27 @@ export function escapeHtml(s) {
 }
 
 /**
+ * Convert index BigInt to base64 URL-safe string (no padding)
+ * Used for encoding room numbers in the library hierarchy
+ * @param {BigInt} index - BigInt to encode
+ * @returns {string} Base64 URL-safe encoded string
+ */
+export function indexToBase64(index) {
+  const idx = BigInt(index);
+  if (idx === 0n) return 'A'; // Special case for zero
+  
+  // Convert BigInt to bytes (big-endian)
+  const bytes = [];
+  let temp = idx;
+  while (temp > 0n) {
+    bytes.unshift(Number(temp & 0xFFn));
+    temp = temp >> 8n;
+  }
+  
+  return encodeBase64Url(new Uint8Array(bytes));
+}
+
+/**
  * Convert ArrayBuffer/Uint8Array to standard base64 string
  * @param {ArrayBuffer|Uint8Array} buffer - Data to encode
  * @returns {string} Standard base64 string

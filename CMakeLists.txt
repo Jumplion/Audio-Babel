@@ -49,6 +49,18 @@ add_executable(tests_runner ${TEST_SOURCES})
 target_link_libraries(tests_runner PRIVATE audiolib)
 target_include_directories(tests_runner PRIVATE ${CPP_ROOT}/include ${CPP_ROOT}/tests)
 
+# Performance benchmarks executable (separate from unit tests)
+set(PERF_SRC "${CPP_ROOT}/tests/test_performance.cpp")
+if(EXISTS ${PERF_SRC})
+    add_executable(performance_benchmarks ${PERF_SRC})
+    target_link_libraries(performance_benchmarks PRIVATE audiolib)
+    target_include_directories(performance_benchmarks PRIVATE ${CPP_ROOT}/include ${CPP_ROOT}/tests)
+    # Recommend Release mode for accurate benchmarks
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        message(WARNING "Performance benchmarks should be run in Release mode for accurate results. Use: cmake -DCMAKE_BUILD_TYPE=Release ..")
+    endif()
+endif()
+
 # Small reconstruction CLI used by the web server
 set(RECON_SRC "${CPP_ROOT}/tools/reconstruct_cli.cpp")
 if(EXISTS ${RECON_SRC})

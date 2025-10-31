@@ -17,7 +17,6 @@
  * @param runner TestRunner instance to register tests with
  */
 void register_metadata_tests(TestRunner& runner) {
-    
     runner.add("AudioIndex: indexToMetadata deterministic and valid", [&runner]() -> bool {
         const std::string name = "AudioIndex: indexToMetadata deterministic and valid";
         using boost::multiprecision::cpp_int;
@@ -233,6 +232,216 @@ void register_metadata_tests(TestRunner& runner) {
             std::string          track = "MyTrack";
             std::string          svg   = IndexMetadata::generateSvgCover(bytes, track);
             ok &= RUN_CHECK(runner, name, svg.find(track) != std::string::npos, "svg contains track text");
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("IndexMetadata: stress test with very small cpp_int values", [&runner]() -> bool {
+        const std::string name = "IndexMetadata: stress test with very small cpp_int values";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+
+        try {
+            // Test edge cases with minimal indexes
+            std::vector<cpp_int> small_values = {
+                cpp_int(0),     // Zero
+                cpp_int(1),     // One
+                cpp_int(2),     // Two
+                cpp_int(15),    // Small value
+                cpp_int(255),   // Single byte max
+                cpp_int(256),   // Just over single byte
+                cpp_int(65535), // Two bytes max (uint16_t max)
+                cpp_int(65536)  // Just over two bytes
+            };
+
+            for (const auto& idx : small_values) {
+                auto meta = AudioIndex::indexToMetadata(idx);
+
+                // All fields should be non-empty
+                ok &= RUN_CHECK(runner, name, !meta.genre.empty(), "genre non-empty for index " + idx.convert_to<std::string>());
+                ok &= RUN_CHECK(runner, name, !meta.artist.empty(), "artist non-empty for index " + idx.convert_to<std::string>());
+                ok &= RUN_CHECK(runner, name, !meta.album.empty(), "album non-empty for index " + idx.convert_to<std::string>());
+                ok &= RUN_CHECK(runner, name, !meta.track.empty(), "track non-empty for index " + idx.convert_to<std::string>());
+
+                // Concatenation should recreate valid base64
+                std::string recombined = meta.genre + meta.artist + meta.album + meta.track;
+
+                // Verify all characters are valid base64 URL-safe
+                for (char c : recombined) {
+                    bool valid = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_';
+                    if (!valid) {
+                        runner.failMsg(name, "Invalid character '" + std::string(1, c) + "' in metadata for index " + idx.convert_to<std::string>());
+                        ok = false;
+                        break;
+                    }
+                }
+
+                // Cover should be valid SVG
+                ok &= RUN_CHECK(runner, name, !meta.cover.empty(), "cover non-empty for index " + idx.convert_to<std::string>());
+                ok &= RUN_CHECK(
+                    runner, name, meta.cover.find("<svg") != std::string::npos, "cover contains svg for index " + idx.convert_to<std::string>());
+
+                if (!ok)
+                    break;
+            }
+
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("IndexMetadata: stress test with very large cpp_int values", [&runner]() -> bool {
+        const std::string name = "IndexMetadata: stress test with very large cpp_int values";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+
+        try {
+            // Test with progressively larger indexes
+            std::vector<cpp_int> large_values;
+
+            // 32-bit max
+            large_values.push_back(cpp_int("4294967295"));
+
+            // 64-bit max
+            large_values.push_back(cpp_int("18446744073709551615"));
+
+            // 128-bit value
+            large_values.push_back(cpp_int("340282366920938463463374607431768211455"));
+
+            // 256-bit value
+            large_values.push_back(cpp_int("115792089237316195423570985008687907853269984665640564039457584007913129639935"));
+
+            size_t test_num = 0;
+            for (const auto& idx : large_values) {
+                test_num++;
+                auto meta = AudioIndex::indexToMetadata(idx);
+
+                // All fields should be non-empty
+                std::string short_idx = "large_" + std::to_string(test_num);
+
+                ok &= RUN_CHECK(runner, name, !meta.genre.empty(), "genre non-empty for large index " + short_idx);
+                ok &= RUN_CHECK(runner, name, !meta.artist.empty(), "artist non-empty for large index " + short_idx);
+                ok &= RUN_CHECK(runner, name, !meta.album.empty(), "album non-empty for large index " + short_idx);
+                ok &= RUN_CHECK(runner, name, !meta.track.empty(), "track non-empty for large index " + short_idx);
+
+                // Concatenation should recreate valid base64
+                std::string recombined = meta.genre + meta.artist + meta.album + meta.track;
+
+                // Verify all characters are valid base64 URL-safe
+                bool all_valid = true;
+                for (char c : recombined) {
+                    bool valid = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_';
+                    if (!valid) {
+                        runner.failMsg(name, "Invalid character '" + std::string(1, c) + "' in metadata for large index " + short_idx);
+                        all_valid = false;
+                        ok        = false;
+                        break;
+                    }
+                }
+
+                if (all_valid) {
+                    ok &= RUN_CHECK(runner, name, true, "all chars valid base64 for large index " + short_idx);
+                }
+
+                // Verify the base64 string length is reasonable
+                ok &= RUN_CHECK(runner, name, recombined.length() > 0, "base64 length > 0 for large index " + short_idx);
+
+                // Cover should be valid SVG
+                ok &= RUN_CHECK(runner, name, !meta.cover.empty(), "cover non-empty for large index " + short_idx);
+                ok &= RUN_CHECK(runner, name, meta.cover.find("<svg") != std::string::npos, "cover contains svg for large index " + short_idx);
+
+                if (!ok)
+                    break;
+            }
+
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("IndexMetadata: weighted splitting logic consistency", [&runner]() -> bool {
+        const std::string name = "IndexMetadata: weighted splitting logic consistency";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+
+        try {
+            // The metadata splitting should be deterministic and consistent
+            // Test that the same index always produces the same split
+            std::vector<cpp_int> test_indexes = {
+                cpp_int(12345), cpp_int(987654321), cpp_int("1234567890123456789"), cpp_int("999999999999999999999999")};
+
+            for (const auto& idx : test_indexes) {
+                // Generate metadata multiple times
+                auto meta1 = AudioIndex::indexToMetadata(idx);
+                auto meta2 = AudioIndex::indexToMetadata(idx);
+                auto meta3 = AudioIndex::indexToMetadata(idx);
+
+                std::string idx_str = idx.convert_to<std::string>();
+
+                // Verify consistency
+                ok &= RUN_CHECK(runner, name, meta1.genre == meta2.genre && meta2.genre == meta3.genre, "genre consistent for index " + idx_str);
+                ok &= RUN_CHECK(runner, name, meta1.artist == meta2.artist && meta2.artist == meta3.artist, "artist consistent for index " + idx_str);
+                ok &= RUN_CHECK(runner, name, meta1.album == meta2.album && meta2.album == meta3.album, "album consistent for index " + idx_str);
+                ok &= RUN_CHECK(runner, name, meta1.track == meta2.track && meta2.track == meta3.track, "track consistent for index " + idx_str);
+
+                // Verify the weighted lengths are reasonable
+                // genre should get 30%, artist 30%, album 30%, track 10%
+                std::string combined  = meta1.genre + meta1.artist + meta1.album + meta1.track;
+                size_t      total_len = combined.length();
+
+                if (total_len > 0) {
+                    double genre_ratio  = static_cast<double>(meta1.genre.length()) / total_len;
+                    double artist_ratio = static_cast<double>(meta1.artist.length()) / total_len;
+                    double album_ratio  = static_cast<double>(meta1.album.length()) / total_len;
+                    double track_ratio  = static_cast<double>(meta1.track.length()) / total_len;
+
+                    // Allow very generous tolerance since distribution is based on byte content, not fixed ratios
+                    // The weighted algorithm can produce highly skewed distributions for certain byte patterns
+                    // We just verify that no field dominates completely or disappears entirely
+                    ok &= RUN_CHECK(runner, name, genre_ratio >= 0.05 && genre_ratio <= 0.60, "genre length ratio reasonable for index " + idx_str);
+                    ok &=
+                        RUN_CHECK(runner, name, artist_ratio >= 0.05 && artist_ratio <= 0.60, "artist length ratio reasonable for index " + idx_str);
+                    ok &= RUN_CHECK(runner, name, album_ratio >= 0.05 && album_ratio <= 0.60, "album length ratio reasonable for index " + idx_str);
+                    ok &= RUN_CHECK(runner, name, track_ratio >= 0.02 && track_ratio <= 0.50, "track length ratio reasonable for index " + idx_str);
+                }
+
+                if (!ok)
+                    break;
+            }
+
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
+    runner.add("IndexMetadata: empty index edge case", [&runner]() -> bool {
+        const std::string name = "IndexMetadata: empty index edge case";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+
+        try {
+            // Test with zero index (minimal case)
+            cpp_int idx  = 0;
+            auto    meta = AudioIndex::indexToMetadata(idx);
+
+            // Should produce default metadata (not crash)
+            ok &= RUN_CHECK(runner, name, !meta.genre.empty(), "genre non-empty for zero index");
+            ok &= RUN_CHECK(runner, name, !meta.artist.empty(), "artist non-empty for zero index");
+            ok &= RUN_CHECK(runner, name, !meta.album.empty(), "album non-empty for zero index");
+            ok &= RUN_CHECK(runner, name, !meta.track.empty(), "track non-empty for zero index");
+
+            // Cover should still be generated
+            ok &= RUN_CHECK(runner, name, !meta.cover.empty(), "cover non-empty for zero index");
+
         } catch (const std::exception& e) {
             runner.failMsg(name, std::string("exception: ") + e.what());
             ok = false;

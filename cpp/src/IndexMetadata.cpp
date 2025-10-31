@@ -61,6 +61,8 @@ auto IndexMetadata::buildMetadataFromBytesAndB64(const std::vector<uint8_t>& byt
         meta.artist = "a0";
         meta.album  = "al0";
         meta.track  = "t0";
+        // Generate cover even for empty index
+        meta.cover = IndexMetadata::generateSvgCover(bytes, meta.track);
         return meta;
     }
 
@@ -80,7 +82,7 @@ auto IndexMetadata::buildMetadataFromBytesAndB64(const std::vector<uint8_t>& byt
     size_t sum = 0;
     for (int i = 0; i < 4; ++i) {
         lens[i] = (b64Len * weights[i]) / totalWeight;
-        if (lens[i] == 0) {
+        if (lens[i] == 0 && sum < b64Len) {
             lens[i] = 1;
         }
         sum += lens[i];
@@ -101,13 +103,13 @@ auto IndexMetadata::buildMetadataFromBytesAndB64(const std::vector<uint8_t>& byt
     }
 
     size_t pos = 0;
-    meta.genre = b64str.substr(pos, lens[0]);
+    meta.genre = (pos < b64Len) ? b64str.substr(pos, std::min(lens[0], b64Len - pos)) : "g";
     pos += lens[0];
-    meta.artist = (pos < b64Len) ? b64str.substr(pos, lens[1]) : std::string();
+    meta.artist = (pos < b64Len) ? b64str.substr(pos, std::min(lens[1], b64Len - pos)) : "a";
     pos += lens[1];
-    meta.album = (pos < b64Len) ? b64str.substr(pos, lens[2]) : std::string();
+    meta.album = (pos < b64Len) ? b64str.substr(pos, std::min(lens[2], b64Len - pos)) : "al";
     pos += lens[2];
-    meta.track = (pos < b64Len) ? b64str.substr(pos, lens[3]) : std::string();
+    meta.track = (pos < b64Len) ? b64str.substr(pos, std::min(lens[3], b64Len - pos)) : "t";
 
     std::string svg = IndexMetadata::generateSvgCover(bytes, meta.track);
     meta.cover      = svg;

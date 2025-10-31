@@ -155,6 +155,68 @@ void register_library_position_tests(TestRunner& runner) {
         return ok;
     });
 
+    runner.add("LibraryPosition: cross-module consistency with IndexMetadata", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: cross-module consistency with IndexMetadata";
+        using boost::multiprecision::cpp_int;
+        bool ok = true;
+        try {
+            // Test comprehensive list of indexes covering various edge cases
+            std::vector<cpp_int> test_indexes = {
+                0,                         // Origin
+                1,                         // First track
+                14,                        // Last track in first album
+                15,                        // First track in second album
+                479,                       // Last track in first shelf
+                480,                       // First track in second shelf
+                2399,                      // Last track in first wall
+                2400,                      // First track in second wall
+                9599,                      // Last track in first room
+                9600,                      // First track in second room
+                12345,                     // Arbitrary value
+                123456789,                 // Large value
+                cpp_int("999999999999999") // Very large value
+            };
+
+            for (const auto& index : test_indexes) {
+                // Extract metadata using IndexMetadata (which internally uses LibraryPosition)
+                auto meta = IndexMetadata::extractMetadataFromIndex(index);
+
+                // Calculate position directly using LibraryPosition function
+                auto pos_direct = calculateLibraryPosition(index);
+
+                // Verify perfect consistency across all position fields
+                bool positions_match = (meta.position.room == pos_direct.room) && (meta.position.wall == pos_direct.wall) &&
+                                       (meta.position.shelf == pos_direct.shelf) && (meta.position.album == pos_direct.album) &&
+                                       (meta.position.track == pos_direct.track);
+
+                if (!positions_match) {
+                    std::ostringstream oss;
+                    oss << "position mismatch for index " << index << ": "
+                        << "metadata=(" << meta.position.room << "," << (int) meta.position.wall << "," << (int) meta.position.shelf << ","
+                        << (int) meta.position.album << "," << (int) meta.position.track << ") vs "
+                        << "direct=(" << pos_direct.room << "," << (int) pos_direct.wall << "," << (int) pos_direct.shelf << ","
+                        << (int) pos_direct.album << "," << (int) pos_direct.track << ")";
+                    runner.failMsg(name, oss.str());
+                    ok = false;
+                }
+
+                // Additionally verify that reconstructing the index from the position
+                // in the metadata gives us back the original index
+                cpp_int reconstructed = reconstructIndexFromPosition(meta.position);
+                if (reconstructed != index) {
+                    std::ostringstream oss;
+                    oss << "reconstruction mismatch for index " << index << ": reconstructed as " << reconstructed;
+                    runner.failMsg(name, oss.str());
+                    ok = false;
+                }
+            }
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("exception: ") + e.what());
+            ok = false;
+        }
+        return ok;
+    });
+
     runner.add("LibraryPosition: zero index maps to origin", [&runner]() -> bool {
         const std::string name = "LibraryPosition: zero index maps to origin";
         using boost::multiprecision::cpp_int;

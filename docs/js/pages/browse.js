@@ -20,6 +20,55 @@ const navState = {
 };
 
 /**
+ * Clamp a position value to its valid range
+ * This ensures values sent to WASM are always within the correct bounds,
+ * preventing arithmetic overflow in the C++ reconstructIndexFromPosition function.
+ * 
+ * @param {number} value - Value to clamp
+ * @param {number} max - Maximum valid value (inclusive)
+ * @param {string} name - Field name for logging
+ * @returns {number} Clamped value (0 to max)
+ */
+function clampPositionValue(value, max, name) {
+    const original = value;
+    let clamped = Math.floor(value); // Ensure integer
+    
+    // Clamp to valid range [0, max]
+    if (clamped < 0) {
+        clamped = 0;
+    } else if (clamped > max) {
+        clamped = max;
+    }
+    
+    // Log if clamping occurred (helps with debugging)
+    if (clamped !== original) {
+        console.warn(`Position value clamped: ${name} ${original} → ${clamped} (valid range: 0-${max})`);
+    }
+    
+    return clamped;
+}
+
+/**
+ * Validate and clamp all position values before sending to WASM
+ * Ensures wall, shelf, album, and track are within their valid ranges.
+ * The room string is validated separately (base64 format).
+ * 
+ * @param {number} wall - Wall number (will be clamped to 0-3)
+ * @param {number} shelf - Shelf number (will be clamped to 0-4)
+ * @param {number} album - Album number (will be clamped to 0-31)
+ * @param {number} track - Track number (will be clamped to 0-14)
+ * @returns {Object} Validated position with clamped values
+ */
+function validatePositionValues(wall, shelf, album, track) {
+    return {
+        wall: clampPositionValue(wall, WALLS_PER_ROOM - 1, 'wall'),
+        shelf: clampPositionValue(shelf, SHELVES_PER_WALL - 1, 'shelf'),
+        album: clampPositionValue(album, ALBUMS_PER_SHELF - 1, 'album'),
+        track: clampPositionValue(track, TRACKS_PER_ALBUM - 1, 'track')
+    };
+}
+
+/**
  * Get element by ID (shorthand helper)
  * @param {string} id - Element ID
  * @returns {HTMLElement|null} Element or null if not found
@@ -352,14 +401,23 @@ async function generateAndDisplayTrack() {
         const wasm = await getWasmModule();
         console.log('WASM module ready');
         
-        // Reconstruct base64 index from position using WASM
-        // This returns the position index (PCM data only, no header)
-        const positionIndexBase64 = wasm.module.reconstructIndex(
-            navState.room.toString(),
+        // Validate and clamp position values before sending to WASM
+        // This ensures values are within valid ranges (wall: 0-3, shelf: 0-4, album: 0-31, track: 0-14)
+        const validatedPos = validatePositionValues(
             navState.wall,
             navState.shelf,
             navState.album,
             navState.track
+        );
+        
+        // Reconstruct base64 index from position using WASM
+        // This returns the position index (PCM data only, no header)
+        const positionIndexBase64 = wasm.module.reconstructIndex(
+            navState.room.toString(),
+            validatedPos.wall,
+            validatedPos.shelf,
+            validatedPos.album,
+            validatedPos.track
         );
         console.log('Position index (PCM only):', positionIndexBase64?.substring(0, 50) + '...');
         

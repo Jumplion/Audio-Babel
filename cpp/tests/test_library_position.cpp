@@ -459,4 +459,166 @@ void register_library_position_tests(TestRunner& runner) {
         }
         return ok;
     });
+
+    runner.add("LibraryPosition: reconstructIndexFromPosition with out-of-range values", [&runner]() -> bool {
+        const std::string name = "LibraryPosition: reconstructIndexFromPosition with out-of-range values";
+        using boost::multiprecision::cpp_int;
+        using namespace LibraryConstants;
+        bool ok = true;
+
+        // DISCREPANCY BETWEEN DOCUMENTATION AND IMPLEMENTATION:
+        // - The header documentation claims: "@throws std::invalid_argument if position fields are out of valid ranges"
+        // - The actual implementation: Does NOT validate inputs, performs arithmetic unconditionally
+        //
+        // CURRENT BEHAVIOR (tested here):
+        // Out-of-range values "overflow" into the next hierarchical level via arithmetic.
+        // For example: track=15 (max is 14) produces the same index as album=1, track=0.
+        //
+        // MITIGATION:
+        // JavaScript layer (browse.js) now validates and clamps input values before calling WASM:
+        // - validatePositionValues() ensures wall, shelf, album, track are within bounds
+        // - clampPositionValue() clamps out-of-range values and logs warnings
+        // This approach keeps the C++ code simple while ensuring correctness at the API boundary.
+
+        try {
+            // Test Case 1: track out of range (valid: 0-14, test: 15)
+            {
+                LibraryPosition pos;
+                pos.room  = ""; // room 0
+                pos.wall  = 0;
+                pos.shelf = 0;
+                pos.album = 0;
+                pos.track = 15; // OUT OF RANGE (max is 14)
+
+                // Current behavior: no exception, returns index = 15
+                cpp_int reconstructed = reconstructIndexFromPosition(pos);
+                cpp_int expected      = 15; // Overflow into next album
+
+                ok &= RUN_CHECK(runner, name, reconstructed == expected, "track=15: arithmetic overflow produces index 15");
+            }
+
+            // Test Case 2: album out of range (valid: 0-31, test: 32)
+            {
+                LibraryPosition pos;
+                pos.room  = "";
+                pos.wall  = 0;
+                pos.shelf = 0;
+                pos.album = 32; // OUT OF RANGE (max is 31)
+                pos.track = 0;
+
+                // Current behavior: index = 32 * 15 = 480 (start of shelf 1)
+                cpp_int reconstructed = reconstructIndexFromPosition(pos);
+                cpp_int expected      = 480;
+
+                ok &= RUN_CHECK(runner, name, reconstructed == expected, "album=32: arithmetic overflow produces index 480");
+            }
+
+            // Test Case 3: shelf out of range (valid: 0-4, test: 5)
+            {
+                LibraryPosition pos;
+                pos.room  = "";
+                pos.wall  = 0;
+                pos.shelf = 5; // OUT OF RANGE (max is 4)
+                pos.album = 0;
+                pos.track = 0;
+
+                // Current behavior: index = 5 * 480 = 2400 (start of wall 1)
+                cpp_int reconstructed = reconstructIndexFromPosition(pos);
+                cpp_int expected      = 2400;
+
+                ok &= RUN_CHECK(runner, name, reconstructed == expected, "shelf=5: arithmetic overflow produces index 2400");
+            }
+
+            // Test Case 4: wall out of range (valid: 0-3, test: 4)
+            {
+                LibraryPosition pos;
+                pos.room  = "";
+                pos.wall  = 4; // OUT OF RANGE (max is 3)
+                pos.shelf = 0;
+                pos.album = 0;
+                pos.track = 0;
+
+                // Current behavior: index = 4 * 2400 = 9600 (start of room 1)
+                cpp_int reconstructed = reconstructIndexFromPosition(pos);
+                cpp_int expected      = 9600;
+
+                ok &= RUN_CHECK(runner, name, reconstructed == expected, "wall=4: arithmetic overflow produces index 9600");
+            }
+
+            // Test Case 5: multiple out-of-range fields
+            {
+                LibraryPosition pos;
+                pos.room  = "";
+                pos.wall  = 4;  // overflow
+                pos.shelf = 5;  // overflow
+                pos.album = 32; // overflow
+                pos.track = 15; // overflow
+
+                // Current behavior: cumulative arithmetic
+                cpp_int reconstructed = reconstructIndexFromPosition(pos);
+                cpp_int expected      = (4 * ITEMS_PER_WALL) + (5 * ITEMS_PER_SHELF) + (32 * ITEMS_PER_ALBUM) + 15;
+
+                ok &= RUN_CHECK(runner, name, reconstructed == expected, "multiple overflows: cumulative arithmetic");
+            }
+
+            // Test Case 6: extreme out-of-range value (uint8_t max = 255)
+            {
+                LibraryPosition pos;
+                pos.room  = "";
+                pos.wall  = 255; // extremely out of range
+                pos.shelf = 0;
+                pos.album = 0;
+                pos.track = 0;
+
+                // Current behavior: arithmetic with large value
+                cpp_int reconstructed = reconstructIndexFromPosition(pos);
+                cpp_int expected      = 255 * ITEMS_PER_WALL; // 612000
+
+                ok &= RUN_CHECK(runner, name, reconstructed == expected, "wall=255: arithmetic with extreme value");
+            }
+
+            // Test Case 7: Verify that calculateLibraryPosition never produces out-of-range values
+            {
+                // Forward calculation should always produce valid ranges due to modulo operations
+                cpp_int index = 999999; // arbitrary large index
+                auto    pos   = calculateLibraryPosition(index);
+
+                ok &= RUN_CHECK(runner, name, pos.wall < WALLS_PER_ROOM, "forward calculation: wall in valid range");
+                ok &= RUN_CHECK(runner, name, pos.shelf < SHELVES_PER_WALL, "forward calculation: shelf in valid range");
+                ok &= RUN_CHECK(runner, name, pos.album < ALBUMS_PER_SHELF, "forward calculation: album in valid range");
+                ok &= RUN_CHECK(runner, name, pos.track < TRACKS_PER_ALBUM, "forward calculation: track in valid range");
+            }
+
+            // Test Case 8: Invalid base64 in room field
+            {
+                LibraryPosition pos;
+                pos.room  = "!!!INVALID!!!"; // Invalid base64
+                pos.wall  = 0;
+                pos.shelf = 0;
+                pos.album = 0;
+                pos.track = 0;
+
+                bool threw = false;
+                try {
+                    cpp_int reconstructed = reconstructIndexFromPosition(pos);
+                    (void) reconstructed;
+                } catch (const std::invalid_argument& e) {
+                    // Expected: decodeBase64Url should throw on invalid characters
+                    threw = true;
+                    (void) e;
+                } catch (const std::exception& e) {
+                    threw = true;
+                    (void) e;
+                }
+
+                ok &= RUN_CHECK(runner, name, threw, "invalid base64 in room field throws exception");
+            }
+
+        } catch (const std::exception& e) {
+            runner.failMsg(name, std::string("unexpected exception: ") + e.what());
+            ok = false;
+        }
+
+        return ok;
+    });
 }

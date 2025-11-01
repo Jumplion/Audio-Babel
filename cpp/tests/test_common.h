@@ -273,7 +273,7 @@ struct TestRunner {
 };
 
 /**
- * @brief Basic assertion helper used inside tests.
+ * @brief Basic assertion helper used inside tests (OLD FRAMEWORK - being phased out).
  * @param cond Condition to check
  * @param runner TestRunner instance (for recording failures)
  * @param test Test name
@@ -281,8 +281,9 @@ struct TestRunner {
  * @return true if condition passed, false otherwise
  * 
  * @note Does not throw; instead records failure in the runner.
+ * @deprecated Use Catch2's REQUIRE/CHECK macros instead
  */
-inline auto CHECK(bool cond, TestRunner& runner, const std::string& test, const std::string& msg = "") -> bool {
+inline auto OLD_CHECK(bool cond, TestRunner& runner, const std::string& test, const std::string& msg = "") -> bool {
     if (!cond) {
         runner.failMsg(test, msg.empty() ? "check failed" : msg);
         return false;
@@ -291,7 +292,7 @@ inline auto CHECK(bool cond, TestRunner& runner, const std::string& test, const 
 }
 
 /**
- * @brief Assertion helper that prints per-assertion status.
+ * @brief Assertion helper that prints per-assertion status (OLD FRAMEWORK - being phased out).
  * @param runner TestRunner instance
  * @param testName Name of the test
  * @param cond Condition to check
@@ -299,9 +300,10 @@ inline auto CHECK(bool cond, TestRunner& runner, const std::string& test, const 
  * @return true if condition passed, false otherwise
  * 
  * @note Prints [OK] or [FAIL] prefix for each assertion.
+ * @deprecated Use Catch2's REQUIRE/CHECK macros instead
  */
 inline auto RUN_CHECK(TestRunner& runner, const std::string& testName, bool cond, const std::string& msg) -> bool {
-    bool ok = CHECK(cond, runner, testName, msg);
+    bool ok = OLD_CHECK(cond, runner, testName, msg);
     if (ok) {
         // std::cout << "  [OK]   " << msg << '\n';
     } else {

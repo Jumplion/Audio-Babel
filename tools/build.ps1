@@ -1,5 +1,5 @@
 param(
-    [string]$Configuration = "Debug",
+    [string]$Configuration = "Release",
     [string]$Generator = "MinGW Makefiles",
     [string]$BuildDir = ""
 )
@@ -10,7 +10,8 @@ $RepoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')
 # If BuildDir is empty, default to <repoRoot>/build. If relative, interpret relative to repo root.
 if ([string]::IsNullOrWhiteSpace($BuildDir)) {
     $BuildDir = Join-Path $RepoRoot 'build'
-} elseif (-not [System.IO.Path]::IsPathRooted($BuildDir)) {
+}
+elseif (-not [System.IO.Path]::IsPathRooted($BuildDir)) {
     $BuildDir = Join-Path $RepoRoot $BuildDir
 }
 
@@ -31,7 +32,8 @@ if ($Generator -match "Makefiles") {
     $jobs = [Environment]::ProcessorCount
     Write-Host "[build.ps1] Building with mingw32-make -j $jobs"
     mingw32-make -j $jobs
-} else {
+}
+else {
     Write-Host "[build.ps1] Building with 'cmake --build'"
     cmake --build . --config $Configuration
 }

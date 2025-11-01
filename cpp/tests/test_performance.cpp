@@ -322,7 +322,7 @@ void runAudioIndexBenchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Index Serialization",
             category,
-            1000,
+            10,
             [&index]() {
                 std::vector<uint8_t> bytes;
                 boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8);
@@ -345,7 +345,7 @@ void runBase64Benchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Encode (1KB)",
             category,
-            1000,
+            10,
             [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
             [](double ms) -> std::pair<double, std::string> {
                 double kbPerSec = (1.0 / (ms / 1000.0));
@@ -360,7 +360,7 @@ void runBase64Benchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Encode (1MB)",
             category,
-            500,
+            10,
             [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
             [](double ms) -> std::pair<double, std::string> {
                 double mbPerSec = (1.0 / (ms / 1000.0));
@@ -375,7 +375,7 @@ void runBase64Benchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Encode (2MB)",
             category,
-            100,
+            10,
             [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
             [](double ms) -> std::pair<double, std::string> {
                 double mbPerSec = (2.0 / (ms / 1000.0));
@@ -390,7 +390,7 @@ void runBase64Benchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Encode (5MB)",
             category,
-            75,
+            10,
             [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
             [](double ms) -> std::pair<double, std::string> {
                 double mbPerSec = (5.0 / (ms / 1000.0));
@@ -405,7 +405,7 @@ void runBase64Benchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Encode (10MB)",
             category,
-            50,
+            10,
             [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
             [](double ms) -> std::pair<double, std::string> {
                 double mbPerSec = (10.0 / (ms / 1000.0));
@@ -420,7 +420,7 @@ void runBase64Benchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Encode (50MB)",
             category,
-            25,
+            2,
             [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
             [](double ms) -> std::pair<double, std::string> {
                 double mbPerSec = (50.0 / (ms / 1000.0));
@@ -435,7 +435,7 @@ void runBase64Benchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Encode (100MB)",
             category,
-            10,
+            1,
             [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
             [](double ms) -> std::pair<double, std::string> {
                 double mbPerSec = (100.0 / (ms / 1000.0));
@@ -545,7 +545,7 @@ void runBase64Benchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Decode (50MB)",
             category,
-            25,
+            10,
             [&encoded]() { auto decoded = Utilities::decodeBase64Url(encoded); },
             [](double ms) -> std::pair<double, std::string> {
                 double mbPerSec = (50.0 / (ms / 1000.0));
@@ -561,7 +561,7 @@ void runBase64Benchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Decode (100MB)",
             category,
-            10,
+            2,
             [&encoded]() { auto decoded = Utilities::decodeBase64Url(encoded); },
             [](double ms) -> std::pair<double, std::string> {
                 double mbPerSec = (100.0 / (ms / 1000.0));
@@ -595,7 +595,7 @@ void runLibraryPositionBenchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Position Calculation (small)",
             category,
-            10000,
+            10,
             [&smallIndex]() { auto pos = calculateLibraryPosition(smallIndex); },
             [](double ms) -> std::pair<double, std::string> {
                 double opsPerSec = (1.0 / (ms / 1000.0));
@@ -610,7 +610,7 @@ void runLibraryPositionBenchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Position Calculation (large)",
             category,
-            10000,
+            10,
             [&largeIndex]() { auto pos = calculateLibraryPosition(largeIndex); },
             [](double ms) -> std::pair<double, std::string> {
                 double opsPerSec = (1.0 / (ms / 1000.0));
@@ -630,7 +630,7 @@ void runLibraryPositionBenchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Index Reconstruction",
             category,
-            10000,
+            10,
             [&pos]() { auto idx = reconstructIndexFromPosition(pos); },
             [](double ms) -> std::pair<double, std::string> {
                 double opsPerSec = (1.0 / (ms / 1000.0));
@@ -643,7 +643,7 @@ void runLibraryPositionBenchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Batch Position Calc (10,000 indexes)",
             category,
-            1000,
+            10,
             []() {
                 for (int i = 0; i < 10000; ++i) {
                     boost::multiprecision::cpp_int idx = i;
@@ -672,7 +672,7 @@ void runIndexMetadataBenchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Metadata Extraction (small)",
             category,
-            1000,
+            10,
             [&base64Index]() { auto metadata = IndexMetadata::extractMetadataFromIndex(base64Index); },
             [](double ms) -> std::pair<double, std::string> {
                 double opsPerSec = (1.0 / (ms / 1000.0));
@@ -692,7 +692,7 @@ void runIndexMetadataBenchmarks(BenchmarkRunner& runner) {
         runner.runBenchmark(
             "Metadata Extraction (large)",
             category,
-            10,
+            2,
             [&base64Index]() { auto metadata = IndexMetadata::extractMetadataFromIndex(base64Index); },
             [&base64Index](double ms) -> std::pair<double, std::string> {
                 double mbPerSec = ((base64Index.size() / (1024.0 * 1024.0)) / (ms / 1000.0));

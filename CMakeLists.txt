@@ -4,6 +4,19 @@ project(SpeakerOfBabel LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Fetch Catch2 v3 for modern unit testing
+include(FetchContent)
+FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG v3.5.4 # Latest stable as of Oct 2025
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(Catch2)
+
+# Add Catch2 CMake module path for test discovery
+list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+
 # Put project sources under cpp/
 set(CPP_ROOT "${CMAKE_SOURCE_DIR}/cpp")
 include_directories(${CPP_ROOT}/include)
@@ -35,19 +48,24 @@ if(EXISTS ${EXAMPLE_SRC})
     target_include_directories(example_main PRIVATE ${CPP_ROOT}/include)
 endif()
 
-# Tests executable (modular test suite)
-set(TEST_SOURCES
-    "${CPP_ROOT}/tests/test_main.cpp"
+# Catch2 test executable with all unit tests
+set(CATCH2_TEST_SOURCES
+    "${CPP_ROOT}/tests/test_catch2_demo.cpp"
+    "${CPP_ROOT}/tests/test_audio_index.cpp"
     "${CPP_ROOT}/tests/test_base64.cpp"
     "${CPP_ROOT}/tests/test_metadata.cpp"
     "${CPP_ROOT}/tests/test_library_position.cpp"
     "${CPP_ROOT}/tests/test_wav_parsing.cpp"
-    "${CPP_ROOT}/tests/test_audio_index.cpp"
     "${CPP_ROOT}/tests/test_integration.cpp"
 )
-add_executable(tests_runner ${TEST_SOURCES})
-target_link_libraries(tests_runner PRIVATE audiolib)
-target_include_directories(tests_runner PRIVATE ${CPP_ROOT}/include ${CPP_ROOT}/tests)
+add_executable(tests_catch2 ${CATCH2_TEST_SOURCES})
+target_link_libraries(tests_catch2 PRIVATE audiolib Catch2::Catch2WithMain)
+target_include_directories(tests_catch2 PRIVATE ${CPP_ROOT}/include ${CPP_ROOT}/tests)
+
+# Enable CTest integration for Catch2 tests
+include(CTest)
+include(Catch)
+catch_discover_tests(tests_catch2)
 
 # Performance benchmarks executable (separate from unit tests)
 set(PERF_SRC "${CPP_ROOT}/tests/test_performance.cpp")

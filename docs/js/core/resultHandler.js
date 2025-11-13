@@ -8,6 +8,7 @@
 
 import { loadFragment } from '../ui/loadFragment.js';
 import { getWasmModule } from './wasmModule.js';
+import { generateWaveformFromBase64 } from '../utils/waveformVisualizer.js';
 
 let resultFrag = null;
 
@@ -293,6 +294,21 @@ export async function handleJsonResponse(j, originalIndexB64) {
     const downloadLink = frag.get('#downloadLink');
     if (audioPlayer) audioPlayer.src = url;
     if (downloadLink) downloadLink.href = url;
+    
+    // Generate waveform visualization
+    const waveformCanvas = frag.get('#waveformCanvas');
+    if (waveformCanvas) {
+      try {
+        await generateWaveformFromBase64(j.wavBase64, waveformCanvas, {
+          color: '#64b5f6',
+          backgroundColor: 'rgba(15, 20, 25, 0.8)',
+          barWidth: 3,
+          barGap: 1
+        });
+      } catch (error) {
+        console.error('Error generating waveform:', error);
+      }
+    }
   }
 
   if (resultEl) resultEl.style.display = 'block';

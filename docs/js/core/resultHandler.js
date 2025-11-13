@@ -300,10 +300,9 @@ export async function handleJsonResponse(j, originalIndexB64) {
     if (waveformCanvas) {
       try {
         await generateWaveformFromBase64(j.wavBase64, waveformCanvas, {
-          color: '#64b5f6',
-          backgroundColor: 'rgba(15, 20, 25, 0.8)',
-          barWidth: 3,
-          barGap: 1
+          waveColor: '#64b5f6',
+          centerLineColor: 'rgba(100, 181, 246, 0.3)',
+          backgroundColor: 'rgba(15, 20, 25, 0.8)'
         });
       } catch (error) {
         console.error('Error generating waveform:', error);

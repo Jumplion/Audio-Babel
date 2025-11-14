@@ -8,9 +8,10 @@
 
 import { loadFragment } from '../ui/loadFragment.js';
 import { getWasmModule } from './wasmModule.js';
-import { generateWaveformFromBase64 } from '../utils/waveformVisualizer.js';
+import WaveSurfer from 'https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.esm.js';
 
 let resultFrag = null;
+let wavesurferInstance = null;
 
 /**
  * Truncate a string if it exceeds maxLength, showing first and last parts with ellipsis
@@ -295,17 +296,36 @@ export async function handleJsonResponse(j, originalIndexB64) {
     if (audioPlayer) audioPlayer.src = url;
     if (downloadLink) downloadLink.href = url;
     
-    // Generate waveform visualization
-    const waveformCanvas = frag.get('#waveformCanvas');
-    if (waveformCanvas) {
+    // Generate waveform visualization with WaveSurfer.js
+    const waveformContainer = frag.get('#waveformContainer');
+    if (waveformContainer) {
       try {
-        await generateWaveformFromBase64(j.wavBase64, waveformCanvas, {
+        // Destroy previous instance if it exists
+        if (wavesurferInstance) {
+          wavesurferInstance.destroy();
+          wavesurferInstance = null;
+        }
+        
+        // Create new WaveSurfer instance
+        wavesurferInstance = WaveSurfer.create({
+          container: waveformContainer,
           waveColor: '#64b5f6',
-          centerLineColor: 'rgba(100, 181, 246, 0.3)',
-          backgroundColor: 'rgba(15, 20, 25, 0.8)'
+          progressColor: '#2196f3',
+          cursorColor: '#1976d2',
+          barWidth: 2,
+          barRadius: 3,
+          cursorWidth: 2,
+          height: 120,
+          barGap: 1,
+          normalize: true,
+          backend: 'WebAudio',
+          interact: false, // Disable interaction since we're using the native audio player
         });
+        
+        // Load the audio blob
+        await wavesurferInstance.loadBlob(blob);
       } catch (error) {
-        console.error('Error generating waveform:', error);
+        console.error('Error generating waveform with WaveSurfer.js:', error);
       }
     }
   }

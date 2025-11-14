@@ -101,7 +101,7 @@
     clear: both;
 }
 
-/* Waveform visualization container */
+/* WaveSurfer.js waveform visualization container */
 #waveformContainer {
     margin-top: 8px;
     margin-bottom: 12px;
@@ -111,13 +111,13 @@
     border-radius: 8px;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
+    min-height: 120px;
 }
 
-#waveformCanvas {
-    display: block;
-    width: 100%;
-    height: 120px;
-    image-rendering: crisp-edges;
+/* Override WaveSurfer.js default styles */
+#waveformContainer wave {
+    overflow: hidden !important;
+    border-radius: 8px;
 }
 
 #audioPlayer {

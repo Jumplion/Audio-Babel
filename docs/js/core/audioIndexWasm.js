@@ -30,15 +30,22 @@ class AudioIndexWASM {
             // Update this version number whenever you rebuild the WASM module
             const wasmVersion = '9';
             
-            // Use absolute path from site root to ensure it works from any page
-            const siteRoot = window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/').replace(/\/[^\/]*$/, '');
-            const wasmBasePath = `${window.location.origin}/Audio-Babel/wasm/`;
+            // Determine the correct base path based on the environment
+            // For localhost, use absolute path from root; for GitHub Pages, include repo name
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const wasmBasePath = isLocalhost 
+                ? '/wasm/'  // Absolute path from server root (docs/)
+                : `${window.location.origin}/Audio-Babel/wasm/`;
+            
+            console.log(`Environment: ${isLocalhost ? 'localhost' : 'production'}`);
+            console.log(`WASM base path: ${wasmBasePath}`);
             
             this.module = await AudioIndexModule({
                 locateFile: (path) => {
                     if (path.endsWith('.wasm')) {
-                        console.log(`Loading WASM from: ${wasmBasePath}${path}?v=${wasmVersion}`);
-                        return `${wasmBasePath}${path}?v=${wasmVersion}`;
+                        const fullPath = `${wasmBasePath}${path}?v=${wasmVersion}`;
+                        console.log(`Loading WASM from: ${fullPath}`);
+                        return fullPath;
                     }
                     return path;
                 }

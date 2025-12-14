@@ -3,6 +3,7 @@ import { getWasmModule } from '../core/wasmModule.js';
 import { calculateDuration } from '../utils/audioIndex.js';
 import { addIndexHeader, decodeBase64Url, escapeHtml, indexToBase64 } from '../utils/utils.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
+import { handleJsonResponse, cleanupResultHandler } from '../core/resultHandler.js';
 
 // Library hierarchy constants (from C++)
 const TRACKS_PER_ALBUM = 15;
@@ -162,6 +163,11 @@ function showSection(sectionId) {
         const el = $(id);
         if (el) el.style.display = (id === sectionId) ? 'block' : 'none';
     });
+    
+    // Clean up result handler when leaving result section
+    if (sectionId !== 'resultSection') {
+        cleanupResultHandler();
+    }
 }
 
 /**
@@ -385,6 +391,9 @@ async function generateAndDisplayTrack() {
     const container = $('resultContainer');
     if (!container) return;
     
+    // Clean up any existing result state before generating new one
+    cleanupResultHandler();
+    
     // Show a more descriptive loading message
     container.innerHTML = '<p>Generating track... This may take a moment for longer audio.</p>';
     
@@ -457,86 +466,24 @@ async function generateAndDisplayTrack() {
         const pcmData = wasm.reconstructAudioFromIndex(base64Index);
         console.log('PCM data reconstructed, size:', pcmData?.length, 'bytes');
         
-        // Calculate duration
-        const duration = calculateDuration(pcmData.length, 44100, 16, 1);
-        console.log('Audio duration:', duration.toFixed(2), 'seconds');
-        
-        // Generate WAV blob directly (no intermediate base64 conversion)
+        // Generate WAV blob
         console.log('Creating WAV blob...');
         const wavBlob = wasm.samplesToWav(pcmData, 44100, 16, 1);
-        const url = URL.createObjectURL(wavBlob);
-        console.log('WAV blob created, size:', wavBlob.size, 'bytes');
+        const wavArrayBuffer = await wavBlob.arrayBuffer();
+        const wavBytes = new Uint8Array(wavArrayBuffer);
         
-        // Display results
-        container.innerHTML = '';
+        // Convert to base64 for audio player
+        const wavBase64 = btoa(String.fromCharCode(...wavBytes));
         
-        // Position info
-        const posInfo = document.createElement('div');
-        posInfo.style.marginBottom = '16px';
-        posInfo.style.padding = '12px';
-        posInfo.style.background = 'rgba(30, 36, 51, 0.4)';
-        posInfo.style.borderRadius = '8px';
-        posInfo.innerHTML = `
-            <div style="font-size:13px; color:var(--muted); margin-bottom:8px">
-                <strong>Position:</strong> Room ${escapeHtml(navState.room)}, Wall ${navState.wall}, Shelf ${navState.shelf}, Album ${navState.album}, Track ${navState.track}
-            </div>
-            <div style="font-size:13px; color:var(--muted)">
-                <strong>Index:</strong> ${escapeHtml(base64Index.substring(0, 50))}${base64Index.length > 50 ? '...' : ''}
-            </div>
-        `;
-        container.appendChild(posInfo);
+        // Create result object for handleJsonResponse
+        const result = {
+            indexBase64: base64Index,
+            metadata: metadata,
+            wavBase64: wavBase64
+        };
         
-        // Cover and metadata
-        const metaContainer = document.createElement('div');
-        metaContainer.style.display = 'flex';
-        metaContainer.style.gap = '16px';
-        metaContainer.style.marginBottom = '16px';
-        metaContainer.style.alignItems = 'flex-start';
-        
-        // Cover
-        if (metadata.cover) {
-            const coverDiv = document.createElement('div');
-            coverDiv.innerHTML = metadata.cover;
-            coverDiv.style.flexShrink = '0';
-            const svg = coverDiv.querySelector('svg');
-            if (svg) {
-                svg.style.width = '128px';
-                svg.style.height = '128px';
-                svg.style.borderRadius = '6px';
-            }
-            metaContainer.appendChild(coverDiv);
-        }
-        
-        // Metadata
-        const metaDiv = document.createElement('div');
-        metaDiv.innerHTML = `
-            <div style="font-weight:700; font-size:18px; margin-bottom:6px">${escapeHtml(metadata.track)}</div>
-            <div style="color:var(--muted); margin-bottom:4px">${escapeHtml(metadata.artist)}</div>
-            <div style="color:var(--muted); font-size:14px; margin-bottom:4px">${escapeHtml(metadata.album)}</div>
-            <div style="color:var(--muted); font-size:13px">Genre: ${escapeHtml(metadata.genre)}</div>
-            <div style="color:var(--muted); font-size:13px; margin-top:6px">Duration: ${duration.toFixed(2)}s</div>
-        `;
-        metaContainer.appendChild(metaDiv);
-        
-        container.appendChild(metaContainer);
-        
-        // Audio player
-        const audio = document.createElement('audio');
-        audio.controls = true;
-        audio.src = url;
-        audio.style.display = 'block';
-        audio.style.marginBottom = '12px';
-        audio.style.width = '100%';
-        container.appendChild(audio);
-        
-        // Download link
-        const downloadBtn = document.createElement('a');
-        downloadBtn.href = url;
-        downloadBtn.download = `track_${navState.room}_${navState.wall}_${navState.shelf}_${navState.album}_${navState.track}.wav`;
-        downloadBtn.textContent = 'Download .wav';
-        downloadBtn.className = 'btn';
-        downloadBtn.style.display = 'inline-block';
-        container.appendChild(downloadBtn);
+        // Use the shared result handler for consistent UI
+        await handleJsonResponse(result, base64Index);
         
     } catch (err) {
         handleError('browse.js:generateAndDisplayTrack', err, err.message || String(err));

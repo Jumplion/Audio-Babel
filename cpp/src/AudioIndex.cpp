@@ -394,13 +394,24 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
     // Validate header consistency with PCM data size
     size_t bytes_per_sample   = bit_depth / BITS_PER_BYTE;
     size_t expected_pcm_bytes = static_cast<size_t>(num_frames) * static_cast<size_t>(num_channels) * bytes_per_sample;
-    size_t actual_pcm_bytes   = bytes.size() - 13;
+    size_t actual_pcm_bytes   = bytes.size() - 13; // 13-byte header
 
-    if (expected_pcm_bytes != actual_pcm_bytes) {
+    // If we have more bytes than expected, truncate to expected size
+    if (actual_pcm_bytes > expected_pcm_bytes) {
+        std::ostringstream ss;
+        ss << "Index has " << actual_pcm_bytes << " bytes but expected " << expected_pcm_bytes << " - truncating to expected size";
+        std::cerr << "[indexToAudioData] Warning: " << ss.str() << std::endl;
+        // Will truncate during copy below
+    } else if (actual_pcm_bytes < expected_pcm_bytes) {
         std::ostringstream ss;
         ss << "Index header mismatch: num_frames=" << num_frames << " * num_channels=" << num_channels << " * bytes_per_sample=" << bytes_per_sample
-           << " = " << expected_pcm_bytes << " bytes expected, but found " << actual_pcm_bytes << " bytes of PCM data";
-        throw std::runtime_error(ss.str());
+           << " = " << expected_pcm_bytes << " bytes expected, but found only " << actual_pcm_bytes << " bytes of PCM data";
+        ss << " - padding with zeros. TODO: Should handle this more gracefully.";
+        std::cerr << "[indexToAudioData] Warning: " << ss.str() << std::endl;
+        // Add dummy bytes until we reach expected size
+        size_t bytes_to_add = expected_pcm_bytes - actual_pcm_bytes;
+        bytes.insert(bytes.end(), bytes_to_add, 0);
+        actual_pcm_bytes = expected_pcm_bytes;
     }
 
     // Extract PCM samples (bytes 13 onward, already in little-endian per-sample format)
@@ -411,8 +422,9 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
     audioData.bit_rate     = bit_depth;
     audioData.num_frames   = num_frames;
 
-    // Copy PCM data (skip the 13-byte header)
-    audioData.samples.assign(bytes.begin() + 13, bytes.end());
+    // Copy PCM data (skip the 13-byte header), truncate to expected size if needed
+    size_t bytes_to_copy = std::min(actual_pcm_bytes, expected_pcm_bytes);
+    audioData.samples.assign(bytes.begin() + 13, bytes.begin() + 13 + bytes_to_copy);
 
     // Record export stats
     lastDebug.export_pcm_bytes      = actual_pcm_bytes;

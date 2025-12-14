@@ -14,6 +14,18 @@ let resultFrag = null;
 let wavesurferInstance = null;
 
 /**
+ * Clean up the result handler state (WaveSurfer instance and fragment cache).
+ * Call this when navigating away from a result or before generating a new result.
+ */
+export function cleanupResultHandler() {
+  if (wavesurferInstance) {
+    wavesurferInstance.destroy();
+    wavesurferInstance = null;
+  }
+  resultFrag = null;
+}
+
+/**
  * Truncate a string if it exceeds maxLength, showing first and last parts with ellipsis
  * @param {string} str - String to truncate
  * @param {number} maxLength - Maximum length before truncation (default: 30)
@@ -276,7 +288,9 @@ export async function handleJsonResponse(j, originalIndexB64) {
     const cover = frag.get('#coverImg');
     const metadataEl = frag.get('#metadata');
     if (cover && j.metadata.cover) {
-      cover.src = j.metadata.cover;
+      // Convert SVG string to data URL for img src
+      const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(j.metadata.cover);
+      cover.src = svgDataUrl;
       if (metadataEl) metadataEl.style.display = '';
     } else if (cover && metadataEl) {
       cover.src = '';
@@ -291,9 +305,7 @@ export async function handleJsonResponse(j, originalIndexB64) {
     for (let i = 0; i < bytes.length; ++i) ab[i] = bytes.charCodeAt(i);
     const blob = new Blob([ab], { type: 'audio/wav' });
     const url = URL.createObjectURL(blob);
-    const audioPlayer = frag.get('#audioPlayer');
     const downloadLink = frag.get('#downloadLink');
-    if (audioPlayer) audioPlayer.src = url;
     if (downloadLink) downloadLink.href = url;
     
     // Generate waveform visualization with WaveSurfer.js
@@ -306,7 +318,7 @@ export async function handleJsonResponse(j, originalIndexB64) {
           wavesurferInstance = null;
         }
         
-        // Create new WaveSurfer instance
+        // Create new WaveSurfer instance with playback controls
         wavesurferInstance = WaveSurfer.create({
           container: waveformContainer,
           waveColor: '#64b5f6',
@@ -317,13 +329,45 @@ export async function handleJsonResponse(j, originalIndexB64) {
           cursorWidth: 2,
           height: 120,
           barGap: 1,
-          normalize: true,
+          normalize: false, // Don't normalize - show actual amplitudes
           backend: 'WebAudio',
-          interact: false, // Disable interaction since we're using the native audio player
+          interact: true, // Enable interaction for playback control
+          dragToSeek: true, // Allow seeking by clicking/dragging
         });
         
         // Load the audio blob
         await wavesurferInstance.loadBlob(blob);
+        
+        // Set up play/pause button
+        const playPauseBtn = frag.get('#playPauseBtn');
+        if (playPauseBtn) {
+          // Update button text based on playback state
+          const updateButton = () => {
+            if (wavesurferInstance.isPlaying()) {
+              playPauseBtn.textContent = '⏸ Pause';
+            } else {
+              playPauseBtn.textContent = '▶ Play';
+            }
+          };
+          
+          // Button click handler
+          playPauseBtn.onclick = () => {
+            wavesurferInstance.playPause();
+          };
+          
+          // Listen to play/pause events to update button
+          wavesurferInstance.on('play', updateButton);
+          wavesurferInstance.on('pause', updateButton);
+          wavesurferInstance.on('finish', updateButton);
+          
+          // Initialize button state
+          updateButton();
+        }
+        
+        // Add click to play/pause functionality on waveform
+        wavesurferInstance.on('interaction', () => {
+          wavesurferInstance.playPause();
+        });
       } catch (error) {
         console.error('Error generating waveform with WaveSurfer.js:', error);
       }

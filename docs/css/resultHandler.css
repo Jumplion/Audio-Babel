@@ -112,16 +112,12 @@
     overflow: hidden;
     box-shadow: var(--shadow-sm);
     min-height: 120px;
+    cursor: pointer;
+    /* Indicate clickability for play/pause */
 }
 
 /* Override WaveSurfer.js default styles */
 #waveformContainer wave {
     overflow: hidden !important;
     border-radius: 8px;
-}
-
-#audioPlayer {
-    width: 100%;
-    border-radius: 8px;
-    margin-top: 8px;
 }

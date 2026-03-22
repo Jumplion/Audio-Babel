@@ -1,7 +1,7 @@
 // browse.js - Hierarchical navigation through the Record Shop library
 import { getWasmModule } from '../core/wasmModule.js';
 import { calculateDuration } from '../utils/audioIndex.js';
-import { addIndexHeader, decodeBase64Url, escapeHtml, indexToBase64 } from '../utils/utils.js';
+import { addIndexHeader, bytesToBase64Chunked, decodeBase64Url, escapeHtml, indexToBase64 } from '../utils/utils.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
 import { handleJsonResponse, cleanupResultHandler } from '../core/resultHandler.js';
 
@@ -473,7 +473,7 @@ async function generateAndDisplayTrack() {
         const wavBytes = new Uint8Array(wavArrayBuffer);
         
         // Convert to base64 for audio player
-        const wavBase64 = btoa(String.fromCharCode(...wavBytes));
+        const wavBase64 = bytesToBase64Chunked(wavBytes);
         
         // Create result object for handleJsonResponse
         const result = {

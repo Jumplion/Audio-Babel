@@ -6,13 +6,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Fetch Catch2 v3 for modern unit testing
 include(FetchContent)
-FetchContent_Declare(
+fetchcontent_declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
     GIT_TAG v3.5.4 # Latest stable as of Oct 2025
     GIT_SHALLOW TRUE
 )
-FetchContent_MakeAvailable(Catch2)
+fetchcontent_makeavailable(Catch2)
 
 # Add Catch2 CMake module path for test discovery
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
@@ -31,7 +31,9 @@ target_include_directories(audiolib PUBLIC ${CPP_ROOT}/include)
 # Find Boost.Multiprecision header (header-only)
 find_path(DBOOST_MP_INCLUDE_DIR
     NAMES boost/multiprecision/cpp_int.hpp
-    PATHS C:/vcpkg/installed/x64-mingw-dynamic/include
+    PATHS
+        C:/msys64/mingw64/include
+        C:/vcpkg/installed/x64-mingw-dynamic/include
 )
 if(DBOOST_MP_INCLUDE_DIR)
     message(STATUS "Found Boost.Multiprecision headers: ${DBOOST_MP_INCLUDE_DIR}")

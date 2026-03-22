@@ -20,18 +20,24 @@ if (-not (Test-Path -LiteralPath $BuildDir)) {
     New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
 }
 
+$MinGWBin = "C:\msys64\mingw64\bin"
+if ($env:PATH -notlike "*$MinGWBin*") {
+    $env:PATH = "$MinGWBin;$env:PATH"
+    Write-Host "[build.ps1] Prepended $MinGWBin to PATH"
+}
+
 $FullBuildDir = Resolve-Path -LiteralPath $BuildDir
 Push-Location $FullBuildDir.Path
 
 Write-Host "[build.ps1] Configuring with generator '$Generator' and configuration '$Configuration' in $PWD"
 # Use the repository root as the CMake source directory so CMake finds CMakeLists.txt reliably
-cmake -G "$Generator" -DCMAKE_BUILD_TYPE=$Configuration $RepoRoot
+cmake -G "$Generator" -DCMAKE_BUILD_TYPE=$Configuration -DCMAKE_CXX_COMPILER="$MinGWBin\g++.exe" -DCMAKE_C_COMPILER="$MinGWBin\gcc.exe" -DCMAKE_MAKE_PROGRAM="$MinGWBin\mingw32-make.exe" $RepoRoot
 if ($LASTEXITCODE -ne 0) { Pop-Location; exit $LASTEXITCODE }
 
 if ($Generator -match "Makefiles") {
     $jobs = [Environment]::ProcessorCount
     Write-Host "[build.ps1] Building with mingw32-make -j $jobs"
-    mingw32-make -j $jobs
+    & "$MinGWBin\mingw32-make.exe" -j $jobs
 }
 else {
     Write-Host "[build.ps1] Building with 'cmake --build'"

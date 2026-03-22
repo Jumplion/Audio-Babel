@@ -8,6 +8,7 @@
 
 import { loadFragment } from '../ui/loadFragment.js';
 import { getWasmModule } from './wasmModule.js';
+import { escapeHtml } from '../utils/utils.js';
 import WaveSurfer from 'https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.esm.js';
 
 let resultFrag = null;
@@ -157,7 +158,7 @@ function generateIndexViewerHTML(indexContent) {
     </head>
     <body>
       <h1>Audio Index</h1>
-      <pre>${indexContent}</pre>
+      <pre>${escapeHtml(indexContent)}</pre>
     </body>
     </html>
   `;
@@ -247,11 +248,11 @@ export async function handleJsonResponse(j, originalIndexB64) {
       
       positionDisplay.innerHTML = `
         <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px;">
-          <span><strong>Room:</strong> <code style="font-size: 13px;">${roomDisplay}</code></span>
-          <span><strong>Wall:</strong> ${position.wall}</span>
-          <span><strong>Shelf:</strong> ${position.shelf}</span>
-          <span><strong>Album:</strong> ${position.album}</span>
-          <span><strong>Track:</strong> ${position.track}</span>
+          <span><strong>Room:</strong> <code style="font-size: 13px;">${escapeHtml(roomDisplay)}</code></span>
+          <span><strong>Wall:</strong> ${escapeHtml(position.wall)}</span>
+          <span><strong>Shelf:</strong> ${escapeHtml(position.shelf)}</span>
+          <span><strong>Album:</strong> ${escapeHtml(position.album)}</span>
+          <span><strong>Track:</strong> ${escapeHtml(position.track)}</span>
         </div>
       `;
     } catch (error) {

@@ -85,7 +85,7 @@ void FileWriters::writeIndexToFile(const boost::multiprecision::cpp_int& index, 
     // write base64 textual representation as <dir>/<name>.b64.txt
     std::ofstream out((dir / (name + ".txt")).string());
     if (!out) {
-        return;
+        throw std::runtime_error("Failed to open output file: " + (dir / (name + ".txt")).string());
     }
 
     // Use the centralized URL-safe base64 encoder from Utilities.h

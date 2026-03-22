@@ -7,7 +7,7 @@
  */
 
 import { getWasmModule } from '../core/wasmModule.js';
-import { calculateDuration } from '../utils/audioIndex.js';
+import { buildResult, DEFAULT_BIT_DEPTH } from '../utils/audioIndex.js';
 import { parseWavFile } from '../utils/wavUtils.js';
 import { bytesToBase64Chunked, encodeBase64Url } from '../utils/utils.js';
 
@@ -38,27 +38,11 @@ export async function uploadFile(file, handleJsonResponse, setLoading) {
     // Encode PCM data as URL-safe base64 (this IS the user-facing index)
     const audioIndex = encodeBase64Url(pcmData);
     
-    // Calculate duration
-    const duration = calculateDuration(pcmData.length, sampleRate, 16, numChannels);
-    
     // Create result object
-    const result = {
-      indexBase64: audioIndex,
-      metadata: {
-        genre: 'uploaded',
-        artist: file.name,
-        album: `${duration.toFixed(2)}s`,
-        track: `${(audioIndex.length / 1024).toFixed(2)} KB`,
-        cover: ''
-      },
-      sampleRate: sampleRate,
-      numChannels: numChannels,
-      dataSize: pcmData.length,
-      duration: duration
-    };
+    const result = buildResult({ indexBase64: audioIndex, genre: 'uploaded', artist: file.name, pcmDataSize: pcmData.length, sampleRate, numChannels });
     
     // Generate WAV for playback
-    const wavBlob = wasm.samplesToWav(pcmData, sampleRate, 16, numChannels);
+    const wavBlob = wasm.samplesToWav(pcmData, sampleRate, DEFAULT_BIT_DEPTH, numChannels);
     const wavArrayBuffer = await wavBlob.arrayBuffer();
     const wavBytes = new Uint8Array(wavArrayBuffer);
     

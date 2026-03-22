@@ -6,7 +6,7 @@
  * input filtering to ensure only valid base64 characters are entered.
  */
 
-import { isValidBase64Url, calculateDuration } from '../utils/audioIndex.js';
+import { isValidBase64Url, buildResult, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/audioIndex.js';
 import { getWasmModule } from '../core/wasmModule.js';
 import { bytesToBase64Chunked, addIndexHeader, decodeBase64Url, encodeBase64Url } from '../utils/utils.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
@@ -35,8 +35,8 @@ export async function generateFromIndex(inputEl, handleJsonResponse, setLoading)
     
     // The user input is PCM-only (no header). We need to add a header to make it a valid audio index.
     let pcmBytes = decodeBase64Url(indexString);
-    const bytesPerSample = 16 / 8; // 16-bit
-    const numChannels = 1; // mono
+    const bytesPerSample = DEFAULT_BIT_DEPTH / 8;
+    const numChannels = DEFAULT_NUM_CHANNELS;
     
     // Pad with zero byte if odd number of bytes (required for 16-bit audio)
     let pcmBase64 = indexString; // Will be updated if we pad
@@ -55,9 +55,9 @@ export async function generateFromIndex(inputEl, handleJsonResponse, setLoading)
     // Add 13-byte header to create a valid audio index
     const fullIndex = addIndexHeader(pcmBase64, {
       numFrames: numFrames,
-      sampleRate: 44100,
-      bitDepth: 16,
-      numChannels: 1
+      sampleRate: DEFAULT_SAMPLE_RATE,
+      bitDepth: DEFAULT_BIT_DEPTH,
+      numChannels: DEFAULT_NUM_CHANNELS
     });
     
     console.log('[search.js] Debug info:', {
@@ -71,27 +71,11 @@ export async function generateFromIndex(inputEl, handleJsonResponse, setLoading)
     // Reconstruct audio from the full index (with header)
     const pcmData = wasm.reconstructAudioFromIndex(fullIndex);
     
-    // Calculate duration
-    const duration = calculateDuration(pcmData.length, 44100, 16, 1);
-    
     // Create result object
-    const result = {
-      indexBase64: indexString,
-      metadata: {
-        genre: 'decoded',
-        artist: 'search',
-        album: `${duration.toFixed(2)}s`,
-        track: `${(indexString.length / 1024).toFixed(2)} KB`,
-        cover: ''
-      },
-      sampleRate: 44100,
-      numChannels: 1,
-      dataSize: pcmData.length,
-      duration: duration
-    };
+    const result = buildResult({ indexBase64: indexString, genre: 'decoded', artist: 'search', pcmDataSize: pcmData.length });
     
     // Generate WAV for playback
-    const wavBlob = wasm.samplesToWav(pcmData, 44100, 16, 1);
+    const wavBlob = wasm.samplesToWav(pcmData, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS);
     const wavArrayBuffer = await wavBlob.arrayBuffer();
     const wavBytes = new Uint8Array(wavArrayBuffer);
     

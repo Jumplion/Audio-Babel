@@ -13,7 +13,9 @@ import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from './
 export { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS };
 
 /**
- * Validate that a string contains only URL-safe base64 characters
+ * Validate that a string contains only URL-safe base64 characters.
+ * NOTE (R7): Intentionally duplicated from C++ Utilities::isValidBase64Url.
+ * JS validates at the UI boundary; C++ validates at the library boundary.
  * @param {string} s - String to validate
  * @returns {boolean} True if valid
  */

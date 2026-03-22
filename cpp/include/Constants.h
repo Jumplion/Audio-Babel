@@ -10,9 +10,8 @@ namespace AudioBabel {
 // Keep these in a header so they can be reused by multiple translation units.
 constexpr uint32_t CHUNK_SIZE_LIMIT = (1U << 30); // 1 GiB sanity limit for chunk sizes
 // WAV / RIFF constants
-constexpr size_t WAV_ID_LEN         = 4;             // 'RIFF'/'WAVE' id length
-constexpr size_t FMT_CHUNK_MIN_SIZE = 16;            // canonical PCM fmt chunk size
-constexpr size_t HEADER_BYTES_CONST = 4 + 2 + 2 + 8; // 16 bytes header layout
+constexpr size_t WAV_ID_LEN         = 4;  // 'RIFF'/'WAVE' id length
+constexpr size_t FMT_CHUNK_MIN_SIZE = 16; // canonical PCM fmt chunk size
 constexpr size_t BITS_PER_BYTE      = 8;
 
 // Base64 / byte masks

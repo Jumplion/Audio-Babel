@@ -467,6 +467,14 @@ emscripten::val reconstructAudioWrapper(const std::string& base64Index) {
     }
 }
 
+// Return library hierarchy constants as JSON so JS doesn't need to hardcode them.
+static std::string getLibraryConstantsWrapper() {
+    return "{\"tracksPerAlbum\":" + std::to_string(LibraryConstants::TRACKS_PER_ALBUM) +
+           ",\"albumsPerShelf\":" + std::to_string(LibraryConstants::ALBUMS_PER_SHELF) +
+           ",\"shelvesPerWall\":" + std::to_string(LibraryConstants::SHELVES_PER_WALL) +
+           ",\"wallsPerRoom\":" + std::to_string(LibraryConstants::WALLS_PER_ROOM) + "}";
+}
+
 // Embind bindings for class-based API
 using namespace emscripten;
 
@@ -480,4 +488,7 @@ EMSCRIPTEN_BINDINGS(audio_index_module) {
 
     // Functions that don't need wrappers
     function("calculateSize", &calculateAudioSize);
+
+    // Library hierarchy constants (R5 — avoids manual duplication in JS)
+    function("getLibraryConstants", &getLibraryConstantsWrapper);
 }

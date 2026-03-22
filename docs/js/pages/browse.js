@@ -5,11 +5,12 @@ import { addIndexHeader, bytesToBase64Chunked, decodeBase64Url, escapeHtml, inde
 import { showValidationError, handleError } from '../utils/errorHandler.js';
 import { handleJsonResponse, cleanupResultHandler } from '../core/resultHandler.js';
 
-// Library hierarchy constants (from C++)
-const TRACKS_PER_ALBUM = 15;
-const ALBUMS_PER_SHELF = 32;
-const SHELVES_PER_WALL = 5;
-const WALLS_PER_ROOM = 4;
+// Library hierarchy constants — loaded from WASM at init time (R5).
+// Fallbacks match the C++ LibraryConstants defaults.
+let TRACKS_PER_ALBUM = 15;
+let ALBUMS_PER_SHELF = 32;
+let SHELVES_PER_WALL = 5;
+let WALLS_PER_ROOM = 4;
 
 // Current navigation state
 const navState = {
@@ -495,6 +496,19 @@ async function generateAndDisplayTrack() {
  * Initializes the breadcrumb and shows the room selection section by default
  */
 function init() {
+    // Load library hierarchy constants from WASM (R5)
+    getWasmModule().then(wasm => {
+        try {
+            const c = JSON.parse(wasm.module.getLibraryConstants());
+            TRACKS_PER_ALBUM = c.tracksPerAlbum;
+            ALBUMS_PER_SHELF = c.albumsPerShelf;
+            SHELVES_PER_WALL = c.shelvesPerWall;
+            WALLS_PER_ROOM   = c.wallsPerRoom;
+        } catch (e) {
+            console.warn('Could not load library constants from WASM, using defaults', e);
+        }
+    });
+
     // Room input
     const roomInput = $('roomInput');
     const enterRoomBtn = $('enterRoomBtn');

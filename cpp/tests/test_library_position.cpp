@@ -338,19 +338,11 @@ TEST_CASE("LibraryPosition: complete roundtrip for various patterns", "[library_
 }
 
 TEST_CASE("LibraryPosition: reconstructIndexFromPosition with out-of-range values", "[library_position][edge_case][validation]") {
-    // DISCREPANCY BETWEEN DOCUMENTATION AND IMPLEMENTATION:
-    // - The header documentation claims: "@throws std::invalid_argument if position fields are out of valid ranges"
-    // - The actual implementation: Does NOT validate inputs, performs arithmetic unconditionally
+    // The header documents: "@throws std::invalid_argument if position fields are out of valid ranges"
+    // The implementation now enforces this contract.
     //
-    // CURRENT BEHAVIOR (tested here):
-    // Out-of-range values "overflow" into the next hierarchical level via arithmetic.
-    // For example: track=15 (max is 14) produces the same index as album=1, track=0.
-    //
-    // MITIGATION:
-    // JavaScript layer (browse.js) now validates and clamps input values before calling WASM:
-    // - validatePositionValues() ensures wall, shelf, album, track are within bounds
-    // - clampPositionValue() clamps out-of-range values and logs warnings
-    // This approach keeps the C++ code simple while ensuring correctness at the API boundary.
+    // JavaScript layer (browse.js) also validates and clamps input values before calling WASM,
+    // but the C++ layer now rejects invalid inputs as a defence-in-depth measure.
 
     SECTION("track out of range (15, max is 14)") {
         LibraryPosition pos;
@@ -360,9 +352,7 @@ TEST_CASE("LibraryPosition: reconstructIndexFromPosition with out-of-range value
         pos.album = 0;
         pos.track = 15; // OUT OF RANGE
 
-        // Current behavior: no exception, returns index = 15
-        cpp_int reconstructed = reconstructIndexFromPosition(pos);
-        REQUIRE(reconstructed == 15); // Overflow into next album
+        REQUIRE_THROWS_AS(reconstructIndexFromPosition(pos), std::invalid_argument);
     }
 
     SECTION("album out of range (32, max is 31)") {
@@ -373,9 +363,7 @@ TEST_CASE("LibraryPosition: reconstructIndexFromPosition with out-of-range value
         pos.album = 32; // OUT OF RANGE
         pos.track = 0;
 
-        // Current behavior: index = 32 * 15 = 480 (start of shelf 1)
-        cpp_int reconstructed = reconstructIndexFromPosition(pos);
-        REQUIRE(reconstructed == 480);
+        REQUIRE_THROWS_AS(reconstructIndexFromPosition(pos), std::invalid_argument);
     }
 
     SECTION("shelf out of range (5, max is 4)") {
@@ -386,9 +374,7 @@ TEST_CASE("LibraryPosition: reconstructIndexFromPosition with out-of-range value
         pos.album = 0;
         pos.track = 0;
 
-        // Current behavior: index = 5 * 480 = 2400 (start of wall 1)
-        cpp_int reconstructed = reconstructIndexFromPosition(pos);
-        REQUIRE(reconstructed == 2400);
+        REQUIRE_THROWS_AS(reconstructIndexFromPosition(pos), std::invalid_argument);
     }
 
     SECTION("wall out of range (4, max is 3)") {
@@ -399,9 +385,7 @@ TEST_CASE("LibraryPosition: reconstructIndexFromPosition with out-of-range value
         pos.album = 0;
         pos.track = 0;
 
-        // Current behavior: index = 4 * 2400 = 9600 (start of room 1)
-        cpp_int reconstructed = reconstructIndexFromPosition(pos);
-        REQUIRE(reconstructed == 9600);
+        REQUIRE_THROWS_AS(reconstructIndexFromPosition(pos), std::invalid_argument);
     }
 
     SECTION("multiple out-of-range fields") {
@@ -412,11 +396,8 @@ TEST_CASE("LibraryPosition: reconstructIndexFromPosition with out-of-range value
         pos.album = 32; // overflow
         pos.track = 15; // overflow
 
-        // Current behavior: cumulative arithmetic
-        cpp_int reconstructed = reconstructIndexFromPosition(pos);
-        cpp_int expected      = (4 * ITEMS_PER_WALL) + (5 * ITEMS_PER_SHELF) + (32 * ITEMS_PER_ALBUM) + 15;
-
-        REQUIRE(reconstructed == expected);
+        // wall is checked first
+        REQUIRE_THROWS_AS(reconstructIndexFromPosition(pos), std::invalid_argument);
     }
 
     SECTION("extreme out-of-range value (uint8_t max = 255)") {
@@ -427,11 +408,7 @@ TEST_CASE("LibraryPosition: reconstructIndexFromPosition with out-of-range value
         pos.album = 0;
         pos.track = 0;
 
-        // Current behavior: arithmetic with large value
-        cpp_int reconstructed = reconstructIndexFromPosition(pos);
-        cpp_int expected      = 255 * ITEMS_PER_WALL; // 612000
-
-        REQUIRE(reconstructed == expected);
+        REQUIRE_THROWS_AS(reconstructIndexFromPosition(pos), std::invalid_argument);
     }
 
     SECTION("Forward calculation never produces out-of-range values") {

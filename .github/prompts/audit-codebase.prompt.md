@@ -58,6 +58,8 @@ Reference these when auditing — they represent verified categories of findings
 
 ## Output format
 
+Output all findings in a markdown file with the following structure and information:
+
 Produce a table per audit dimension, grouped by severity (Critical / High / Medium / Low).
 Each row: **file, line(s), issue description, suggested fix** (concise).
 

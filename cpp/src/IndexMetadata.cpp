@@ -83,25 +83,13 @@ auto IndexMetadata::buildMetadataFromBytesAndB64(const std::vector<uint8_t>& byt
     size_t sum = 0;
     for (int i = 0; i < 4; ++i) {
         lens[i] = (b64Len * weights[i]) / totalWeight;
-        if (lens[i] == 0) {
-            lens[i] = 1;
-        }
         sum += lens[i];
     }
 
-    // Distribute any remaining characters round-robin, or trim excess
-    if (sum < b64Len) {
-        size_t remainder = b64Len - sum;
-        for (size_t i = 0; i < remainder; ++i) {
-            lens[i % 4]++;
-        }
-    } else {
-        for (int i = 3; sum > b64Len && i >= 0; --i) {
-            size_t excess = sum - b64Len;
-            size_t trim   = std::min(excess, lens[i] - 1);
-            lens[i] -= trim;
-            sum -= trim;
-        }
+    // Distribute remaining characters round-robin to fields 0..(rem-1)
+    size_t rem = b64Len - sum;
+    for (size_t i = 0; i < rem; ++i) {
+        lens[i % 4]++;
     }
 
     size_t pos = 0;

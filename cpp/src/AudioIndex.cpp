@@ -322,24 +322,16 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
 
     // num_frames (4 bytes, little-endian)
     auto num_frames_u32 = static_cast<uint32_t>(audioData.num_frames);
-    index_bytes.push_back(static_cast<uint8_t>(num_frames_u32 & 0xFF));
-    index_bytes.push_back(static_cast<uint8_t>((num_frames_u32 >> 8) & 0xFF));
-    index_bytes.push_back(static_cast<uint8_t>((num_frames_u32 >> 16) & 0xFF));
-    index_bytes.push_back(static_cast<uint8_t>((num_frames_u32 >> 24) & 0xFF));
+    Utilities::push_le<uint32_t>(index_bytes, num_frames_u32);
 
     // sample_rate (4 bytes, little-endian)
-    index_bytes.push_back(static_cast<uint8_t>(audioData.sample_rate & 0xFF));
-    index_bytes.push_back(static_cast<uint8_t>((audioData.sample_rate >> 8) & 0xFF));
-    index_bytes.push_back(static_cast<uint8_t>((audioData.sample_rate >> 16) & 0xFF));
-    index_bytes.push_back(static_cast<uint8_t>((audioData.sample_rate >> 24) & 0xFF));
+    Utilities::push_le<uint32_t>(index_bytes, audioData.sample_rate);
 
     // bit_depth (2 bytes, little-endian)
-    index_bytes.push_back(static_cast<uint8_t>(audioData.bit_rate & 0xFF));
-    index_bytes.push_back(static_cast<uint8_t>((audioData.bit_rate >> 8) & 0xFF));
+    Utilities::push_le<uint16_t>(index_bytes, audioData.bit_rate);
 
     // num_channels (2 bytes, little-endian)
-    index_bytes.push_back(static_cast<uint8_t>(audioData.num_channels & 0xFF));
-    index_bytes.push_back(static_cast<uint8_t>((audioData.num_channels >> 8) & 0xFF));
+    Utilities::push_le<uint16_t>(index_bytes, audioData.num_channels);
 
     // Append PCM sample data (already in little-endian byte order)
     index_bytes.insert(index_bytes.end(), audioData.samples.begin(), audioData.samples.end());

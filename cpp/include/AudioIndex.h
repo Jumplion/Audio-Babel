@@ -300,11 +300,12 @@ class AudioIndex {
      * @param path Output file path (will be created or overwritten)
      * @throws std::runtime_error if file cannot be opened for writing
      * 
-     * @note This is a thin wrapper around FileWriters::exportAudioDataToWav
-     *       retained for backwards compatibility.
+     * @note Compatibility alias — delegates to FileWriters::exportAudioDataToWav.
+     *       Prefer calling FileWriters::exportAudioDataToWav directly in new code.
      * 
      * @see extractAudioDataFromAudioFile for the inverse operation
      */
+    [[deprecated("Use FileWriters::exportAudioDataToWav directly")]]
     static void exportAudioDataToWav(const AudioData& audioData, const std::string& path);
 
     /**
@@ -322,9 +323,10 @@ class AudioIndex {
      * The output file contains a single line of URL-safe base64 text (alphabet: A-Za-z0-9-_)
      * with no padding characters, followed by a newline.
      * 
-     * @note This is a thin wrapper around FileWriters::writeIndexToFile
-     *       retained for backwards compatibility.
+     * @note Compatibility alias — delegates to FileWriters::writeIndexToFile.
+     *       Prefer calling FileWriters::writeIndexToFile directly in new code.
      */
+    [[deprecated("Use FileWriters::writeIndexToFile directly")]]
     static void writeIndexToFile(const boost::multiprecision::cpp_int& index,
                                  const std::string&                    outDir   = std::string(),
                                  const std::string&                    filename = std::string());

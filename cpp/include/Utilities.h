@@ -11,7 +11,6 @@
 
 #include "Constants.h"
 
-
 // Utilities: endian helpers and small byte/bit helpers used across the audio code.
 // Header-only and inline to avoid ODR issues.
 namespace AudioBabel::Utilities {
@@ -59,6 +58,14 @@ static inline void push_be(std::vector<uint8_t>& out, T val, size_t BITS_PER_BYT
     }
 }
 
+template <typename T>
+static inline void push_le(std::vector<uint8_t>& out, T val) {
+    auto uv = static_cast<uint64_t>(val);
+    for (size_t i = 0; i < sizeof(T); ++i) {
+        out.push_back(static_cast<uint8_t>((uv >> (i * 8)) & 0xFFU));
+    }
+}
+
 static inline void append_sample_be_from_le(const std::vector<uint8_t>& le_samples,
                                             size_t                      offset,
                                             size_t                      bytes_per_sample,
@@ -82,6 +89,11 @@ static inline auto bytes_to_cpp_int_be(const std::vector<uint8_t>& bytes) -> boo
 // URL-safe base64 alphabet used by encoder/decoder (no padding)
 constexpr char BASE64_URL_ALPHA[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
+// NOTE (R7): isValidBase64Url is intentionally implemented in both C++ (this
+// character-loop version) and JavaScript (regex in docs/js/utils/audioIndex.js).
+// The dual implementations provide defence-in-depth: JS validates at the UI
+// boundary while C++ validates at the library boundary, and each uses an
+// idiomatic approach for its runtime.
 constexpr auto isValidBase64Url(std::string_view s) -> bool {
     for (char c : s) {
         if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' && c != '_') {

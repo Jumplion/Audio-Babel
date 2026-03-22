@@ -1,6 +1,6 @@
 // browse.js - Hierarchical navigation through the Record Shop library
 import { getWasmModule } from '../core/wasmModule.js';
-import { calculateDuration } from '../utils/audioIndex.js';
+import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/audioIndex.js';
 import { addIndexHeader, bytesToBase64Chunked, decodeBase64Url, escapeHtml, indexToBase64 } from '../utils/utils.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
 import { handleJsonResponse, cleanupResultHandler } from '../core/resultHandler.js';
@@ -437,17 +437,16 @@ async function generateAndDisplayTrack() {
         // The position index is just the PCM data. We need to add a header to make it a valid audio index.
         // Decode to get actual byte count
         const pcmBytes = decodeBase64Url(positionIndexBase64);
-        const bytesPerSample = 16 / 8; // 16-bit
-        const numChannels = 1; // mono
-        const numFrames = Math.floor(pcmBytes.length / bytesPerSample / numChannels);
+        const bytesPerSample = DEFAULT_BIT_DEPTH / 8;
+        const numFrames = Math.floor(pcmBytes.length / bytesPerSample / DEFAULT_NUM_CHANNELS);
         
         // Add 13-byte header to create a valid audio index
         console.log('PCM size:', pcmBytes.length, 'bytes, numFrames:', numFrames);
         const base64Index = addIndexHeader(positionIndexBase64, {
             numFrames: numFrames,
-            sampleRate: 44100,
-            bitDepth: 16,
-            numChannels: 1
+            sampleRate: DEFAULT_SAMPLE_RATE,
+            bitDepth: DEFAULT_BIT_DEPTH,
+            numChannels: DEFAULT_NUM_CHANNELS
         });
         console.log('Full audio index (with header):', base64Index?.substring(0, 50) + '...');
         
@@ -468,7 +467,7 @@ async function generateAndDisplayTrack() {
         
         // Generate WAV blob
         console.log('Creating WAV blob...');
-        const wavBlob = wasm.samplesToWav(pcmData, 44100, 16, 1);
+        const wavBlob = wasm.samplesToWav(pcmData, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS);
         const wavArrayBuffer = await wavBlob.arrayBuffer();
         const wavBytes = new Uint8Array(wavArrayBuffer);
         

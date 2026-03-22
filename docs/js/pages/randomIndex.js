@@ -7,7 +7,7 @@
  */
 
 import { getWasmModule } from '../core/wasmModule.js';
-import { calculateDuration } from '../utils/audioIndex.js';
+import { buildResult, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/audioIndex.js';
 import { bytesToBase64Chunked, encodeBase64Url } from '../utils/utils.js';
 import { handleError } from '../utils/errorHandler.js';
 
@@ -78,28 +78,12 @@ export async function generateAndSend(handleJsonResponse, setLoading) {
     // Encode random PCM bytes as URL-safe base64 (this IS the user-facing index)
     const audioIndex = encodeBase64Url(randomBytes);
     
-    // Calculate duration
-    const duration = calculateDuration(randomBytes.length, 44100, 16, 1);
-    
     // Create result object
-    const result = {
-      indexBase64: audioIndex,
-      metadata: {
-        genre: 'random',
-        artist: 'generated',
-        album: `${duration.toFixed(2)}s`,
-        track: `${(audioIndex.length / 1024).toFixed(2)} KB`,
-        cover: ''
-      },
-      sampleRate: 44100,
-      numChannels: 1,
-      dataSize: randomBytes.length,
-      duration: duration
-    };
+    const result = buildResult({ indexBase64: audioIndex, genre: 'random', artist: 'generated', pcmDataSize: randomBytes.length });
     
     // Generate WAV for playback
     const wasm = await getWasmModule();
-    const wavBlob = wasm.samplesToWav(randomBytes, 44100, 16, 1);
+    const wavBlob = wasm.samplesToWav(randomBytes, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS);
     const wavArrayBuffer = await wavBlob.arrayBuffer();
     const wavBytes = new Uint8Array(wavArrayBuffer);
     

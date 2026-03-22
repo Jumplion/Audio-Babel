@@ -7,12 +7,10 @@
  * This module provides a clean interface to the WASM functionality.
  */
 
-import AudioIndexWASM from '../core/audioIndexWasm.js';
+import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from './audioConstants.js';
 
-// Constants (from cpp/include/Constants.h)
-const DEFAULT_NUM_CHANNELS = 1;
-const DEFAULT_SAMPLE_RATE = 44100;
-const DEFAULT_BIT_DEPTH = 16;
+// Re-export so page modules can import everything from one place
+export { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS };
 
 /**
  * Validate that a string contains only URL-safe base64 characters
@@ -35,4 +33,35 @@ export function calculateDuration(numBytes, sampleRate = DEFAULT_SAMPLE_RATE, bi
     const bytesPerSample = bitDepth / 8;
     const numSamples = numBytes / (bytesPerSample * numChannels);
     return numSamples / sampleRate;
+}
+
+/**
+ * Build a standardised result object for handleJsonResponse.
+ * Callers still append wavBase64 after WAV generation.
+ * @param {Object} opts
+ * @param {string} opts.indexBase64 - Base64-encoded audio index
+ * @param {string} opts.genre - Source genre label
+ * @param {string} opts.artist - Source artist label
+ * @param {number} opts.pcmDataSize - PCM byte count
+ * @param {number} [opts.sampleRate]
+ * @param {number} [opts.numChannels]
+ * @param {number} [opts.bitDepth]
+ * @returns {Object} Result object ready for handleJsonResponse (minus wavBase64)
+ */
+export function buildResult({ indexBase64, genre, artist, pcmDataSize, sampleRate = DEFAULT_SAMPLE_RATE, numChannels = DEFAULT_NUM_CHANNELS, bitDepth = DEFAULT_BIT_DEPTH }) {
+    const duration = calculateDuration(pcmDataSize, sampleRate, bitDepth, numChannels);
+    return {
+        indexBase64,
+        metadata: {
+            genre,
+            artist,
+            album: `${duration.toFixed(2)}s`,
+            track: `${(indexBase64.length / 1024).toFixed(2)} KB`,
+            cover: ''
+        },
+        sampleRate,
+        numChannels,
+        dataSize: pcmDataSize,
+        duration
+    };
 }

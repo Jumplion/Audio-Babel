@@ -39,6 +39,53 @@
 using namespace AudioBabel;
 using boost::multiprecision::cpp_int;
 
+// Escape a string for safe embedding in a JSON string value.
+// Handles backslash, double-quote, and control characters.
+static std::string escapeJsonString(const std::string& input) {
+    std::string out;
+    out.reserve(input.size());
+    for (char ch : input) {
+        switch (ch) {
+            case '"':
+                out += "\\\"";
+                break;
+            case '\\':
+                out += "\\\\";
+                break;
+            case '\b':
+                out += "\\b";
+                break;
+            case '\f':
+                out += "\\f";
+                break;
+            case '\n':
+                out += "\\n";
+                break;
+            case '\r':
+                out += "\\r";
+                break;
+            case '\t':
+                out += "\\t";
+                break;
+            default:
+                if (static_cast<unsigned char>(ch) < 0x20) {
+                    char buf[8];
+                    snprintf(buf, sizeof(buf), "\\u%04x", static_cast<unsigned char>(ch));
+                    out += buf;
+                } else {
+                    out += ch;
+                }
+                break;
+        }
+    }
+    return out;
+}
+
+// Build a standard JSON error response: {"error":"<escaped msg>"}
+static std::string makeJsonError(const std::string& message) {
+    return "{\"error\":\"" + escapeJsonString(message) + "\"}";
+}
+
 // External C functions for JavaScript interop
 extern "C" {
 
@@ -68,13 +115,13 @@ char* getMetadataFromBase64(const char* base64Index) {
         // Parse index to get metadata
         IndexMetadata metadata = IndexMetadata::extractMetadataFromIndex(indexStr);
 
-        // Build JSON response (simple manual JSON construction)
+        // Build JSON response with escaped string values
         std::string json = "{";
-        json += "\"genre\":\"" + metadata.genre + "\",";
-        json += "\"artist\":\"" + metadata.artist + "\",";
-        json += "\"album\":\"" + metadata.album + "\",";
-        json += "\"track\":\"" + metadata.track + "\",";
-        json += "\"cover\":\"" + metadata.cover + "\"";
+        json += "\"genre\":\"" + escapeJsonString(metadata.genre) + "\",";
+        json += "\"artist\":\"" + escapeJsonString(metadata.artist) + "\",";
+        json += "\"album\":\"" + escapeJsonString(metadata.album) + "\",";
+        json += "\"track\":\"" + escapeJsonString(metadata.track) + "\",";
+        json += "\"cover\":\"" + escapeJsonString(metadata.cover) + "\"";
         json += "}";
 
         // Allocate string on heap for JavaScript
@@ -83,7 +130,7 @@ char* getMetadataFromBase64(const char* base64Index) {
         return result;
 
     } catch (const std::exception& e) {
-        std::string error  = "{\"error\":\"" + std::string(e.what()) + "\"}";
+        std::string error  = makeJsonError(e.what());
         char*       result = (char*) malloc(error.length() + 1);
         strcpy(result, error.c_str());
         return result;
@@ -177,31 +224,47 @@ uint8_t* reconstructAudioFromBase64(const char* base64Index, int* outLength) {
 EMSCRIPTEN_KEEPALIVE
 char* generateIndexFromSamples(const uint8_t* samples, int sampleCount, int sampleRate, int bitDepth) {
     try {
-        // Convert samples to vector
+        // Convert raw bytes to signed int32 samples with proper sign extension
         std::vector<int32_t> sampleVec;
         int                  bytesPerSample = bitDepth / 8;
 
         for (int i = 0; i < sampleCount / bytesPerSample; i++) {
-            int32_t sample = 0;
+            uint32_t raw = 0;
             for (int j = 0; j < bytesPerSample; j++) {
-                sample |= static_cast<int32_t>(samples[i * bytesPerSample + j]) << (j * 8);
+                raw |= static_cast<uint32_t>(samples[i * bytesPerSample + j]) << (j * 8);
+            }
+            // Sign-extend: if the top bit of the sample word is set, fill upper bits
+            int32_t sample;
+            if (bytesPerSample == 2) {
+                sample = static_cast<int32_t>(static_cast<int16_t>(raw));
+            } else if (bytesPerSample == 4) {
+                sample = static_cast<int32_t>(raw);
+            } else {
+                // 8-bit PCM is unsigned with 128 bias
+                sample = static_cast<int32_t>(raw);
             }
             sampleVec.push_back(sample);
         }
 
-        // Create AudioIndex from samples
-        AudioIndex index = AudioIndex::fromAudioSamples(sampleVec, sampleRate, bitDepth);
+        // Convert samples to AudioData and encode to big integer index
+        AudioIndex::AudioData audioData = AudioIndex::extractAudioDataFromSamples(sampleVec, sampleRate, bitDepth);
+        cpp_int               idx       = AudioIndex::audioDataToIndex(audioData);
 
-        // Convert to base64 (we need to add this functionality)
-        // For now, return placeholder
-        std::string base64 = "generated_index";
+        // Export big integer to bytes, then encode as URL-safe base64
+        std::vector<uint8_t> indexBytes;
+        if (idx == 0) {
+            indexBytes.push_back(0);
+        } else {
+            boost::multiprecision::export_bits(idx, std::back_inserter(indexBytes), 8, true);
+        }
+        std::string base64 = AudioBabel::Utilities::encodeBase64Url(indexBytes);
 
         char* result = (char*) malloc(base64.length() + 1);
         strcpy(result, base64.c_str());
         return result;
 
     } catch (const std::exception& e) {
-        std::string error  = "error:" + std::string(e.what());
+        std::string error  = makeJsonError(e.what());
         char*       result = (char*) malloc(error.length() + 1);
         strcpy(result, error.c_str());
         return result;
@@ -232,8 +295,9 @@ char* generateRandomIndex(int targetLength) {
         return result;
 
     } catch (const std::exception& e) {
-        char* result = (char*) malloc(6);
-        strcpy(result, "error");
+        std::string error  = makeJsonError(e.what());
+        char*       result = (char*) malloc(error.length() + 1);
+        strcpy(result, error.c_str());
         return result;
     }
 }
@@ -272,9 +336,9 @@ char* calculatePositionFromIndex(const char* base64Index) {
         // Calculate library position using C++ function
         LibraryPosition pos = AudioBabel::calculateLibraryPosition(index);
 
-        // Build JSON response
+        // Build JSON response with escaped string values
         std::string json = "{";
-        json += "\"room\":\"" + pos.room + "\",";
+        json += "\"room\":\"" + escapeJsonString(pos.room) + "\",";
         json += "\"wall\":" + std::to_string(pos.wall) + ",";
         json += "\"shelf\":" + std::to_string(pos.shelf) + ",";
         json += "\"album\":" + std::to_string(pos.album) + ",";
@@ -286,7 +350,7 @@ char* calculatePositionFromIndex(const char* base64Index) {
         return result;
 
     } catch (const std::exception& e) {
-        std::string error  = "{\"error\":\"" + std::string(e.what()) + "\"}";
+        std::string error  = makeJsonError(e.what());
         char*       result = (char*) malloc(error.length() + 1);
         strcpy(result, error.c_str());
         return result;
@@ -334,7 +398,7 @@ char* reconstructIndexFromPosition(const char* roomStr, int wall, int shelf, int
         return result;
 
     } catch (const std::exception& e) {
-        std::string error  = "error:" + std::string(e.what());
+        std::string error  = makeJsonError(e.what());
         char*       result = (char*) malloc(error.length() + 1);
         strcpy(result, error.c_str());
         return result;

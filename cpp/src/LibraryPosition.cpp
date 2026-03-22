@@ -44,6 +44,24 @@ auto calculateLibraryPosition(const cpp_int& index) -> LibraryPosition {
 }
 
 auto reconstructIndexFromPosition(const LibraryPosition& pos) -> cpp_int {
+    // Validate position fields are within documented ranges
+    if (pos.wall >= LibraryConstants::WALLS_PER_ROOM) {
+        throw std::invalid_argument("wall out of range: " + std::to_string(pos.wall) + " (max " +
+                                    std::to_string(LibraryConstants::WALLS_PER_ROOM - 1) + ")");
+    }
+    if (pos.shelf >= LibraryConstants::SHELVES_PER_WALL) {
+        throw std::invalid_argument("shelf out of range: " + std::to_string(pos.shelf) + " (max " +
+                                    std::to_string(LibraryConstants::SHELVES_PER_WALL - 1) + ")");
+    }
+    if (pos.album >= LibraryConstants::ALBUMS_PER_SHELF) {
+        throw std::invalid_argument("album out of range: " + std::to_string(pos.album) + " (max " +
+                                    std::to_string(LibraryConstants::ALBUMS_PER_SHELF - 1) + ")");
+    }
+    if (pos.track >= LibraryConstants::TRACKS_PER_ALBUM) {
+        throw std::invalid_argument("track out of range: " + std::to_string(pos.track) + " (max " +
+                                    std::to_string(LibraryConstants::TRACKS_PER_ALBUM - 1) + ")");
+    }
+
     // Decode room from base64
     std::vector<uint8_t> roomBytes = Utilities::decodeBase64Url(pos.room);
 

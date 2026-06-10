@@ -1,0 +1,44 @@
+name: WASM Build
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "cpp/**"
+      - ".github/workflows/wasm-build.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "cpp/**"
+      - ".github/workflows/wasm-build.yml"
+
+jobs:
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+
+      - name: Install Boost headers for Emscripten
+        run: embuilder build boost_headers
+
+      - name: Build WASM module
+        run: ./build-wasm.sh
+        working-directory: cpp/wasm
+
+      - name: Verify WASM output
+        run: |
+          ls -lh docs/wasm/audio-index.wasm docs/wasm/audio-index.js
+
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-build
+          path: |
+            docs/wasm/audio-index.wasm
+            docs/wasm/audio-index.js

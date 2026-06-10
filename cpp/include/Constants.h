@@ -1,6 +1,7 @@
 #ifndef AUDIOBABEL_CONSTANTS_H
 #define AUDIOBABEL_CONSTANTS_H
 
+#include <array>
 #include <cstdint>
 
 namespace AudioBabel {

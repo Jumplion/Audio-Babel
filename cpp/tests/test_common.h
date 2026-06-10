@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "AudioIndex.h"
+#include "FileWriters.h"
 #include "IndexMetadata.h"
 #include "LibraryPosition.h"
 #include "Utilities.h"

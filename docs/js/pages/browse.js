@@ -431,8 +431,13 @@ async function generateAndDisplayTrack() {
         );
         console.log('Position index (PCM only):', positionIndexBase64?.substring(0, 50) + '...');
         
-        if (!positionIndexBase64 || positionIndexBase64.startsWith('error:')) {
-            throw new Error(positionIndexBase64 || 'Failed to reconstruct position index');
+        if (!positionIndexBase64) {
+            throw new Error('Failed to reconstruct position index');
+        }
+        // On failure, reconstructIndex returns a JSON error object: {"error":"..."}
+        if (positionIndexBase64.startsWith('{')) {
+            const errResult = JSON.parse(positionIndexBase64);
+            throw new Error(errResult.error || 'Failed to reconstruct position index');
         }
         
         // The position index is just the PCM data. We need to add a header to make it a valid audio index.

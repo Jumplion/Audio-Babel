@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "AudioIndex.h"
+#include "FileWriters.h"
 
 using namespace AudioBabel;
 
@@ -37,7 +38,7 @@ auto main(int argc, char** argv) -> int {
 
     try {
         AudioIndex::AudioData ad = AudioIndex::indexToAudioData(idx);
-        AudioIndex::exportAudioDataToWav(ad, outPath);
+        FileWriters::exportAudioDataToWav(ad, outPath);
     } catch (const std::exception& e) {
         std::cerr << "Reconstruction failed: " << e.what() << "\n";
         return 5;

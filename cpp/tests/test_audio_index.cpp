@@ -82,7 +82,7 @@ TEST_CASE("AudioIndex: exportAudioDataToWav and read back", "[audio_index][wav]"
     auto                 audioData = AudioIndex::extractAudioDataFromSamples(samples, 22050, 16);
     TempFile             tmp(make_temp_path("temp_test.wav"));
 
-    AudioIndex::exportAudioDataToWav(audioData, tmp.path());
+    FileWriters::exportAudioDataToWav(audioData, tmp.path());
     auto audioData2 = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
 
     REQUIRE(audioData2.sample_rate == audioData.sample_rate);

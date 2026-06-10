@@ -366,15 +366,10 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
     }
 
     // Read header fields (little-endian)
-    auto num_frames = static_cast<uint32_t>(bytes[1]) | (static_cast<uint32_t>(bytes[2]) << 8) | (static_cast<uint32_t>(bytes[3]) << 16) |
-                      (static_cast<uint32_t>(bytes[4]) << 24);
-
-    auto sample_rate = static_cast<uint32_t>(bytes[5]) | (static_cast<uint32_t>(bytes[6]) << 8) | (static_cast<uint32_t>(bytes[7]) << 16) |
-                       (static_cast<uint32_t>(bytes[8]) << 24);
-
-    auto bit_depth = static_cast<uint16_t>(bytes[9]) | (static_cast<uint16_t>(bytes[10]) << 8);
-
-    auto num_channels = static_cast<uint16_t>(bytes[11]) | (static_cast<uint16_t>(bytes[12]) << 8);
+    auto num_frames   = Utilities::read_le<uint32_t>(reinterpret_cast<const char*>(&bytes[1]));
+    auto sample_rate  = Utilities::read_le<uint32_t>(reinterpret_cast<const char*>(&bytes[5]));
+    auto bit_depth    = Utilities::read_le<uint16_t>(reinterpret_cast<const char*>(&bytes[9]));
+    auto num_channels = Utilities::read_le<uint16_t>(reinterpret_cast<const char*>(&bytes[11]));
 
     // Validate bit depth
     if (!isBitDepthSupported(bit_depth)) {

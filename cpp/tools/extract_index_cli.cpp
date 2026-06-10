@@ -23,8 +23,12 @@ auto main(int argc, char** argv) -> int {
         auto    audioData = AudioIndex::extractAudioDataFromAudioFile(inPath);
         cpp_int idx       = AudioIndex::audioDataToIndex(audioData);
 
-        // For compatibility with the server's expectations, write the PCM payload
-        // bytes (as stored in AudioData.samples) followed by the 16-byte header
+        // NOTE: This is a *different* on-disk format from AudioIndex's own 13-byte
+        // little-endian header (see AudioIndex.h / docs/INDEX_FORMAT.md). For
+        // compatibility with the server's expectations, this CLI instead writes
+        // the raw PCM payload bytes followed by a separate 16-byte big-endian
+        // trailer. Do not confuse this "server trailer format" with the
+        // AudioIndex 13-byte header used by audioDataToIndex()/indexToAudioData().
         ofstream out(outPath, ios::binary);
         if (!out) {
             cerr << "Failed to open output file" << '\n';
@@ -36,7 +40,7 @@ auto main(int argc, char** argv) -> int {
             out.write(reinterpret_cast<const char*>(audioData.samples.data()), audioData.samples.size());
         }
 
-        // 16-byte big-endian header: sampleRate (u32), bitDepth (u16), numChannels (u16), numFrames (u64)
+        // 16-byte big-endian trailer: sampleRate (u32), bitDepth (u16), numChannels (u16), numFrames (u64)
         auto write_be = [&](uint64_t val, size_t bytes) {
             for (int i = static_cast<int>(bytes) - 1; i >= 0; --i) {
                 auto c = static_cast<unsigned char>((val >> (8 * i)) & 0xFF);

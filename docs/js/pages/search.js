@@ -8,7 +8,7 @@
 
 import { isValidBase64Url, buildResult, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/audioIndex.js';
 import { getWasmModule } from '../core/wasmModule.js';
-import { bytesToBase64Chunked, addIndexHeader, decodeBase64Url, encodeBase64Url } from '../utils/utils.js';
+import { addIndexHeader, decodeBase64Url, encodeBase64Url } from '../utils/utils.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
 
 /**
@@ -75,12 +75,7 @@ export async function generateFromIndex(inputEl, handleJsonResponse, setLoading)
     const result = buildResult({ indexBase64: indexString, genre: 'decoded', artist: 'search', pcmDataSize: pcmData.length });
     
     // Generate WAV for playback
-    const wavBlob = wasm.samplesToWav(pcmData, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS);
-    const wavArrayBuffer = await wavBlob.arrayBuffer();
-    const wavBytes = new Uint8Array(wavArrayBuffer);
-    
-    // Convert to base64 for audio player using shared utility
-    result.wavBase64 = bytesToBase64Chunked(wavBytes);
+    result.wavBase64 = await wasm.samplesToWavBase64(pcmData, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS);
     
     await handleJsonResponse(result, indexString);
   } catch (error) {

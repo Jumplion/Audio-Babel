@@ -7,8 +7,7 @@
 
 // Validation thresholds for audio size inputs (in KB)
 export const HARD_MAX_KB = 61440;      // 60 MB - hard limit
-const RECOMMENDED_MAX_KB = 61440; // 60 MB
-const WARNING_THRESHOLD_KB = 102400; // 100 MB
+const RECOMMENDED_MAX_KB = 51200; // 50 MB - soft warning before the hard limit
 
 /**
  * Create a size validator for min/max input fields
@@ -46,15 +45,8 @@ export function createSizeValidator({
         input.classList.add('error');
         input.classList.remove('warning');
         hasError = true;
-      } else if (value > WARNING_THRESHOLD_KB) {
-        warning.textContent = `⚠ Warning: ${value} KB is very large and may cause performance issues`;
-        warning.style.display = 'block';
-        warning.style.color = '#ffaa00';
-        input.classList.add('warning');
-        input.classList.remove('error');
-        hasWarning = true;
       } else if (value > RECOMMENDED_MAX_KB) {
-        warning.textContent = `⚠ Warning: ${value} KB exceeds recommended maximum (60 MB)`;
+        warning.textContent = `⚠ Warning: ${value} KB exceeds recommended maximum (50 MB)`;
         warning.style.display = 'block';
         warning.style.color = '#ffaa00';
         input.classList.add('warning');
@@ -117,8 +109,7 @@ export function createSizeValidator({
     attach,
     // Export constants for external use
     HARD_MAX_KB,
-    RECOMMENDED_MAX_KB,
-    WARNING_THRESHOLD_KB
+    RECOMMENDED_MAX_KB
   };
 }
 

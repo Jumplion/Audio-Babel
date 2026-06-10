@@ -377,6 +377,14 @@ class AudioIndex {
         return static_cast<int>(audioData.bit_rate);
     }
 
+    /**
+     * Get the metadata computed for this index by fromAudioSamples().
+     * @returns IndexMetadata populated during construction (default-constructed if unavailable)
+     */
+    [[nodiscard]] auto getMetadata() const -> const IndexMetadata& {
+        return metadata;
+    }
+
    private:
     AudioData     audioData;
     IndexMetadata metadata;

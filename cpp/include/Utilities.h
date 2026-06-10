@@ -2,7 +2,6 @@
 #define AUDIOBABEL_UTILITIES_H
 
 #include <array>
-#include <boost/multiprecision/cpp_int.hpp>
 #include <cstdint>
 #include <ostream>
 #include <string>
@@ -35,9 +34,8 @@ inline auto read_le(const char* ptr) -> T {
     return static_cast<T>(acc);
 }
 
-// --- Big-endian helpers and byte utilities -----------------------------------------------
+// --- Byte/tag utilities -------------------------------------------------------------------
 
-// Note: these use bit/byte constants expected to be defined in Constants.h (import where used)
 // Helper: compare 4-byte ASCII chunk tags (e.g., "RIFF", "WAVE")
 static inline auto tagEquals(const std::array<char, 4>& tagBuf, const char expected[4]) -> bool {
     for (size_t i = 0; i < 4; ++i) {
@@ -49,39 +47,11 @@ static inline auto tagEquals(const std::array<char, 4>& tagBuf, const char expec
 }
 
 template <typename T>
-static inline void push_be(std::vector<uint8_t>& out, T val, size_t BITS_PER_BYTE = 8, uint32_t BYTE_MASK = 0xFFU) {
-    // Cast to a known-width unsigned type for safe shifting
-    auto      uv        = static_cast<uint64_t>(val);
-    const int num_bytes = static_cast<int>(sizeof(T));
-    for (int i = num_bytes - 1; i >= 0; --i) {
-        out.push_back(static_cast<uint8_t>((uv >> (i * BITS_PER_BYTE)) & BYTE_MASK));
-    }
-}
-
-template <typename T>
 static inline void push_le(std::vector<uint8_t>& out, T val) {
     auto uv = static_cast<uint64_t>(val);
     for (size_t i = 0; i < sizeof(T); ++i) {
         out.push_back(static_cast<uint8_t>((uv >> (i * 8)) & 0xFFU));
     }
-}
-
-static inline void append_sample_be_from_le(const std::vector<uint8_t>& le_samples,
-                                            size_t                      offset,
-                                            size_t                      bytes_per_sample,
-                                            std::vector<uint8_t>&       out) {
-    for (int byteIndex = static_cast<int>(bytes_per_sample) - 1; byteIndex >= 0; --byteIndex) {
-        out.push_back(le_samples[offset + byteIndex]);
-    }
-}
-
-static inline auto bytes_to_cpp_int_be(const std::vector<uint8_t>& bytes) -> boost::multiprecision::cpp_int {
-    boost::multiprecision::cpp_int res = 0;
-    for (uint8_t b : bytes) {
-        res <<= 8;
-        res |= boost::multiprecision::cpp_int(static_cast<uint32_t>(b));
-    }
-    return res;
 }
 
 // --- Base64 URL-safe utilities (alphabet A-Z a-z 0-9 - _, no padding) ---------

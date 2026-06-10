@@ -1,7 +1,7 @@
 import { getWasmModule } from '../core/wasmModule.js';
 import { buildResult, DEFAULT_BIT_DEPTH } from '../utils/audioIndex.js';
 import { parseWavFile, convertWebMToWav } from '../utils/wavUtils.js';
-import { bytesToBase64Chunked, encodeBase64Url } from '../utils/utils.js';
+import { encodeBase64Url } from '../utils/utils.js';
 
 /**
  * Format duration in milliseconds to MM:SS
@@ -157,12 +157,7 @@ export function createRecorder({ recordPlayer, recordStatus, recordDurationEl, u
       const result = buildResult({ indexBase64: audioIndex, genre: 'recorded', artist: 'microphone', pcmDataSize: pcmData.length, sampleRate, numChannels });
       
       // Generate WAV for playback
-      const wavBlobOutput = wasm.samplesToWav(pcmData, sampleRate, DEFAULT_BIT_DEPTH, numChannels);
-      const wavArrayBuffer = await wavBlobOutput.arrayBuffer();
-      const wavBytes = new Uint8Array(wavArrayBuffer);
-      
-      // Convert to base64 for audio player using shared utility
-      result.wavBase64 = bytesToBase64Chunked(wavBytes);
+      result.wavBase64 = await wasm.samplesToWavBase64(pcmData, sampleRate, DEFAULT_BIT_DEPTH, numChannels);
       
       await handleJsonResponse(result, result.indexBase64);
     } finally {

@@ -10,6 +10,7 @@ import { getWasmModule } from '../core/wasmModule.js';
 import { buildResult, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/audioIndex.js';
 import { bytesToBase64Chunked, encodeBase64Url } from '../utils/utils.js';
 import { handleError } from '../utils/errorHandler.js';
+import { HARD_MAX_KB } from '../utils/validationUtils.js';
 
 /**
  * Generate random audio data and send to API for processing
@@ -25,8 +26,7 @@ export async function generateAndSend(handleJsonResponse, setLoading) {
     // Default values: 64KB and ~5MB
     const DEFAULT_MIN_KB = 64;
     const DEFAULT_MAX_KB = 5120; // 5MB
-    const HARD_MAX_KB = 61440; // 60 MB - hard limit
-    
+
     // Get custom values from input fields if specified
     const minSizeInput = document.getElementById('minSize');
     const maxSizeInput = document.getElementById('maxSize');

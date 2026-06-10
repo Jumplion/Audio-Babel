@@ -7,13 +7,14 @@
 #include <vector>
 
 #include "AudioIndex.h"
+#include "FileWriters.h"
 #ifndef M_PI
 #    define M_PI 3.14159265358979323846
 #endif
 
 using namespace AudioBabel;
 
-auto main() -> int {
+auto main(int argc, char** argv) -> int {
     auto usage = []() {
         std::cerr << "Audibel (AudioIndex) CLI Demo\n";
         std::cerr << "Usage:\n";
@@ -26,15 +27,15 @@ auto main() -> int {
         std::cerr << "  audibelDemo.exe song_index.txt song_recon.wav\n";
     };
 
-    if (__argc < 2) {
+    if (argc < 2) {
         usage();
         return 1;
     }
 
-    std::string input = __argv[1];
+    std::string input = argv[1];
     std::string output;
-    if (__argc >= 3) {
-        output = __argv[2];
+    if (argc >= 3) {
+        output = argv[2];
     }
 
     auto extension = [](const std::string& p) {
@@ -77,7 +78,7 @@ auto main() -> int {
             if (!out) {
                 throw std::runtime_error("Failed to open output index file: " + output);
             }
-            //out << idx.convert_to<std::string>() << "\n";
+            out << idx.convert_to<std::string>() << "\n";
             out.close();
 
             std::cerr << "Wrote index to: " << output << "\n";
@@ -88,7 +89,7 @@ auto main() -> int {
                 // prefer to write auxiliary files in the same directory as the output
                 std::string dir  = outp.has_parent_path() ? outp.parent_path().string() : std::string();
                 std::string stem = outp.replace_extension().filename().string();
-                AudioIndex::writeIndexToFile(idx, dir, stem);
+                FileWriters::writeIndexToFile(idx, dir, stem);
                 std::cerr << "Also wrote other representations into directory: " << (dir.empty() ? "cpp/tests/indexes" : dir) << " with stem " << stem
                           << "\n";
             } catch (...) {
@@ -137,7 +138,7 @@ auto main() -> int {
 
         std::cerr << "Reconstructing WAV from index...\n";
         AudioIndex::AudioData data = AudioIndex::indexToAudioData(idx);
-        AudioIndex::exportAudioDataToWav(data, output);
+        FileWriters::exportAudioDataToWav(data, output);
         std::cerr << "Wrote WAV to: " << output << "\n";
         return 0;
 

@@ -5,6 +5,7 @@
  */
 
 import { createWavFile } from '../utils/wavUtils.js';
+import { bytesToBase64Chunked } from '../utils/utils.js';
 
 class AudioIndexWASM {
     constructor() {
@@ -73,25 +74,6 @@ class AudioIndexWASM {
     }
 
     /**
-     * Calculate expected audio size for given parameters
-     * @param {number} durationSeconds - Duration in seconds
-     * @param {number} sampleRate - Sample rate (default: 44100)
-     * @param {number} bitDepth - Bit depth (default: 16)
-     * @param {number} channels - Channel count (default: 1)
-     * @returns {number} Size in bytes
-     */
-    calculateAudioSize(durationSeconds, sampleRate = 44100, bitDepth = 16, channels = 1) {
-        this._ensureInitialized();
-
-        return this.module.calculateSize(
-            durationSeconds,
-            sampleRate,
-            bitDepth,
-            channels
-        );
-    }
-
-    /**
      * Reconstruct audio data from a base64 index
      * @param {string} base64Index - Base64-encoded index (URL-safe, no padding)
      * @returns {Uint8Array} PCM sample data
@@ -119,23 +101,17 @@ class AudioIndexWASM {
     }
 
     /**
-     * Create an Audio element from reconstructed samples
+     * Convert audio samples to a base64-encoded WAV file (for embedding in JSON results)
      * @param {Uint8Array} samples - PCM samples
      * @param {number} sampleRate - Sample rate
      * @param {number} bitDepth - Bit depth
-     * @returns {HTMLAudioElement} Audio element ready to play
+     * @param {number} channels - Channel count
+     * @returns {Promise<string>} Base64-encoded WAV file
      */
-    createAudioElement(samples, sampleRate = 44100, bitDepth = 16) {
-        const wavBlob = this.samplesToWav(samples, sampleRate, bitDepth, 1);
-        const url = URL.createObjectURL(wavBlob);
-        const audio = new Audio(url);
-        
-        // Clean up object URL when audio is loaded
-        audio.addEventListener('loadeddata', () => {
-            URL.revokeObjectURL(url);
-        });
-
-        return audio;
+    async samplesToWavBase64(samples, sampleRate = 44100, bitDepth = 16, channels = 1) {
+        const wavBlob = this.samplesToWav(samples, sampleRate, bitDepth, channels);
+        const wavBytes = new Uint8Array(await wavBlob.arrayBuffer());
+        return bytesToBase64Chunked(wavBytes);
     }
 }
 

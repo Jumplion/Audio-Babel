@@ -89,7 +89,8 @@ build/test_run.log
 *.code-workspace
 
 ### Package manager / tools
-# (no node/python/rust specifics in this repo by default)
+node_modules/
+.fallow/
 
 ### Misc
 coverage/

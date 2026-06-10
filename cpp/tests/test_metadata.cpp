@@ -16,7 +16,6 @@
 
 #include "test_common.h"
 
-
 using namespace AudioBabel;
 using boost::multiprecision::cpp_int;
 

@@ -6,9 +6,11 @@
  * input filtering to ensure only valid base64 characters are entered.
  */
 
-import { isValidBase64Url, buildResult, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/audioIndex.js';
+import { buildResult, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/resultBuilder.js';
+import { isValidBase64Url } from '../utils/validationUtils.js';
 import { getWasmModule } from '../core/wasmModule.js';
-import { addIndexHeader, decodeBase64Url, encodeBase64Url } from '../utils/utils.js';
+import { addIndexHeader } from '../utils/indexHeader.js';
+import { decodeBase64Url, encodeBase64Url } from '../utils/base64.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
 
 /**

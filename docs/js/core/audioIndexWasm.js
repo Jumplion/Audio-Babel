@@ -5,7 +5,7 @@
  */
 
 import { createWavFile } from '../utils/wavUtils.js';
-import { bytesToBase64Chunked } from '../utils/utils.js';
+import { bytesToBase64Chunked } from '../utils/base64.js';
 
 class AudioIndexWASM {
     constructor() {

@@ -1,9 +1,10 @@
 // browse.js - Hierarchical navigation through the Record Shop library
 import { getWasmModule } from '../core/wasmModule.js';
-import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/audioIndex.js';
-import { addIndexHeader, decodeBase64Url, indexToBase64 } from '../utils/utils.js';
+import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/resultBuilder.js';
+import { addIndexHeader } from '../utils/indexHeader.js';
+import { decodeBase64Url, indexToBase64 } from '../utils/base64.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
-import { handleJsonResponse, cleanupResultHandler } from '../core/resultHandler.js';
+import { handleJsonResponse, cleanupResultHandler } from '../core/resultDisplay.js';
 
 // Library hierarchy constants — loaded from WASM at init time (R5).
 // Fallbacks match the C++ LibraryConstants defaults.

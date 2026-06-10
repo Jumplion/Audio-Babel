@@ -6,7 +6,7 @@
  */
 
 // Validation thresholds for audio size inputs (in KB)
-const HARD_MAX_KB = 61440;      // 60 MB - hard limit
+export const HARD_MAX_KB = 61440;      // 60 MB - hard limit
 const RECOMMENDED_MAX_KB = 61440; // 60 MB
 const WARNING_THRESHOLD_KB = 102400; // 100 MB
 

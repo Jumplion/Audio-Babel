@@ -25,7 +25,7 @@ export function escapeHtml(s) {
  */
 export function indexToBase64(index) {
   const idx = BigInt(index);
-  if (idx === 0n) return 'A'; // Special case for zero
+  if (idx === 0n) return ''; // Room 0 is encoded as the empty string
   
   // Convert BigInt to bytes (big-endian)
   const bytes = [];

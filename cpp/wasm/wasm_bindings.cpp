@@ -9,7 +9,6 @@
  * @section exported_functions Exported Functions
  * - getMetadata: Extract metadata from base64 index string
  * - reconstructAudio: Decode index to PCM samples
- * - generateRandom: Generate a random valid base64 index
  * - calculatePosition: Calculate library position from index
  * - reconstructIndex: Reconstruct index from library position
  * - calculateSize: Get the size of audio data for a given duration
@@ -113,16 +112,12 @@ static std::string getMetadataWrapper(const std::string& base64Index) {
  */
 static emscripten::val reconstructAudioWrapper(const std::string& base64Index) {
     try {
-        std::cout << "[reconstructAudioWrapper] Input length: " << base64Index.length() << " chars" << std::endl;
-
         std::vector<uint8_t> indexBytes = AudioBabel::Utilities::decodeBase64Url(base64Index);
-        std::cout << "[reconstructAudioWrapper] Decoded bytes: " << indexBytes.size() << std::endl;
 
         cpp_int index = 0;
         boost::multiprecision::import_bits(index, indexBytes.begin(), indexBytes.end(), 8, true);
 
         AudioIndex::AudioData audioData = AudioIndex::indexToAudioData(index);
-        std::cout << "[reconstructAudioWrapper] Successfully reconstructed " << audioData.samples.size() << " sample bytes" << std::endl;
 
         emscripten::val view = emscripten::val(emscripten::typed_memory_view(audioData.samples.size(), audioData.samples.data()));
         return emscripten::val::global("Uint8Array").new_(view);
@@ -130,26 +125,6 @@ static emscripten::val reconstructAudioWrapper(const std::string& base64Index) {
     } catch (const std::exception& e) {
         std::cerr << "[reconstructAudioWrapper] Exception: " << e.what() << std::endl;
         return emscripten::val::null();
-    }
-}
-
-/**
- * Generate a random valid base64 index of the given length.
- */
-static std::string generateRandomWrapper(int targetLength) {
-    try {
-        const char alphabet[]   = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-        const int  alphabetSize = 64;
-
-        std::string randomIndex;
-        randomIndex.reserve(targetLength);
-        for (int i = 0; i < targetLength; i++) {
-            randomIndex += alphabet[rand() % alphabetSize];
-        }
-        return randomIndex;
-
-    } catch (const std::exception& e) {
-        return makeJsonError(e.what());
     }
 }
 
@@ -233,7 +208,6 @@ using namespace emscripten;
 EMSCRIPTEN_BINDINGS(audio_index_module) {
     // Expose utility functions (using std::string wrappers)
     function("getMetadata", &getMetadataWrapper);
-    function("generateRandom", &generateRandomWrapper);
     function("reconstructAudio", &reconstructAudioWrapper);
     function("calculatePosition", &calculatePositionWrapper);
     function("reconstructIndex", &reconstructIndexWrapper);

@@ -111,7 +111,7 @@ TEST_CASE("WAV export: header correctness", "[wav][export][header]") {
     }
 
     TempFile tmp(make_temp_path("temp_export_header_test.wav"));
-    AudioIndex::exportAudioDataToWav(audioData, tmp.path());
+    FileWriters::exportAudioDataToWav(audioData, tmp.path());
 
     // Read the header back
     std::ifstream in(tmp.path(), std::ios::binary);

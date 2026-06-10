@@ -10,6 +10,17 @@ export const HARD_MAX_KB = 61440;      // 60 MB - hard limit
 const RECOMMENDED_MAX_KB = 51200; // 50 MB - soft warning before the hard limit
 
 /**
+ * Validate that a string contains only URL-safe base64 characters.
+ * NOTE (R7): Intentionally duplicated from C++ Utilities::isValidBase64Url.
+ * JS validates at the UI boundary; C++ validates at the library boundary.
+ * @param {string} s - String to validate
+ * @returns {boolean} True if valid
+ */
+export function isValidBase64Url(s) {
+  return /^[A-Za-z0-9\-_]*$/.test(s);
+}
+
+/**
  * Create a size validator for min/max input fields
  * @param {Object} config - Configuration object
  * @param {HTMLInputElement} config.minSizeInput - Min size input element

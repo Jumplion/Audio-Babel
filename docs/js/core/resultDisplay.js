@@ -1,6 +1,6 @@
 /**
- * resultHandler.js
- * 
+ * resultDisplay.js
+ *
  * Manages the display of audio generation results.
  * Handles metadata display, expandable text, clickable indexes,
  * audio playback controls, and download functionality.
@@ -8,7 +8,8 @@
 
 import { loadFragment } from '../ui/loadFragment.js';
 import { getWasmModule } from './wasmModule.js';
-import { escapeHtml } from '../utils/utils.js';
+import { escapeHtml, downloadBlob } from '../utils/dom.js';
+import { openIndexInNewTab } from './indexViewer.js';
 import WaveSurfer from 'https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.esm.js';
 
 let resultFrag = null;
@@ -34,7 +35,7 @@ export function cleanupResultHandler() {
  */
 function truncateString(str, maxLength = 30) {
   if (!str || str.length <= maxLength) return str;
-  
+
   // Show first 40% and last 40% of the string with "..." in middle
   const partLength = Math.floor(maxLength * 0.4);
   const start = str.substring(0, partLength);
@@ -61,7 +62,7 @@ export async function ensureResultFrag() {
  */
 function toggleMetadataExpansion(element, expandedId, fullText, truncatedText) {
   const existingExpanded = document.getElementById(expandedId);
-  
+
   if (existingExpanded) {
     // Collapse: remove expanded view
     existingExpanded.remove();
@@ -72,7 +73,7 @@ function toggleMetadataExpansion(element, expandedId, fullText, truncatedText) {
     expandedDiv.id = expandedId;
     expandedDiv.className = 'metadata-expanded';
     expandedDiv.textContent = fullText;
-    
+
     element.parentNode.insertBefore(expandedDiv, element.nextSibling);
     element.textContent = truncatedText + ' ▼';
   }
@@ -87,93 +88,18 @@ function toggleMetadataExpansion(element, expandedId, fullText, truncatedText) {
  */
 function makeMetadataExpandable(element, fullText, truncatedText, fieldName) {
   if (!element || !fullText) return;
-  
+
   const expandedId = `expanded-${fieldName}`;
-  
+
   // Set initial state
   element.textContent = truncatedText;
   element.classList.add('metadata-expandable');
   element.title = 'Click to expand/collapse';
-  
+
   // Add toggle handler
   element.addEventListener('click', () => {
     toggleMetadataExpansion(element, expandedId, fullText, truncatedText);
   });
-}
-
-/**
- * Trigger a file download from a blob
- * @param {Blob} blob - File content as blob
- * @param {string} filename - Name for downloaded file
- */
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  
-  // Clean up blob URL
-  setTimeout(() => URL.revokeObjectURL(url), 100);
-}
-
-/**
- * Generate HTML for index viewer page
- * @param {string} indexContent - Full index string to display
- * @returns {string} Complete HTML page
- */
-function generateIndexViewerHTML(indexContent) {
-  return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Audio Index</title>
-      <style>
-        body {
-          font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-          background: #1a1f2e;
-          color: #e0e0e0;
-          padding: 20px;
-          margin: 0;
-        }
-        pre {
-          white-space: pre-wrap;
-          word-break: break-all;
-          background: #0f1419;
-          padding: 20px;
-          border-radius: 8px;
-          border: 1px solid #2a3f5f;
-          line-height: 1.5;
-        }
-        h1 {
-          color: #64b5f6;
-          margin-bottom: 20px;
-        }
-      </style>
-    </head>
-    <body>
-      <h1>Audio Index</h1>
-      <pre>${escapeHtml(indexContent)}</pre>
-    </body>
-    </html>
-  `;
-}
-
-/**
- * Open index content in a new browser tab
- * @param {string} fullIndex - Complete index string
- */
-function openIndexInNewTab(fullIndex) {
-  const newWindow = window.open('', '_blank');
-  if (newWindow) {
-    newWindow.document.write(generateIndexViewerHTML(fullIndex));
-    newWindow.document.close();
-  }
 }
 
 /**
@@ -184,28 +110,28 @@ function openIndexInNewTab(fullIndex) {
  */
 function makeIndexClickable(indexDisplay, fullIndex) {
   if (!indexDisplay || !fullIndex) return indexDisplay;
-  
+
   // Remove existing handlers by cloning
   const newIndexDisplay = indexDisplay.cloneNode(false);
   indexDisplay.parentNode.replaceChild(newIndexDisplay, indexDisplay);
-  
+
   // Set truncated display text
   const maxDisplayLength = 200;
   const truncated = fullIndex.length > maxDisplayLength
     ? fullIndex.substring(0, 100) + '...' + fullIndex.substring(fullIndex.length - 100)
     : fullIndex;
-  
+
   newIndexDisplay.textContent = truncated;
   newIndexDisplay.classList.add('index-clickable');
   newIndexDisplay.title = 'Click to download and view full index';
-  
+
   // Add click handler for download + view
   newIndexDisplay.addEventListener('click', () => {
     const blob = new Blob([fullIndex], { type: 'text/plain' });
     downloadBlob(blob, 'audio-index.txt');
     openIndexInNewTab(fullIndex);
   });
-  
+
   return newIndexDisplay;
 }
 
@@ -232,11 +158,11 @@ export async function handleJsonResponse(j, originalIndexB64) {
       const wasm = await getWasmModule();
       const positionJson = wasm.module.calculatePosition(indexToShow);
       const position = JSON.parse(positionJson);
-      
+
       if (position.error) {
         throw new Error(position.error);
       }
-      
+
       // Truncate room display if it's too long
       let roomDisplay = position.room === "" ? "0" : position.room;
       const maxRoomLength = 20;
@@ -245,7 +171,7 @@ export async function handleJsonResponse(j, originalIndexB64) {
         const end = roomDisplay.substring(roomDisplay.length - 8);
         roomDisplay = `${start}...${end}`;
       }
-      
+
       positionDisplay.innerHTML = `
         <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px;">
           <span><strong>Room:</strong> <code style="font-size: 13px;">${escapeHtml(roomDisplay)}</code></span>
@@ -267,7 +193,7 @@ export async function handleJsonResponse(j, originalIndexB64) {
     const a = frag.get('#metaArtist');
     const al = frag.get('#metaAlbum');
     const t = frag.get('#metaTrack');
-    
+
     // Make each metadata field expandable
     if (g) {
       const genreText = j.metadata.genre || '';
@@ -285,7 +211,7 @@ export async function handleJsonResponse(j, originalIndexB64) {
       const trackText = j.metadata.track || '';
       makeMetadataExpandable(t, trackText, truncateString(trackText, 30), 'track');
     }
-    
+
     const cover = frag.get('#coverImg');
     const metadataEl = frag.get('#metadata');
     if (cover && j.metadata.cover) {
@@ -308,7 +234,7 @@ export async function handleJsonResponse(j, originalIndexB64) {
     const url = URL.createObjectURL(blob);
     const downloadLink = frag.get('#downloadLink');
     if (downloadLink) downloadLink.href = url;
-    
+
     // Generate waveform visualization with WaveSurfer.js
     const waveformContainer = frag.get('#waveformContainer');
     if (waveformContainer) {
@@ -318,7 +244,7 @@ export async function handleJsonResponse(j, originalIndexB64) {
           wavesurferInstance.destroy();
           wavesurferInstance = null;
         }
-        
+
         // Create new WaveSurfer instance with playback controls
         wavesurferInstance = WaveSurfer.create({
           container: waveformContainer,
@@ -335,10 +261,10 @@ export async function handleJsonResponse(j, originalIndexB64) {
           interact: true, // Enable interaction for playback control
           dragToSeek: true, // Allow seeking by clicking/dragging
         });
-        
+
         // Load the audio blob
         await wavesurferInstance.loadBlob(blob);
-        
+
         // Set up play/pause button
         const playPauseBtn = frag.get('#playPauseBtn');
         if (playPauseBtn) {
@@ -350,21 +276,21 @@ export async function handleJsonResponse(j, originalIndexB64) {
               playPauseBtn.textContent = '▶ Play';
             }
           };
-          
+
           // Button click handler
           playPauseBtn.onclick = () => {
             wavesurferInstance.playPause();
           };
-          
+
           // Listen to play/pause events to update button
           wavesurferInstance.on('play', updateButton);
           wavesurferInstance.on('pause', updateButton);
           wavesurferInstance.on('finish', updateButton);
-          
+
           // Initialize button state
           updateButton();
         }
-        
+
         // Add click to play/pause functionality on waveform
         wavesurferInstance.on('interaction', () => {
           wavesurferInstance.playPause();

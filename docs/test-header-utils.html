@@ -90,13 +90,8 @@
     </div>
 
     <script type="module">
-        import {
-            encodeBase64Url,
-            decodeBase64Url,
-            addIndexHeader,
-            stripIndexHeader,
-            parseIndexHeader
-        } from './js/utils/utils.js';
+        import { encodeBase64Url, decodeBase64Url } from './js/utils/base64.js';
+        import { addIndexHeader, stripIndexHeader, parseIndexHeader } from './js/utils/indexHeader.js';
 
         // Make functions available globally for onclick handlers
         window.encodeBase64Url = encodeBase64Url;

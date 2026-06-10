@@ -6,11 +6,11 @@
  * for random generation, search, file upload, and recording pages.
  */
 
-import { generateAndSend } from './randomIndex.js';
+import { generateAndSend } from './random.js';
 import { generateFromIndex, attachSearchInputFilter } from './search.js';
-import { uploadFile } from './fileUpload.js';
+import { uploadFile } from './fileSearch.js';
 import { createRecorder } from './recorder.js';
-import { handleJsonResponse } from '../core/resultHandler.js';
+import { handleJsonResponse } from '../core/resultDisplay.js';
 import { createSizeValidator } from '../utils/validationUtils.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
 

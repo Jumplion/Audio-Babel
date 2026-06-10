@@ -1,15 +1,15 @@
 /**
- * fileUpload.js
- * 
+ * fileSearch.js
+ *
  * Handles WAV file uploads for audio indexing.
  * Parses WAV files, encodes PCM data as base64 index,
  * and generates playback audio with metadata.
  */
 
 import { getWasmModule } from '../core/wasmModule.js';
-import { buildResult, DEFAULT_BIT_DEPTH } from '../utils/audioIndex.js';
+import { buildResult, DEFAULT_BIT_DEPTH } from '../utils/resultBuilder.js';
 import { parseWavFile } from '../utils/wavUtils.js';
-import { encodeBase64Url } from '../utils/utils.js';
+import { encodeBase64Url } from '../utils/base64.js';
 
 /**
  * Upload a WAV file for indexing

@@ -168,6 +168,21 @@ TEST_CASE("AudioIndex: operator== different sampleRate unequal", "[audio_index][
     REQUIRE_FALSE(a == b);
 }
 
+TEST_CASE("AudioIndex: copy assignment copies metadata", "[audio_index][operators]") {
+    std::vector<int32_t> samplesA = {1, 2, 3, 4};
+    std::vector<int32_t> samplesB = {5, 6, 7, 8, 9, 10};
+    auto                 a        = AudioIndex::fromAudioSamples(samplesA, 44100, 16);
+    auto                 b        = AudioIndex::fromAudioSamples(samplesB, 22050, 8);
+
+    a = b;
+
+    REQUIRE(a.getMetadata().genre == b.getMetadata().genre);
+    REQUIRE(a.getMetadata().artist == b.getMetadata().artist);
+    REQUIRE(a.getMetadata().album == b.getMetadata().album);
+    REQUIRE(a.getMetadata().track == b.getMetadata().track);
+    REQUIRE(a.getMetadata().cover == b.getMetadata().cover);
+}
+
 TEST_CASE("AudioIndex: 16-bit edge values roundtrip", "[audio_index][edge_case]") {
     AudioIndex::AudioData audioData{};
     audioData.sample_rate  = 44100;

@@ -3,16 +3,15 @@
  * 
  * Main entry point for page-specific functionality.
  * Coordinates page initialization, event handlers, and UI state management
- * for random generation, search, file upload, and recording pages.
+ * for random generation, search, and file upload pages.
  */
 
 import { generateAndSend } from './random.js';
 import { generateFromIndex, attachSearchInputFilter } from './search.js';
 import { uploadFile } from './fileSearch.js';
-import { createRecorder } from './recorder.js';
 import { handleJsonResponse } from '../core/resultDisplay.js';
 import { createSizeValidator } from '../utils/validationUtils.js';
-import { showValidationError, handleError } from '../utils/errorHandler.js';
+import { showValidationError } from '../utils/errorHandler.js';
 
 // Note: No longer using fetch interception - using direct function calls instead
 
@@ -28,9 +27,7 @@ function setLoading(on) {
   const regenBtn = document.getElementById('regenBtn');
   const doSearchGenerate = document.getElementById('doSearchGenerate');
   const doFileSearch = document.getElementById('doFileSearch');
-  const recordStartStop = document.getElementById('recordStartStop');
-  const uploadRecording = document.getElementById('uploadRecording');
-  const controls = [regenBtn, doSearchGenerate, doFileSearch, recordStartStop, uploadRecording];
+  const controls = [regenBtn, doSearchGenerate, doFileSearch];
   const resultContainer = document.getElementById('resultContainer');
   const loadingOverlay = document.getElementById('loadingOverlay');
   
@@ -112,55 +109,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       await uploadFile(file, handleJsonResponse, setLoading);
-    });
-  }
-
-  // Record page: Recording controls
-  const recordStartStop = document.getElementById('recordStartStop');
-  const uploadRecording = document.getElementById('uploadRecording');
-  const recordPlayer = document.getElementById('recordPlayer');
-  const recordStatus = document.getElementById('recordStatus');
-  const recordDuration = document.getElementById('recordDuration');
-  
-  if (recordStartStop && recordPlayer && uploadRecording) {
-    const recorder = createRecorder({
-      recordPlayer,
-      recordStatus,
-      recordDurationEl: recordDuration,
-      uploadRecording,
-      setLoading,
-      handleJsonResponse
-    });
-    
-    let recording = false;
-    
-    recordStartStop.addEventListener('click', async () => {
-      try {
-        if (!recording) {
-          const hasDevice = await recorder.hasInputDevice();
-          if (!hasDevice) {
-            showValidationError('No audio input devices were detected. Please plug in or enable a microphone and try again.');
-            return;
-          }
-          await recorder.startRecording();
-          recording = true;
-          recordStartStop.textContent = 'Stop Recording';
-        } else {
-          recorder.stopRecording();
-          recording = false;
-          recordStartStop.textContent = 'Start Recording';
-        }
-      } catch (e) {
-        handleError('main.js:recordStartStop', e, 'Recording failed: ' + e.message);
-      }
-    });
-
-    uploadRecording.addEventListener('click', async () => {
-      try {
-        await recorder.uploadRecorded();
-      } catch (e) {
-        handleError('main.js:uploadRecording', e, 'Upload failed: ' + e.message);
-      }
     });
   }
 });

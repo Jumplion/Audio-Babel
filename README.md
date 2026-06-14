@@ -249,7 +249,10 @@ The `docs/` directory is a static site served by GitHub Pages. All audio process
 | `random.html` | Generate and play a random audio index |
 | `search.html` | Search for audio by terms |
 | `fileSearch.html` | Upload a WAV file and extract its index |
-| `record.html` | Record audio from the microphone and generate its index |
+
+> **Note:** A "Record" page (record microphone audio and extract its index) previously
+> existed but has been disabled and removed from site navigation. Its code is preserved
+> in [`disabled-features/recording/`](disabled-features/recording/) for potential future use.
 
 ### Audio Constraints
 

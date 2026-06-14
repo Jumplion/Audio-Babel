@@ -23,13 +23,13 @@ void FileWriters::exportAudioDataToWav(const AudioIndex::AudioData& audioData, c
 
     // RIFF header
     out.write("RIFF", 4);
-    uint32_t file_size = 36 + static_cast<uint32_t>(audioData.samples.size());
+    uint32_t file_size = WAV_FILE_BASE_OVERHEAD + static_cast<uint32_t>(audioData.samples.size());
     write_le<uint32_t>(out, file_size);
     out.write("WAVE", 4);
 
     // fmt chunk
     out.write("fmt ", 4);
-    auto fmt_size = static_cast<uint32_t>(16);
+    auto fmt_size = static_cast<uint32_t>(FMT_CHUNK_MIN_SIZE);
     write_le<uint32_t>(out, fmt_size);
 
     uint16_t audio_format = audioData.audio_format;

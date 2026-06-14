@@ -1,15 +1,15 @@
 /**
- * fileUpload.js
- * 
+ * fileSearch.js
+ *
  * Handles WAV file uploads for audio indexing.
  * Parses WAV files, encodes PCM data as base64 index,
  * and generates playback audio with metadata.
  */
 
 import { getWasmModule } from '../core/wasmModule.js';
-import { buildResult, DEFAULT_BIT_DEPTH } from '../utils/audioIndex.js';
+import { buildResult, DEFAULT_BIT_DEPTH } from '../utils/resultBuilder.js';
 import { parseWavFile } from '../utils/wavUtils.js';
-import { bytesToBase64Chunked, encodeBase64Url } from '../utils/utils.js';
+import { encodeBase64Url } from '../utils/base64.js';
 
 /**
  * Upload a WAV file for indexing
@@ -42,12 +42,7 @@ export async function uploadFile(file, handleJsonResponse, setLoading) {
     const result = buildResult({ indexBase64: audioIndex, genre: 'uploaded', artist: file.name, pcmDataSize: pcmData.length, sampleRate, numChannels });
     
     // Generate WAV for playback
-    const wavBlob = wasm.samplesToWav(pcmData, sampleRate, DEFAULT_BIT_DEPTH, numChannels);
-    const wavArrayBuffer = await wavBlob.arrayBuffer();
-    const wavBytes = new Uint8Array(wavArrayBuffer);
-    
-    // Convert to base64 for audio player using shared utility
-    result.wavBase64 = bytesToBase64Chunked(wavBytes);
+    result.wavBase64 = await wasm.samplesToWavBase64(pcmData, sampleRate, DEFAULT_BIT_DEPTH, numChannels);
     
     await handleJsonResponse(result, result.indexBase64);
   } catch (error) {

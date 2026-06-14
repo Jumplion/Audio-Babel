@@ -3,7 +3,7 @@
 Files added
 
 - `build.ps1` / `build.sh` - Configure and build the project.
-- `run_tests.ps1` / `run_tests.sh` - Run the `tests_runner.exe` from the `build` folder.
+- `run_tests.ps1` / `run_tests.sh` - Run the `tests_catch2.exe` from the `build` folder.
 - `run_example.ps1` / `run_example.sh` - Run `example_main.exe` from the `build` folder.
 - `clean.ps1` / `clean.sh` - Clean build artifacts. Pass `-RemoveDir` (PowerShell) or `--remove` (bash) to delete the build directory.
 

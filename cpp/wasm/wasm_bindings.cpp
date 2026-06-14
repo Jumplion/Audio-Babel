@@ -82,6 +82,16 @@ static std::string makeJsonError(const std::string& message) {
     return "{\"error\":\"" + escapeJsonString(message) + "\"}";
 }
 
+// Render a single `"key":"<escaped value>"` JSON field.
+static std::string jsonStringField(const std::string& key, const std::string& value) {
+    return "\"" + key + "\":\"" + escapeJsonString(value) + "\"";
+}
+
+// Render a single `"key":<number>` JSON field.
+static std::string jsonNumberField(const std::string& key, long long value) {
+    return "\"" + key + "\":" + std::to_string(value);
+}
+
 // Direct embind-compatible functions returning std::string / emscripten::val.
 
 /**
@@ -93,11 +103,11 @@ static std::string getMetadataWrapper(const std::string& base64Index) {
         IndexMetadata metadata = IndexMetadata::extractMetadataFromIndex(base64Index);
 
         std::string json = "{";
-        json += "\"genre\":\"" + escapeJsonString(metadata.genre) + "\",";
-        json += "\"artist\":\"" + escapeJsonString(metadata.artist) + "\",";
-        json += "\"album\":\"" + escapeJsonString(metadata.album) + "\",";
-        json += "\"track\":\"" + escapeJsonString(metadata.track) + "\",";
-        json += "\"cover\":\"" + escapeJsonString(metadata.cover) + "\"";
+        json += jsonStringField("genre", metadata.genre) + ",";
+        json += jsonStringField("artist", metadata.artist) + ",";
+        json += jsonStringField("album", metadata.album) + ",";
+        json += jsonStringField("track", metadata.track) + ",";
+        json += jsonStringField("cover", metadata.cover);
         json += "}";
         return json;
 
@@ -144,11 +154,11 @@ static std::string calculatePositionWrapper(const std::string& base64Index) {
         LibraryPosition pos = AudioBabel::calculateLibraryPosition(index);
 
         std::string json = "{";
-        json += "\"room\":\"" + escapeJsonString(pos.room) + "\",";
-        json += "\"wall\":" + std::to_string(pos.wall) + ",";
-        json += "\"shelf\":" + std::to_string(pos.shelf) + ",";
-        json += "\"album\":" + std::to_string(pos.album) + ",";
-        json += "\"track\":" + std::to_string(pos.track);
+        json += jsonStringField("room", pos.room) + ",";
+        json += jsonNumberField("wall", pos.wall) + ",";
+        json += jsonNumberField("shelf", pos.shelf) + ",";
+        json += jsonNumberField("album", pos.album) + ",";
+        json += jsonNumberField("track", pos.track);
         json += "}";
         return json;
 
@@ -186,9 +196,9 @@ static std::string reconstructIndexWrapper(const std::string& roomStr, int wall,
 }
 
 /**
- * Get the size of audio data for a given duration.
+ * Compute the PCM byte size for a given duration and audio format.
  */
-static int calculateAudioSize(int durationSeconds, int sampleRate, int bitDepth, int channels) {
+static int calculatePcmByteSize(int durationSeconds, int sampleRate, int bitDepth, int channels) {
     int samples = durationSeconds * sampleRate * channels;
     int bytes   = samples * (bitDepth / 8);
     return bytes;
@@ -196,10 +206,13 @@ static int calculateAudioSize(int durationSeconds, int sampleRate, int bitDepth,
 
 // Return library hierarchy constants as JSON so JS doesn't need to hardcode them.
 static std::string getLibraryConstantsWrapper() {
-    return "{\"tracksPerAlbum\":" + std::to_string(LibraryConstants::TRACKS_PER_ALBUM) +
-           ",\"albumsPerShelf\":" + std::to_string(LibraryConstants::ALBUMS_PER_SHELF) +
-           ",\"shelvesPerWall\":" + std::to_string(LibraryConstants::SHELVES_PER_WALL) +
-           ",\"wallsPerRoom\":" + std::to_string(LibraryConstants::WALLS_PER_ROOM) + "}";
+    std::string json = "{";
+    json += jsonNumberField("tracksPerAlbum", LibraryConstants::TRACKS_PER_ALBUM) + ",";
+    json += jsonNumberField("albumsPerShelf", LibraryConstants::ALBUMS_PER_SHELF) + ",";
+    json += jsonNumberField("shelvesPerWall", LibraryConstants::SHELVES_PER_WALL) + ",";
+    json += jsonNumberField("wallsPerRoom", LibraryConstants::WALLS_PER_ROOM);
+    json += "}";
+    return json;
 }
 
 // Embind bindings for class-based API
@@ -213,7 +226,7 @@ EMSCRIPTEN_BINDINGS(audio_index_module) {
     function("reconstructIndex", &reconstructIndexWrapper);
 
     // Functions that don't need wrappers
-    function("calculateSize", &calculateAudioSize);
+    function("calculateSize", &calculatePcmByteSize);
 
     // Library hierarchy constants (R5 — avoids manual duplication in JS)
     function("getLibraryConstants", &getLibraryConstantsWrapper);

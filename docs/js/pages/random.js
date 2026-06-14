@@ -1,14 +1,14 @@
 /**
- * randomIndex.js
- * 
+ * random.js
+ *
  * Generates random audio data for testing and demonstration.
  * Creates cryptographically random PCM data, encodes as base64 index,
  * and generates playback audio with metadata.
  */
 
 import { getWasmModule } from '../core/wasmModule.js';
-import { buildResult, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/audioIndex.js';
-import { bytesToBase64Chunked, encodeBase64Url } from '../utils/utils.js';
+import { buildResult, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/resultBuilder.js';
+import { encodeBase64Url } from '../utils/base64.js';
 import { handleError } from '../utils/errorHandler.js';
 import { HARD_MAX_KB } from '../utils/validationUtils.js';
 
@@ -83,16 +83,11 @@ export async function generateAndSend(handleJsonResponse, setLoading) {
     
     // Generate WAV for playback
     const wasm = await getWasmModule();
-    const wavBlob = wasm.samplesToWav(randomBytes, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS);
-    const wavArrayBuffer = await wavBlob.arrayBuffer();
-    const wavBytes = new Uint8Array(wavArrayBuffer);
-    
-    // Convert to base64 for audio player using shared utility
-    result.wavBase64 = bytesToBase64Chunked(wavBytes);
+    result.wavBase64 = await wasm.samplesToWavBase64(randomBytes, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS);
     
     await handleJsonResponse(result, result.indexBase64);
   } catch (error) {
-    handleError('randomIndex.js:generateAndSend', error, error.message);
+    handleError('random.js:generateAndSend', error, error.message);
   } finally {
     setLoading(false);
   }

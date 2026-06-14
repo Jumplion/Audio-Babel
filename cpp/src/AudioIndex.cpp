@@ -44,6 +44,7 @@ auto isBitDepthSupported(uint16_t bitDepth) -> bool {
 auto AudioIndex::operator=(const AudioIndex& other) -> AudioIndex& {
     if (this != &other) {
         audioData = other.audioData;
+        metadata  = other.metadata;
     }
     return *this;
 }

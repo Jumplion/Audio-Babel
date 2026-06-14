@@ -16,15 +16,15 @@ using namespace AudioBabel;
 
 auto main(int argc, char** argv) -> int {
     auto usage = []() {
-        std::cerr << "Audibel (AudioIndex) CLI Demo\n";
+        std::cerr << "AudioIndex CLI example (example_main)\n";
         std::cerr << "Usage:\n";
-        std::cerr << "  audibelDemo.exe <input> [output]\n";
+        std::cerr << "  example_main <input> [output]\n";
         std::cerr << "Description:\n";
         std::cerr << "  If <input> is a .wav file the program will read it and produce an index file as output.\n";
         std::cerr << "  If <input> is a decimal index file the program will reconstruct a .wav file as output.\n";
         std::cerr << "Examples:\n";
-        std::cerr << "  audibelDemo.exe song.wav song_index.txt\n";
-        std::cerr << "  audibelDemo.exe song_index.txt song_recon.wav\n";
+        std::cerr << "  example_main song.wav song_index.txt\n";
+        std::cerr << "  example_main song_index.txt song_recon.wav\n";
     };
 
     if (argc < 2) {

@@ -1,27 +1,14 @@
 /**
- * audioIndex.js
- * 
- * Wrapper module that uses the WebAssembly/C++ audio indexing library.
- * All heavy lifting is done by the compiled C++ code for performance and consistency.
- * 
- * This module provides a clean interface to the WASM functionality.
+ * resultBuilder.js
+ *
+ * Builds the standardised result object passed to handleJsonResponse,
+ * deriving display metadata (duration, size) from raw audio parameters.
  */
 
 import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from './audioConstants.js';
 
 // Re-export so page modules can import everything from one place
 export { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS };
-
-/**
- * Validate that a string contains only URL-safe base64 characters.
- * NOTE (R7): Intentionally duplicated from C++ Utilities::isValidBase64Url.
- * JS validates at the UI boundary; C++ validates at the library boundary.
- * @param {string} s - String to validate
- * @returns {boolean} True if valid
- */
-export function isValidBase64Url(s) {
-    return /^[A-Za-z0-9\-_]*$/.test(s);
-}
 
 /**
  * Calculate the duration of audio from byte count and format

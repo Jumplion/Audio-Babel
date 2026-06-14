@@ -29,17 +29,17 @@ add_library(audiolib STATIC ${AUDIO_SOURCES})
 target_include_directories(audiolib PUBLIC ${CPP_ROOT}/include)
 
 # Find Boost.Multiprecision header (header-only)
-find_path(DBOOST_MP_INCLUDE_DIR
+find_path(BOOST_MP_INCLUDE_DIR
     NAMES boost/multiprecision/cpp_int.hpp
     PATHS
         C:/msys64/mingw64/include
         C:/vcpkg/installed/x64-mingw-dynamic/include
 )
-if(DBOOST_MP_INCLUDE_DIR)
-    message(STATUS "Found Boost.Multiprecision headers: ${DBOOST_MP_INCLUDE_DIR}")
-    target_include_directories(audiolib PUBLIC ${DBOOST_MP_INCLUDE_DIR})
+if(BOOST_MP_INCLUDE_DIR)
+    message(STATUS "Found Boost.Multiprecision headers: ${BOOST_MP_INCLUDE_DIR}")
+    target_include_directories(audiolib PUBLIC ${BOOST_MP_INCLUDE_DIR})
 else()
-    message(WARNING "Boost.Multiprecision header not found. If Boost is installed on another drive (e.g. C:/msys64/mingw64/include), pass -DBOOST_MP_INCLUDE_DIR=path/to/boost/include to cmake or install the mingw-w64 boost package.")
+    message(WARNING "Boost.Multiprecision header not found. If Boost is installed on another drive (e.g. C:/msys64/mingw64/include), pass -BOOST_MP_INCLUDE_DIR=path/to/boost/include to cmake or install the mingw-w64 boost package.")
 endif()
 
 # Example executable
@@ -52,7 +52,6 @@ endif()
 
 # Catch2 test executable with all unit tests
 set(CATCH2_TEST_SOURCES
-    "${CPP_ROOT}/tests/test_catch2_demo.cpp"
     "${CPP_ROOT}/tests/test_audio_index.cpp"
     "${CPP_ROOT}/tests/test_base64.cpp"
     "${CPP_ROOT}/tests/test_metadata.cpp"

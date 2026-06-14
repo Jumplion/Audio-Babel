@@ -1,9 +1,10 @@
 // browse.js - Hierarchical navigation through the Record Shop library
 import { getWasmModule } from '../core/wasmModule.js';
-import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/audioIndex.js';
-import { addIndexHeader, bytesToBase64Chunked, decodeBase64Url, escapeHtml, indexToBase64 } from '../utils/utils.js';
+import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/resultBuilder.js';
+import { addIndexHeader } from '../utils/indexHeader.js';
+import { decodeBase64Url, indexToBase64 } from '../utils/base64.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
-import { handleJsonResponse, cleanupResultHandler } from '../core/resultHandler.js';
+import { handleJsonResponse, cleanupResultHandler } from '../core/resultDisplay.js';
 
 // Library hierarchy constants — loaded from WASM at init time (R5).
 // Fallbacks match the C++ LibraryConstants defaults.
@@ -471,14 +472,9 @@ async function generateAndDisplayTrack() {
         const pcmData = wasm.reconstructAudioFromIndex(base64Index);
         console.log('PCM data reconstructed, size:', pcmData?.length, 'bytes');
         
-        // Generate WAV blob
+        // Generate WAV blob and convert to base64 for audio player
         console.log('Creating WAV blob...');
-        const wavBlob = wasm.samplesToWav(pcmData, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS);
-        const wavArrayBuffer = await wavBlob.arrayBuffer();
-        const wavBytes = new Uint8Array(wavArrayBuffer);
-        
-        // Convert to base64 for audio player
-        const wavBase64 = bytesToBase64Chunked(wavBytes);
+        const wavBase64 = await wasm.samplesToWavBase64(pcmData, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS);
         
         // Create result object for handleJsonResponse
         const result = {

@@ -1,7 +1,12 @@
-import { getWasmModule } from '../core/wasmModule.js';
-import { buildResult, DEFAULT_BIT_DEPTH } from '../utils/resultBuilder.js';
-import { parseWavFile, convertWebMToWav } from '../utils/wavUtils.js';
-import { encodeBase64Url } from '../utils/base64.js';
+// NOTE: This feature is disabled and sequestered from the live site (see README.md
+// in this directory). Import paths below point back at the active docs/ modules
+// this code still depends on; convertWebMToWav was extracted into a local,
+// self-contained module since it was only used by this recorder.
+import { getWasmModule } from '../../docs/js/core/wasmModule.js';
+import { buildResult, DEFAULT_BIT_DEPTH } from '../../docs/js/utils/resultBuilder.js';
+import { parseWavFile } from '../../docs/js/utils/wavUtils.js';
+import { convertWebMToWav } from './wavConversion.js';
+import { encodeBase64Url } from '../../docs/js/utils/base64.js';
 
 /**
  * Format duration in milliseconds to MM:SS

@@ -1,8 +1,8 @@
 /**
  * wavUtils.js
- * 
+ *
  * Shared utilities for WAV file parsing and creation.
- * Eliminates code duplication across fileUpload.js and recorder.js
+ * Eliminates code duplication across pages that read or build WAV files.
  */
 
 /**
@@ -136,34 +136,6 @@ export function createWavFile(pcmData, sampleRate = 44100, bitDepth = 16, numCha
     dataView.set(pcmData);
 
     return new Blob([buffer], { type: 'audio/wav' });
-}
-
-/**
- * Convert a WebM blob to WAV format using Web Audio API
- * @param {Blob} webmBlob - The WebM audio blob
- * @returns {Promise<Blob>} A promise that resolves to a WAV blob
- */
-export async function convertWebMToWav(webmBlob) {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const arrayBuffer = await webmBlob.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-    const numChannels = audioBuffer.numberOfChannels;
-    const sampleRate = audioBuffer.sampleRate;
-
-    // Extract interleaved 16-bit PCM into a flat byte array
-    const pcmData = new Uint8Array(audioBuffer.length * numChannels * 2);
-    const pcmView = new DataView(pcmData.buffer);
-    let offset = 0;
-    for (let i = 0; i < audioBuffer.length; i++) {
-        for (let channel = 0; channel < numChannels; channel++) {
-            const sample = Math.max(-1, Math.min(1, audioBuffer.getChannelData(channel)[i]));
-            pcmView.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-            offset += 2;
-        }
-    }
-
-    return createWavFile(pcmData, sampleRate, 16, numChannels);
 }
 
 console.log('✅ wavUtils.js loaded - shared WAV utilities ready');

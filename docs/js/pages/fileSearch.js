@@ -9,7 +9,7 @@
 import { getWasmModule } from '../core/wasmModule.js';
 import { buildResult, DEFAULT_BIT_DEPTH } from '../utils/resultBuilder.js';
 import { parseWavFile } from '../utils/wavUtils.js';
-import { encodeBase64Url } from '../utils/base64.js';
+import { encodeCanonicalIndexString } from '../utils/base64.js';
 
 /**
  * Upload a WAV file for indexing
@@ -35,8 +35,8 @@ export async function uploadFile(file, handleJsonResponse, setLoading) {
     const arrayBuffer = await file.arrayBuffer();
     const { pcmData, sampleRate, numChannels, bitDepth } = parseWavFile(arrayBuffer);
     
-    // Encode PCM data as URL-safe base64 (this IS the user-facing index)
-    const audioIndex = encodeBase64Url(pcmData);
+    // Encode PCM data as a canonical URL-safe base64 index (this IS the user-facing index)
+    const audioIndex = encodeCanonicalIndexString(pcmData);
     
     // Create result object
     const result = buildResult({ indexBase64: audioIndex, genre: 'uploaded', artist: file.name, pcmDataSize: pcmData.length, sampleRate, numChannels });

@@ -10,7 +10,7 @@ import { buildResult, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNE
 import { isValidBase64Url } from '../utils/validationUtils.js';
 import { getWasmModule } from '../core/wasmModule.js';
 import { addIndexHeader } from '../utils/indexHeader.js';
-import { decodeBase64Url, encodeBase64Url } from '../utils/base64.js';
+import { decodeIndexString, encodeBase64Url } from '../utils/base64.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
 
 /**
@@ -36,22 +36,21 @@ export async function generateFromIndex(inputEl, handleJsonResponse, setLoading)
     const wasm = await getWasmModule();
     
     // The user input is PCM-only (no header). We need to add a header to make it a valid audio index.
-    let pcmBytes = decodeBase64Url(indexString);
+    // decodeIndexString losslessly maps any-length input to bytes (rounded up, plus a length marker).
+    let pcmBytes = decodeIndexString(indexString);
     const bytesPerSample = DEFAULT_BIT_DEPTH / 8;
     const numChannels = DEFAULT_NUM_CHANNELS;
-    
+
     // Pad with zero byte if odd number of bytes (required for 16-bit audio)
-    let pcmBase64 = indexString; // Will be updated if we pad
     if (pcmBytes.length % bytesPerSample !== 0) {
       console.log(`[search.js] Padding PCM data from ${pcmBytes.length} to ${pcmBytes.length + 1} bytes`);
       const paddedBytes = new Uint8Array(pcmBytes.length + 1);
       paddedBytes.set(pcmBytes, 0);
       paddedBytes[pcmBytes.length] = 0; // Pad with zero byte
       pcmBytes = paddedBytes;
-      // Re-encode to base64 so addIndexHeader gets the padded data
-      pcmBase64 = encodeBase64Url(pcmBytes);
     }
-    
+
+    const pcmBase64 = encodeBase64Url(pcmBytes);
     const numFrames = pcmBytes.length / bytesPerSample / numChannels;
     
     // Add 13-byte header to create a valid audio index

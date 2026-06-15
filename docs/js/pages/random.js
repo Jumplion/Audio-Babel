@@ -8,7 +8,7 @@
 
 import { getWasmModule } from '../core/wasmModule.js';
 import { buildResult, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/resultBuilder.js';
-import { encodeBase64Url } from '../utils/base64.js';
+import { encodeCanonicalIndexString } from '../utils/base64.js';
 import { handleError } from '../utils/errorHandler.js';
 import { HARD_MAX_KB } from '../utils/validationUtils.js';
 
@@ -75,8 +75,8 @@ export async function generateAndSend(handleJsonResponse, setLoading) {
       }
     }
     
-    // Encode random PCM bytes as URL-safe base64 (this IS the user-facing index)
-    const audioIndex = encodeBase64Url(randomBytes);
+    // Encode random PCM bytes as a canonical URL-safe base64 index (this IS the user-facing index)
+    const audioIndex = encodeCanonicalIndexString(randomBytes);
     
     // Create result object
     const result = buildResult({ indexBase64: audioIndex, genre: 'random', artist: 'generated', pcmDataSize: randomBytes.length });

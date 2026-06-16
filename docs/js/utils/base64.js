@@ -74,42 +74,14 @@ export function decodeBase64Url(base64Url) {
 }
 
 /**
- * Shared helper: extract the first `length` base64 characters (6 bits each)
- * from a byte stream, MSB-first. Assumes `bytes` holds at least `ceil(6*length/8)` bytes.
- * @param {Uint8Array} bytes - Source bytes
- * @param {number} length - Number of 6-bit characters to extract
- * @param {string} alphabet - Base64 alphabet to use
- * @returns {string} Extracted characters
- */
-function extractIndexChars(bytes, length, alphabet) {
-  let result = '';
-  let acc = 0;
-  let accBits = 0;
-  let byteIndex = 0;
-
-  for (let i = 0; i < length; i++) {
-    while (accBits < 6) {
-      acc = (acc << 8) | bytes[byteIndex++];
-      accBits += 8;
-    }
-    accBits -= 6;
-    result += alphabet[(acc >> accBits) & 0x3F];
-  }
-
-  return result;
-}
-
-/**
- * Decode a user-facing index string of any length (including empty) into bytes,
- * losslessly - every distinct input string maps to a distinct byte array.
- *
- * The trailing partial 6-bit group (if any) is rounded *up* to a whole byte
- * (zero-padded in the low bits) instead of being discarded, and a final marker
- * byte storing `indexString.length % 4` is appended. The marker disambiguates
- * strings whose rounded-up data would otherwise collide (e.g. "AAA" vs "AAAA").
+ * Decode a user-facing index string into bytes using a 1-char-to-1-byte mapping.
+ * Each character's 6-bit value (0-63) becomes exactly one byte in the output,
+ * so string length N always produces exactly N bytes — no cross-character bit
+ * packing, no rounding, no marker bytes. Every distinct string of any length
+ * maps to a distinct byte array.
  *
  * @param {string} indexString - URL-safe base64 string (any length, A-Z a-z 0-9 - _)
- * @returns {Uint8Array} Rounded-up decoded bytes followed by a 1-byte length marker
+ * @returns {Uint8Array} One byte per character, values 0-63
  * @throws {Error} If invalid base64 characters are encountered
  */
 export function decodeIndexString(indexString) {
@@ -119,96 +91,48 @@ export function decodeIndexString(indexString) {
     lookup.set(alphabet[i], i);
   }
 
-  const length = indexString.length;
-  const byteCount = Math.ceil((6 * length) / 8);
-  const bytes = new Uint8Array(byteCount + 1);
-
-  let acc = 0;
-  let accBits = 0;
-  let byteIndex = 0;
-
-  for (let i = 0; i < length; i++) {
-    const char = indexString[i];
-    const value = lookup.get(char);
-
+  const bytes = new Uint8Array(indexString.length);
+  for (let i = 0; i < indexString.length; i++) {
+    const value = lookup.get(indexString[i]);
     if (value === undefined) {
-      throw new Error(`Invalid base64 character: '${char}' at position ${i}`);
+      throw new Error(`Invalid base64 character: '${indexString[i]}' at position ${i}`);
     }
-
-    acc = (acc << 6) | value;
-    accBits += 6;
-
-    if (accBits >= 8) {
-      accBits -= 8;
-      bytes[byteIndex++] = (acc >> accBits) & 0xFF;
-    }
+    bytes[i] = value;
   }
-
-  // Round the leftover partial group up to a whole byte (zero-padded low bits)
-  if (accBits > 0) {
-    bytes[byteIndex++] = (acc << (8 - accBits)) & 0xFF;
-  }
-
-  // Marker byte: how many characters past the last full 4-char/3-byte group
-  bytes[byteIndex] = length % 4;
-
   return bytes;
 }
 
 /**
- * Inverse of decodeIndexString: reconstruct the exact original index string
- * from bytes produced by decodeIndexString (rounded-up data + trailing marker byte).
+ * Inverse of decodeIndexString: reconstruct the original index string from
+ * bytes produced by decodeIndexString (values 0-63, one char per byte).
  *
- * @param {Uint8Array} bytes - Bytes including the trailing length marker
+ * @param {Uint8Array} bytes - Bytes with values 0-63
  * @returns {string} The original URL-safe base64 index string
  */
 export function encodeIndexBytes(bytes) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-  const remainder = bytes[bytes.length - 1] & 0x03;
-  const data = bytes.subarray(0, bytes.length - 1);
-  const dataByteCount = data.length;
-
-  // Recover the 4-char/3-byte group count from the rounded-up byte count and the remainder
-  let groupCount;
-  switch (remainder) {
-    case 0: groupCount = dataByteCount / 3; break;
-    case 1: groupCount = (dataByteCount - 1) / 3; break;
-    case 2: groupCount = (dataByteCount - 2) / 3; break;
-    default: groupCount = (dataByteCount / 3) - 1; break; // remainder === 3
+  let result = '';
+  for (let i = 0; i < bytes.length; i++) {
+    result += alphabet[bytes[i] & 0x3F];
   }
-
-  const length = 4 * groupCount + remainder;
-  return extractIndexChars(data, length, alphabet);
+  return result;
 }
 
 /**
- * Encode raw bytes (no marker byte) into a canonical index string.
- * Used for the audio -> index direction (uploaded WAV files, random audio),
- * where there is no marker byte to recover the original string length from -
- * `r = byteCount % 3` is picked directly to produce a well-defined index.
+ * Encode raw PCM bytes into a canonical index string using 1-byte-to-1-char mapping.
+ * Each byte's low 6 bits become one base64 character, so N bytes → N characters.
+ * Used for the audio -> index direction (uploaded WAV files, random audio).
  *
- * @param {Uint8Array} bytes - Raw PCM bytes
+ * @param {Uint8Array} bytes - Raw PCM bytes (any values 0-255)
  * @returns {string} URL-safe base64 index string
  */
 export function encodeCanonicalIndexString(bytes) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-  const byteCount = bytes.length;
-  const remainder = byteCount % 3;
-
-  let groupCount, charRemainder;
-  if (remainder === 0) {
-    charRemainder = 0;
-    groupCount = byteCount / 3;
-  } else if (remainder === 1) {
-    charRemainder = 1;
-    groupCount = (byteCount - 1) / 3;
-  } else {
-    charRemainder = 2;
-    groupCount = (byteCount - 2) / 3;
+  let result = '';
+  for (let i = 0; i < bytes.length; i++) {
+    result += alphabet[bytes[i] & 0x3F];
   }
-
-  const length = 4 * groupCount + charRemainder;
-  return extractIndexChars(bytes, length, alphabet);
+  return result;
 }
 
 /**

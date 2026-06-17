@@ -1,9 +1,12 @@
 #ifndef AUDIOBABEL_UTILITIES_H
 #define AUDIOBABEL_UTILITIES_H
 
+#include <algorithm>
 #include <array>
+#include <boost/multiprecision/cpp_int.hpp>
 #include <cstdint>
 #include <ostream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -125,6 +128,65 @@ inline auto encodeBase64Url(const std::vector<uint8_t>& bytes) -> std::string {
         b64str.push_back(b64_alpha[idx]);
     }
     return b64str;
+}
+
+// --- Bijective base-64 for the INDEX string form -----------------------------
+// Unlike encodeBase64Url/decodeBase64Url (which pack bits across byte
+// boundaries), these implement a TRUE BIJECTION between non-negative integers
+// and strings over the 64-symbol URL-safe alphabet using bijective numeration
+// (digit = value + 1). Every string of any length >= 0 maps to exactly one
+// integer and back, with the empty string <-> 0. Nothing is rejected for
+// alphabet-valid input. Do NOT use the bit-accumulator base64 for indices.
+
+// Map a single alphabet character to its 0..63 value, or -1 if not in the alphabet.
+inline auto base64UrlValue(char c) -> int {
+    if (c >= 'A' && c <= 'Z') {
+        return c - 'A';
+    }
+    if (c >= 'a' && c <= 'z') {
+        return (c - 'a') + 26;
+    }
+    if (c >= '0' && c <= '9') {
+        return (c - '0') + 52;
+    }
+    if (c == '-') {
+        return 62;
+    }
+    if (c == '_') {
+        return 63;
+    }
+    return -1;
+}
+
+// integer -> index string (bijective base 64):
+//   while n > 0: { n -= 1; emit ALPHA[n mod 64]; n = n / 64 }  // then reverse
+inline auto indexToB64(boost::multiprecision::cpp_int n) -> std::string {
+    if (n < 0) {
+        throw std::invalid_argument("indexToB64: index must be non-negative");
+    }
+    std::string out;
+    while (n > 0) {
+        n -= 1;
+        auto digit = static_cast<unsigned>(n % BASE64_ALPHABET_SIZE);
+        out.push_back(BASE64_URL_ALPHA[digit]);
+        n /= BASE64_ALPHABET_SIZE;
+    }
+    std::reverse(out.begin(), out.end());
+    return out;
+}
+
+// index string -> integer:
+//   n = 0; for each char c in order: n = n*64 + (alphaValue(c) + 1)
+inline auto b64ToIndex(const std::string& s) -> boost::multiprecision::cpp_int {
+    boost::multiprecision::cpp_int n = 0;
+    for (char c : s) {
+        int v = base64UrlValue(c);
+        if (v < 0) {
+            throw std::invalid_argument("b64ToIndex: invalid base64 character in index");
+        }
+        n = (n * BASE64_ALPHABET_SIZE) + (v + 1);
+    }
+    return n;
 }
 
 } // namespace AudioBabel::Utilities

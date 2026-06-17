@@ -20,21 +20,27 @@ namespace AudioBabel {
  * 
  * AudioIndex provides bidirectional conversion between audio data and cryptographically-large
  * indexes, enabling lossless reconstruction and hierarchical organization in the "Speaker of Babel"
- * library system. Each index deterministically encodes audio samples along with format metadata
- * (sample rate, bit depth, channels) in a single big integer.
- * 
- * @section index_format Index Format
- * Each index consists of a 13-byte header followed by PCM sample data, all packed into
- * a big integer using MSB-first byte order:
- * 
- * @par Header Structure (13 bytes):
- * - Byte 0: Version (0x01)
- * - Bytes 1-4: Number of frames (uint32_t, little-endian)
- * - Bytes 5-8: Sample rate in Hz (uint32_t, little-endian)
- * - Bytes 9-10: Bit depth (uint16_t, little-endian)
- * - Bytes 11-12: Number of channels (uint16_t, little-endian)
- * - Bytes 13+: PCM sample data (little-endian per-sample format)
- * 
+ * library system. The index is a TRUE BIJECTION over the PCM sample payload only: every index
+ * decodes to exactly one payload and every payload encodes to exactly one index, with no header,
+ * version, or format metadata embedded.
+ *
+ * @section index_format Index Format (payload-only bijection)
+ * The index encodes ONLY the PCM sample payload. The atomic unit is one PCM sample, interpreted
+ * as an UNSIGNED little-endian value in 0..B-1 where B = 1u << DEFAULT_BIT_DEPTH (65536 at the
+ * 16-bit default). The integer is built with bijective numeration (digit = value + 1):
+ *
+ * @par Encoding (samples -> integer):
+ * - n = 0; for each sample v in order: n = n * B + (v + 1)
+ *
+ * @par Decoding (integer -> samples):
+ * - while n > 0: { n -= 1; v = n mod B; emit v; n = n / B } then reverse
+ *
+ * Because the digit is value+1, trailing zero (silence) samples are preserved: k vs k+1 trailing
+ * zero samples produce different indices. No header is stored; a fixed default header
+ * (PCM, 44100 Hz, 16-bit, mono) is applied only when writing a WAV on decode. The user-facing
+ * index string is a bijective base-64 over the URL-safe alphabet (see Utilities::indexToB64).
+ * There is intentionally NO integrity check: every alphabet-valid index decodes to a valid payload.
+ *
  * @section usage Usage Example
  * @code
  * // Create index from WAV file
@@ -188,51 +194,39 @@ class AudioIndex {
     // ---------------------
 
     /**
-     * @brief Convert audio data and metadata into a big integer index.
-     * 
-     * Serializes audio data with a 13-byte header into a single big integer.
-     * The header encodes version, frame count, sample rate, bit depth, and channel count,
-     * enabling lossless reconstruction of the exact audio parameters.
-     * 
-     * @param audioData Audio data structure to encode
+     * @brief Convert a PCM sample payload into a big integer index.
+     *
+     * Reads audioData.samples as little-endian 16-bit (B-ary) samples and applies the
+     * bijective payload->integer mapping (digit = value + 1). The result depends ONLY on
+     * the sample values; no header, version, or format metadata is embedded.
+     *
+     * @param audioData Audio data whose samples vector holds the PCM payload
      * @return Unique index as a boost::multiprecision::cpp_int
-     * @throws std::runtime_error if bit depth is not supported (must be 8, 16, or 32)
-     * 
-     * @par Index Structure
-     * The index is constructed by concatenating:
-     * 1. A 13-byte header (version + audio parameters)
-     * 2. PCM sample data (already in little-endian format)
-     * Then converting the entire byte array to a big integer (MSB-first).
-     * 
+     *
+     * @note Never throws on the payload: there is no validation that can reject an index.
+     *
      * @par Performance
-     * Typical conversion time for 2 minutes of 44.1kHz/16-bit audio is ~10-50ms
-     * depending on CPU. Use getLastDebugInfo() to retrieve timing information.
-     * 
+     * The per-sample bignum arithmetic is O(L^2) in the number of samples L; acceptable for
+     * short clips. See the TODO in the implementation for chunked processing of long files.
+     *
      * @see indexToAudioData for the inverse operation
      * @see getLastDebugInfo for performance diagnostics
      */
     static auto audioDataToIndex(const AudioData& audioData) -> boost::multiprecision::cpp_int;
 
     /**
-     * @brief Reconstruct audio data from a big integer index.
-     * 
-     * Deserializes a big integer index back into AudioData by extracting the 13-byte
-     * header and PCM samples. The function handles indexes that may have leading zero
-     * bytes omitted by export_bits and reconstructs the full audio payload.
-     * 
+     * @brief Reconstruct a PCM sample payload from a big integer index.
+     *
+     * Applies the bijective integer->payload mapping, serializes each decoded 16-bit sample
+     * little-endian into AudioData.samples, and applies the fixed default header
+     * (PCM, 44100 Hz, 16-bit, mono) with num_frames = sampleCount / num_channels.
+     *
      * @param index Big integer index produced by audioDataToIndex()
-     * @return AudioData structure with reconstructed samples and parameters
-     * @throws std::runtime_error if header is malformed, version is unsupported,
-     *         or calculated payload size is inconsistent
-     * 
-     * @par Robustness
-     * The function validates:
-     * - Header version (must be 0x01)
-     * - Bit depth (must be 8, 16, or 32)
-     * - Payload size consistency (num_frames × bytes_per_sample)
-     * 
-     * @note Leading zero bytes in the PCM payload are preserved during reconstruction
-     * 
+     * @return AudioData structure with reconstructed samples and default format parameters
+     *
+     * @note Does not throw on any alphabet-valid index; there is intentionally no integrity
+     *       check. Trailing zero (silence) samples are preserved exactly.
+     *
      * @see audioDataToIndex for the inverse operation
      */
     static auto indexToAudioData(const boost::multiprecision::cpp_int& index) -> AudioData;
@@ -252,10 +246,10 @@ class AudioIndex {
      * @note Thread-local storage; each thread maintains its own debug info.
      */
     struct DebugInfo {
-        size_t   import_pcm_bytes      = 0; ///< Bytes fed to import_bits in audioDataToIndex
-        size_t   import_expected_bytes = 0; ///< Expected byte count for import
-        size_t   export_pcm_bytes      = 0; ///< Bytes returned by export_bits in indexToAudioData
-        size_t   export_expected_bytes = 0; ///< Expected byte count for export
+        size_t   import_pcm_bytes      = 0; ///< Payload bytes consumed by audioDataToIndex
+        size_t   import_expected_bytes = 0; ///< Expected payload byte count for encode
+        size_t   export_pcm_bytes      = 0; ///< Payload bytes produced by indexToAudioData
+        size_t   export_expected_bytes = 0; ///< Expected payload byte count for decode
         uint64_t audioDataToIndexMs    = 0; ///< Milliseconds spent in audioDataToIndex
         uint64_t indexToAudioDataMs    = 0; ///< Milliseconds spent in indexToAudioData
     };

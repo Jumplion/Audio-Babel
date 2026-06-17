@@ -54,6 +54,7 @@ endif()
 set(CATCH2_TEST_SOURCES
     "${CPP_ROOT}/tests/test_audio_index.cpp"
     "${CPP_ROOT}/tests/test_base64.cpp"
+    "${CPP_ROOT}/tests/test_bijection.cpp"
     "${CPP_ROOT}/tests/test_metadata.cpp"
     "${CPP_ROOT}/tests/test_library_position.cpp"
     "${CPP_ROOT}/tests/test_wav_parsing.cpp"

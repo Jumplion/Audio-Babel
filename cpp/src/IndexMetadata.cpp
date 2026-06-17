@@ -11,18 +11,29 @@
 
 namespace AudioBabel {
 
-// Decoding/encoding is provided by Base64Url utilities in Base64Url.h/cpp
+// Metadata is purely cosmetic. It is derived from the bijective base-64 index
+// string (and the per-character alphabet values) so it stays consistent with
+// the single string encoding used across the system.
+
+// Turn a bijective base-64 index string into a vector of its per-character
+// alphabet values (0..63). Used only to seed the cosmetic weighting / cover.
+static auto b64StringToValues(const std::string& b64str) -> std::vector<uint8_t> {
+    std::vector<uint8_t> values;
+    values.reserve(b64str.size());
+    for (char c : b64str) {
+        int v = ::AudioBabel::Utilities::base64UrlValue(c);
+        values.push_back(static_cast<uint8_t>(v < 0 ? 0 : v));
+    }
+    return values;
+}
 
 auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_int& index) -> IndexMetadata {
-    std::vector<uint8_t> bytes;
-    boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8, true);
-
-    // Convert all bytes to a deterministic URL-safe base64 string (no padding).
-    // This matches the alphabet used elsewhere in the project.
-    std::string b64str = ::AudioBabel::Utilities::encodeBase64Url(bytes);
+    // Derive the canonical bijective base-64 string for this index.
+    std::string          b64str = ::AudioBabel::Utilities::indexToB64(index);
+    std::vector<uint8_t> values = b64StringToValues(b64str);
 
     // Build metadata with content-derived labels
-    IndexMetadata meta = buildMetadataFromBytesAndB64(bytes, b64str);
+    IndexMetadata meta = buildMetadataFromBytesAndB64(values, b64str);
 
     // Calculate hierarchical position
     meta.position = calculateLibraryPosition(index);
@@ -30,24 +41,21 @@ auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_in
     return meta;
 }
 
-// String overload: extract metadata directly from a URL-safe base64 string
+// String overload: extract metadata directly from a bijective base-64 index string
 auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> IndexMetadata {
-    // Validate and decode the base64 string
+    // Validate that the string only uses the URL-safe alphabet.
     if (!::AudioBabel::Utilities::isValidBase64Url(base64Index)) {
         throw std::invalid_argument("Invalid base64 URL-safe string provided to extractMetadataFromIndex");
     }
 
-    std::vector<uint8_t> bytes = ::AudioBabel::Utilities::decodeBase64Url(base64Index);
+    std::vector<uint8_t> values = b64StringToValues(base64Index);
 
     // Build metadata with content-derived labels
-    IndexMetadata meta = buildMetadataFromBytesAndB64(bytes, base64Index);
+    IndexMetadata meta = buildMetadataFromBytesAndB64(values, base64Index);
 
-    // Reconstruct the cpp_int from bytes to calculate position
-    boost::multiprecision::cpp_int index = 0;
-    if (!bytes.empty()) {
-        boost::multiprecision::import_bits(index, bytes.begin(), bytes.end(), 8, true);
-    }
-    meta.position = calculateLibraryPosition(index);
+    // Reconstruct the integer index from the bijective base-64 string for position.
+    boost::multiprecision::cpp_int index = ::AudioBabel::Utilities::b64ToIndex(base64Index);
+    meta.position                        = calculateLibraryPosition(index);
 
     return meta;
 }

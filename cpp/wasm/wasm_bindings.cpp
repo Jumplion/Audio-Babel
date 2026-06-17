@@ -122,10 +122,7 @@ static std::string getMetadataWrapper(const std::string& base64Index) {
  */
 static emscripten::val reconstructAudioWrapper(const std::string& base64Index) {
     try {
-        std::vector<uint8_t> indexBytes = AudioBabel::Utilities::decodeBase64Url(base64Index);
-
-        cpp_int index = 0;
-        boost::multiprecision::import_bits(index, indexBytes.begin(), indexBytes.end(), 8, true);
+        cpp_int index = AudioBabel::Utilities::b64ToIndex(base64Index);
 
         AudioIndex::AudioData audioData = AudioIndex::indexToAudioData(index);
 
@@ -144,12 +141,7 @@ static emscripten::val reconstructAudioWrapper(const std::string& base64Index) {
  */
 static std::string calculatePositionWrapper(const std::string& base64Index) {
     try {
-        std::vector<uint8_t> indexBytes = AudioBabel::Utilities::decodeBase64Url(base64Index);
-
-        cpp_int index = 0;
-        if (!indexBytes.empty()) {
-            boost::multiprecision::import_bits(index, indexBytes.begin(), indexBytes.end(), 8, true);
-        }
+        cpp_int index = AudioBabel::Utilities::b64ToIndex(base64Index);
 
         LibraryPosition pos = AudioBabel::calculateLibraryPosition(index);
 
@@ -181,14 +173,7 @@ static std::string reconstructIndexWrapper(const std::string& roomStr, int wall,
 
         cpp_int index = AudioBabel::reconstructIndexFromPosition(pos);
 
-        std::vector<uint8_t> indexBytes;
-        if (index == 0) {
-            indexBytes.push_back(0);
-        } else {
-            boost::multiprecision::export_bits(index, std::back_inserter(indexBytes), 8, true);
-        }
-
-        return AudioBabel::Utilities::encodeBase64Url(indexBytes);
+        return AudioBabel::Utilities::indexToB64(index);
 
     } catch (const std::exception& e) {
         return makeJsonError(e.what());

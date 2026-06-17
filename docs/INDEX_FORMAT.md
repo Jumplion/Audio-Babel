@@ -152,6 +152,26 @@ milliseconds end to end.
 
 ---
 
+## Optional Index Scrambling
+
+By default, similar payloads map to numerically nearby indices, so neighbouring
+"library" positions hold near-identical audio. An **optional, reversible**
+scramble can be enabled to scatter neighbours across the space while keeping the
+mapping a perfect bijection.
+
+It is a keyed permutation applied **within each length-band** `[S_L, S_{L+1})`:
+the band value `y = n − S_L` is run through a 4-round **Feistel network** (halves
+of `8L` bits each), keyed by a seed and the band index. Because a Feistel network
+is a bijection for any round function and is undone by running the rounds in
+reverse, both directions are **O(N)** — no modular inverse is needed. The
+permutation stays inside the band, so payload length is preserved, `0 → 0`, and
+every index still decodes (nothing is rejected).
+
+The seed is effectively part of the format: changing it (or toggling the scramble)
+changes every index. The feature is controlled by the compile-time flag
+`AUDIOBABEL_SCRAMBLE` (optionally `AUDIOBABEL_SCRAMBLE_SEED`), with a runtime
+override available for testing. See `cpp/include/IndexScramble.h`.
+
 ## Reference Implementation
 
 - **Payload ↔ integer:** `cpp/src/AudioIndex.cpp` —
@@ -164,3 +184,5 @@ milliseconds end to end.
 - **WAV parsing / writing:** `cpp/src/AudioIndex.cpp`
   (`extractAudioDataFromAudioFile`) and `cpp/src/FileWriters.cpp`
   (`exportAudioDataToWav`)
+- **Optional scrambling:** `cpp/include/IndexScramble.h` /
+  `cpp/src/IndexScramble.cpp` — `scramble()` / `unscramble()`

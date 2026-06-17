@@ -176,6 +176,32 @@ TEST_CASE("Bijection: random alphabet strings -> integer -> string", "[bijection
     }
 }
 
+TEST_CASE("Bijection: large payload round-trips exactly (O(N) path)", "[bijection][roundtrip][large]") {
+    // A large payload exercises the closed-form O(N) conversion. Under the old
+    // per-sample O(L^2) loop this size would take minutes; here it is instant.
+    // We mix leading zeros, trailing zeros, and extreme values to stress carries.
+    std::mt19937                            rng(424242);
+    std::uniform_int_distribution<uint32_t> valDist(0, 65535);
+
+    const size_t          N = 300000;
+    std::vector<uint16_t> samples(N, 0);
+    for (size_t i = 1000; i + 1000 < N; ++i) {
+        samples[i] = static_cast<uint16_t>(valDist(rng));
+    }
+    samples[N / 2] = 65535;
+
+    auto ad      = makePayload(samples);
+    auto idx     = AudioIndex::audioDataToIndex(ad);
+    auto decoded = AudioIndex::indexToAudioData(idx);
+
+    REQUIRE(decoded.samples == ad.samples);
+    REQUIRE(decoded.num_frames == N);
+
+    // The index string is itself a bijection and round-trips exactly.
+    std::string s = Utilities::indexToB64(idx);
+    REQUIRE(Utilities::b64ToIndex(s) == idx);
+}
+
 TEST_CASE("Bijection: WAV default-format data chunk round-trips exactly", "[bijection][wav][roundtrip]") {
     // Build a default-format payload, write a WAV, extract it, index it, decode,
     // and write a second WAV; the data-chunk bytes must match exactly.

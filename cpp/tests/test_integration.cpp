@@ -50,15 +50,12 @@ TEST_CASE("AudioIndex: round-trip test audio directory", "[integration][roundtri
 
     INFO("Testing audio files in directory: " << test_audio_dir.string());
 
-    // The payload-only bijection uses per-sample cpp_int arithmetic, which is
-    // intentionally O(L^2) (see the TODO in AudioIndex.cpp). That is fine for
-    // short clips but would take many minutes on the multi-MB sample library, so
-    // for each real file we round-trip only a bounded prefix of its PCM payload.
-    // This still exercises real WAV-sourced sample bytes through the full
-    // extract -> index -> reconstruct pipeline. The default decode header
-    // (PCM, 44100 Hz, 16-bit, mono) is verified on the reconstruction.
-    constexpr size_t kMaxRoundTripBytes = 8000; // 4000 samples at 16-bit
-
+    // The payload-only bijection is O(N) (see AudioIndex.cpp), so full multi-MB
+    // files round-trip in milliseconds. For each file we extract the PCM payload,
+    // index it, reconstruct it, and require the sample bytes to be reproduced
+    // exactly. The reconstruction always carries the fixed default header
+    // (PCM, 44100 Hz, 16-bit, mono); the original sample format is intentionally
+    // not preserved by the payload-only index.
     int files_processed = 0;
     int files_failed    = 0;
 
@@ -73,7 +70,7 @@ TEST_CASE("AudioIndex: round-trip test audio directory", "[integration][roundtri
 
         INFO("Processing file: " << filename);
 
-        // 1. Extract audio data from the WAV file (full file; parsing is fast).
+        // 1. Extract audio data from the WAV file.
         auto audio_data_orig = AudioIndex::extractAudioDataFromAudioFile(wav_path);
 
         // Skip empty files
@@ -82,21 +79,16 @@ TEST_CASE("AudioIndex: round-trip test audio directory", "[integration][roundtri
             continue;
         }
 
+        // Whole 16-bit samples are required for an exact payload bijection.
+        if (audio_data_orig.samples.size() % 2 != 0) {
+            WARN("Skipping file with odd payload byte count: " << filename);
+            continue;
+        }
+
         files_processed++;
 
-        // 2. Build a bounded-prefix payload (whole 16-bit samples) to round-trip.
-        AudioIndex::AudioData prefix{};
-        prefix.audio_format = audio_data_orig.audio_format;
-        prefix.sample_rate  = audio_data_orig.sample_rate;
-        prefix.bit_rate     = audio_data_orig.bit_rate;
-        prefix.num_channels = audio_data_orig.num_channels;
-        size_t take         = std::min(audio_data_orig.samples.size(), kMaxRoundTripBytes);
-        take -= (take % 2); // keep whole 16-bit samples
-        prefix.samples.assign(audio_data_orig.samples.begin(), audio_data_orig.samples.begin() + take);
-        prefix.num_frames = take / 2;
-
-        // 3. index round-trip of the prefix payload.
-        auto index                    = AudioIndex::audioDataToIndex(prefix);
+        // 2. Full round-trip through the index.
+        auto index                    = AudioIndex::audioDataToIndex(audio_data_orig);
         auto audio_data_reconstructed = AudioIndex::indexToAudioData(index);
 
         bool file_ok = true;
@@ -108,15 +100,15 @@ TEST_CASE("AudioIndex: round-trip test audio directory", "[integration][roundtri
             file_ok = false;
         }
 
-        // The prefix sample bytes must be reproduced exactly.
-        if (audio_data_reconstructed.samples != prefix.samples) {
-            INFO("FAIL [" << filename << "]: prefix sample bytes not reproduced exactly");
+        // The PCM sample bytes must be reproduced exactly.
+        if (audio_data_reconstructed.samples != audio_data_orig.samples) {
+            INFO("FAIL [" << filename << "]: sample bytes not reproduced exactly");
             file_ok = false;
         }
 
-        // The decoded sample count must match the prefix exactly.
-        if (audio_data_reconstructed.num_frames != prefix.num_frames) {
-            INFO("FAIL [" << filename << "]: frame count mismatch. Expected: " << prefix.num_frames
+        // The decoded sample count must match exactly.
+        if (audio_data_reconstructed.num_frames != audio_data_orig.samples.size() / 2) {
+            INFO("FAIL [" << filename << "]: frame count mismatch. Expected: " << (audio_data_orig.samples.size() / 2)
                           << ", Reconstructed: " << audio_data_reconstructed.num_frames);
             file_ok = false;
         }

@@ -291,42 +291,70 @@ void AudioIndex::clearLastDebugInfo() {
     lastDebug = DebugInfo();
 }
 
+// Bytes per PCM sample at the default bit depth (2 for 16-bit).
+static constexpr size_t SAMPLE_BYTES = DEFAULT_BIT_DEPTH / BITS_PER_BYTE;
+
 auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boost::multiprecision::cpp_int {
     /**
-     * PAYLOAD-ONLY BIJECTION (samples -> integer)
+     * PAYLOAD-ONLY BIJECTION (samples -> integer), O(N) closed form.
      *
      * The index encodes ONLY the PCM sample payload; no header/version/format
      * metadata is stored. The atomic unit is one PCM sample interpreted as an
      * UNSIGNED little-endian value in 0..B-1, where B = SAMPLE_ALPHABET_SIZE
-     * (65536 at the 16-bit default). Indexing whole samples (rather than raw
-     * bytes) guarantees every index decodes to a whole number of samples.
+     * (65536 at the 16-bit default).
      *
-     * Bijective numeration (digit = value + 1):
-     *   n = 0
-     *   for each sample v (in order): n = n*B + (v + 1)
+     * Conceptually this is bijective numeration (digit = value + 1):
+     *   n = 0; for each sample v: n = n*B + (v + 1)
      *
-     * Because the digit is value+1, a trailing zero sample contributes a real
+     * That per-sample loop is O(L^2) in bignum arithmetic. We use the exact
+     * algebraic identity instead. With digit d_i = v_i + 1:
+     *   n = Sum_i (v_i + 1) B^(L-1-i)
+     *     = Sum_i v_i B^(L-1-i)  +  Sum_{j=0}^{L-1} B^j
+     *     = V + S_L
+     * where:
+     *   - V is the payload read as a base-B number (first sample most
+     *     significant) -- i.e. the sample bytes themselves, big-endian per
+     *     sample. Built in one linear import_bits pass.
+     *   - S_L = (B^L - 1)/(B - 1) is the base-B repunit (every digit == 1),
+     *     whose byte pattern is L copies of 0x00 0x01. Built in one linear pass.
+     * The single bignum addition propagates the per-sample (+1) carries. The
+     * whole operation is O(N) in the payload size; the per-sample loop is never
+     * executed.
+     *
+     * Because every digit is value+1, a trailing zero sample contributes a real
      * digit and is therefore preserved (k vs k+1 trailing zeros differ).
-     *
-     * TODO(perf): this per-sample cpp_int multiply/divide makes the
-     * integer<->payload conversion O(L^2) for L samples. Long files should be
-     * processed in machine-word chunks instead of per-sample bignum arithmetic.
      */
     auto t0_import = std::chrono::steady_clock::now();
 
-    const cpp_int B     = SAMPLE_ALPHABET_SIZE; // 65536 at the 16-bit default
-    const auto&   bytes = audioData.samples;
+    const auto&  bytes = audioData.samples;
+    const size_t L     = (bytes.size() + (SAMPLE_BYTES - 1)) / SAMPLE_BYTES; // whole samples (ceil)
 
     cpp_int index = 0;
-    // Interpret the payload as little-endian 16-bit samples. The default bit
-    // depth makes the payload a whole number of samples; a stray trailing byte
-    // (should not occur for 16-bit data) is treated as a low byte with a zero
-    // high byte so no value is silently dropped.
-    for (size_t i = 0; i < bytes.size(); i += 2) {
-        uint32_t low  = bytes[i];
-        uint32_t high = (i + 1 < bytes.size()) ? bytes[i + 1] : 0U;
-        uint32_t v    = low | (high << BITS_PER_BYTE);
-        index         = (index * B) + (v + 1);
+    if (L != 0) {
+        // Big-endian-by-sample payload bytes (V) and the repunit pattern (S_L),
+        // both laid out most-significant-sample first for import_bits(msv=true).
+        std::vector<uint8_t> valueBytes(L * SAMPLE_BYTES, 0);
+        std::vector<uint8_t> repunitBytes(L * SAMPLE_BYTES, 0);
+        for (size_t i = 0; i < L; ++i) {
+            size_t   lo  = i * SAMPLE_BYTES;
+            uint32_t low = bytes[lo];
+            // A stray trailing byte (should not occur for 16-bit data) is treated
+            // as a low byte with a zero high byte so no value is silently dropped.
+            uint32_t high = (lo + 1 < bytes.size()) ? bytes[lo + 1] : 0U;
+
+            // Sample value, big-endian into valueBytes (high byte first).
+            valueBytes[lo]     = static_cast<uint8_t>(high);
+            valueBytes[lo + 1] = static_cast<uint8_t>(low);
+
+            // Repunit digit == 1 -> 0x0001 per sample.
+            repunitBytes[lo + 1] = 0x01;
+        }
+
+        cpp_int value = 0;
+        cpp_int repunit = 0;
+        boost::multiprecision::import_bits(value, valueBytes.begin(), valueBytes.end(), BITS_PER_BYTE, true);
+        boost::multiprecision::import_bits(repunit, repunitBytes.begin(), repunitBytes.end(), BITS_PER_BYTE, true);
+        index = value + repunit;
     }
 
     lastDebug.import_pcm_bytes      = bytes.size();
@@ -340,48 +368,64 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
 
 auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -> AudioIndex::AudioData {
     /**
-     * PAYLOAD-ONLY BIJECTION (integer -> samples)
+     * PAYLOAD-ONLY BIJECTION (integer -> samples), O(N) closed form.
      *
-     * Inverse of audioDataToIndex. Every alphabet-valid index decodes; nothing
-     * is rejected and there is intentionally no integrity check.
+     * Inverse of audioDataToIndex via the same identity n = V + S_L. Every
+     * alphabet-valid index decodes; nothing is rejected and there is
+     * intentionally no integrity check.
      *
-     *   while n > 0: { n -= 1; v = n mod B; emit v; n = n / B }   // then reverse
+     * The sample count L is recovered without any bignum division: for an
+     * L-sample payload, n lies in [S_L, S_{L+1}-1], and one can show that with
+     *   m = n*(B-1) + 1
+     * the count is L = floor(log_B(m)) = msb(m) / log2(B) = msb(m) / 16.
+     * Then S_L is the repunit, V = n - S_L (V < B^L), and the L base-B digits of
+     * V are the samples (first digit most significant). All steps are O(N).
      *
      * The decoded samples are serialized little-endian and wrapped in a fixed
      * default header (PCM, 44100 Hz, 16-bit, mono) for WAV writing.
-     *
-     * TODO(perf): O(L^2) per-sample bignum divmod; chunk long files by machine
-     * word instead.
      */
     auto t0_export = std::chrono::steady_clock::now();
 
-    const cpp_int B = SAMPLE_ALPHABET_SIZE;
-
-    cpp_int               n = index;
-    std::vector<uint16_t> samples; // collected least-significant-first, reversed below
-    while (n > 0) {
-        n -= 1;
-        auto v = static_cast<uint16_t>(static_cast<uint32_t>(n % B));
-        samples.push_back(v);
-        n /= B;
-    }
-    std::reverse(samples.begin(), samples.end());
-
-    // Apply the fixed default header (locked design): PCM, 44100 Hz, 16-bit, mono.
     AudioData audioData{};
     audioData.audio_format = PCM_FORMAT_CODE;
     audioData.num_channels = DEFAULT_NUM_CHANNELS;
     audioData.sample_rate  = DEFAULT_SAMPLE_RATE;
     audioData.bit_rate     = DEFAULT_BIT_DEPTH;
 
-    // Serialize each sample little-endian (2 bytes at the 16-bit default).
-    audioData.samples.reserve(samples.size() * (DEFAULT_BIT_DEPTH / BITS_PER_BYTE));
-    for (uint16_t v : samples) {
-        audioData.samples.push_back(static_cast<uint8_t>(v & BYTE_MASK));
-        audioData.samples.push_back(static_cast<uint8_t>((v >> BITS_PER_BYTE) & BYTE_MASK));
+    if (index > 0) {
+        // m = n*(B-1) + 1, computed without a general multiply: n*(B-1) = (n<<16) - n.
+        cpp_int m = (index << DEFAULT_BIT_DEPTH) - index + 1;
+        size_t  L = static_cast<size_t>(boost::multiprecision::msb(m) / DEFAULT_BIT_DEPTH);
+
+        // S_L repunit (L copies of 0x00 0x01, most-significant-sample first).
+        std::vector<uint8_t> repunitBytes(L * SAMPLE_BYTES, 0);
+        for (size_t i = 0; i < L; ++i) {
+            repunitBytes[(i * SAMPLE_BYTES) + 1] = 0x01;
+        }
+        cpp_int repunit = 0;
+        boost::multiprecision::import_bits(repunit, repunitBytes.begin(), repunitBytes.end(), BITS_PER_BYTE, true);
+
+        // V = n - S_L is the base-B value of the samples (V < B^L).
+        cpp_int              value = index - repunit;
+        std::vector<uint8_t> valueBytes;
+        boost::multiprecision::export_bits(value, std::back_inserter(valueBytes), BITS_PER_BYTE, true);
+
+        // Left-pad to exactly L*SAMPLE_BYTES (export strips leading zero bytes).
+        std::vector<uint8_t> padded(L * SAMPLE_BYTES, 0);
+        if (valueBytes.size() <= padded.size()) {
+            std::copy(valueBytes.begin(), valueBytes.end(), padded.end() - static_cast<std::ptrdiff_t>(valueBytes.size()));
+        }
+
+        // Each sample is big-endian [high, low] in `padded`; emit little-endian.
+        audioData.samples.resize(L * SAMPLE_BYTES);
+        for (size_t i = 0; i < L; ++i) {
+            size_t off                     = i * SAMPLE_BYTES;
+            audioData.samples[off]         = padded[off + 1]; // low byte
+            audioData.samples[off + 1]     = padded[off];     // high byte
+        }
     }
 
-    audioData.num_frames = samples.size() / audioData.num_channels;
+    audioData.num_frames = (audioData.samples.size() / SAMPLE_BYTES) / audioData.num_channels;
 
     lastDebug.export_pcm_bytes      = audioData.samples.size();
     lastDebug.export_expected_bytes = audioData.samples.size();

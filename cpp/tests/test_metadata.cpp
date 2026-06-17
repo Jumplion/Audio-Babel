@@ -64,7 +64,9 @@ TEST_CASE("AudioIndex: indexToMetadata deterministic and valid", "[metadata][det
 
     auto        m1     = AudioIndex::indexToMetadata(idx);
     auto        m2     = AudioIndex::indexToMetadata(idx);
-    std::string b64str = encode_b64_url(bytes);
+    // Metadata is now derived from the bijective base-64 string of the integer,
+    // not from the bit-packed base-64 of the raw bytes.
+    std::string b64str = AudioBabel::Utilities::indexToB64(idx);
 
     SECTION("Metadata extraction is deterministic") {
         REQUIRE(m1.genre == m2.genre);

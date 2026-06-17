@@ -1,12 +1,16 @@
 // Simple CLI to extract an index from an audio file using AudioIndex
-// Usage: extract_index_cli <input_wav> <out_index.bin>
+// Usage: extract_index_cli <input_wav> <out_index.txt>
+//
+// Writes the canonical payload-only index as a bijective URL-safe base-64
+// string (see docs/INDEX_FORMAT.md). The previous raw-PCM-plus-16-byte-trailer
+// format has been removed in favour of this single canonical encoding.
 #include <boost/multiprecision/cpp_int.hpp>
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <vector>
 
 #include "../include/AudioIndex.h"
+#include "../include/Utilities.h"
 
 using namespace std;
 using boost::multiprecision::cpp_int;
@@ -14,7 +18,7 @@ using namespace AudioBabel;
 
 auto main(int argc, char** argv) -> int {
     if (argc < 3) {
-        cerr << "Usage: extract_index_cli <input_wav> <out_index.bin>" << '\n';
+        cerr << "Usage: extract_index_cli <input_wav> <out_index.txt>" << '\n';
         return 2;
     }
     string inPath  = argv[1];
@@ -23,41 +27,13 @@ auto main(int argc, char** argv) -> int {
         auto    audioData = AudioIndex::extractAudioDataFromAudioFile(inPath);
         cpp_int idx       = AudioIndex::audioDataToIndex(audioData);
 
-        // NOTE: This is a *different* on-disk format from AudioIndex's own 13-byte
-        // little-endian header (see AudioIndex.h / docs/INDEX_FORMAT.md). For
-        // compatibility with the server's expectations, this CLI instead writes
-        // the raw PCM payload bytes followed by a separate 16-byte big-endian
-        // trailer. Do not confuse this "server trailer format" with the
-        // AudioIndex 13-byte header used by audioDataToIndex()/indexToAudioData().
-        ofstream out(outPath, ios::binary);
+        ofstream out(outPath);
         if (!out) {
             cerr << "Failed to open output file" << '\n';
             return 3;
         }
 
-        // Write raw PCM bytes as-is
-        if (!audioData.samples.empty()) {
-            out.write(reinterpret_cast<const char*>(audioData.samples.data()), audioData.samples.size());
-        }
-
-        // 16-byte big-endian trailer: sampleRate (u32), bitDepth (u16), numChannels (u16), numFrames (u64)
-        auto write_be = [&](uint64_t val, size_t bytes) {
-            for (int i = static_cast<int>(bytes) - 1; i >= 0; --i) {
-                auto c = static_cast<unsigned char>((val >> (8 * i)) & 0xFF);
-                out.put(static_cast<char>(c));
-            }
-        };
-
-        auto sr     = audioData.sample_rate;
-        auto bd     = audioData.bit_rate;
-        auto ch     = audioData.num_channels;
-        auto frames = static_cast<uint64_t>(audioData.num_frames);
-
-        write_be(sr, 4);
-        write_be(bd, 2);
-        write_be(ch, 2);
-        write_be(frames, 8);
-
+        out << Utilities::indexToB64(idx) << '\n';
         out.close();
         return 0;
     } catch (const std::exception& ex) {

@@ -19,15 +19,9 @@ auto calculateLibraryPosition(const cpp_int& index) -> LibraryPosition {
     cpp_int roomNumber = index / ITEMS_PER_ROOM;
     cpp_int withinRoom = index % ITEMS_PER_ROOM;
 
-    // Encode room number as base64
-    // Room 0 special case: use empty string for simplicity
-    if (roomNumber == 0) {
-        pos.room = "";
-    } else {
-        std::vector<uint8_t> roomBytes;
-        boost::multiprecision::export_bits(roomNumber, std::back_inserter(roomBytes), 8, true);
-        pos.room = Utilities::encodeBase64Url(roomBytes);
-    }
+    // Encode the room number with the bijective base-64 used everywhere else.
+    // Room 0 naturally maps to the empty string (indexToB64(0) == "").
+    pos.room = Utilities::indexToB64(roomNumber);
 
     // Calculate hierarchical position within the room using modular arithmetic
     pos.wall = static_cast<uint8_t>((withinRoom / ITEMS_PER_WALL) % WALLS_PER_ROOM);
@@ -62,13 +56,8 @@ auto reconstructIndexFromPosition(const LibraryPosition& pos) -> cpp_int {
                                     std::to_string(LibraryConstants::TRACKS_PER_ALBUM - 1) + ")");
     }
 
-    // Decode room from base64
-    std::vector<uint8_t> roomBytes = Utilities::decodeBase64Url(pos.room);
-
-    cpp_int roomNumber = 0;
-    if (!roomBytes.empty()) {
-        boost::multiprecision::import_bits(roomNumber, roomBytes.begin(), roomBytes.end(), 8, true);
-    }
+    // Decode room from the bijective base-64 string (empty string -> 0).
+    cpp_int roomNumber = Utilities::b64ToIndex(pos.room);
 
     // Reconstruct index from room number and hierarchical position
     cpp_int index = roomNumber * cpp_int(ITEMS_PER_ROOM);

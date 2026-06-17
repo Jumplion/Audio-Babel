@@ -29,81 +29,66 @@ Every unique audio file maps to exactly one index, and every index maps to exact
 
 ## How an Index Is Generated from Audio
 
-An audio index is a single big integer that embeds both format metadata and the complete PCM audio payload. It is serialized as a URL-safe base64 string for storage and transmission.
+An audio index is a single big integer that **is a true bijection of the PCM
+sample payload** — every payload maps to exactly one index and every index maps
+to exactly one payload. The index contains **no header** and no format metadata;
+it is serialized as a URL-safe base64 string for storage and transmission. See
+[`docs/INDEX_FORMAT.md`](docs/INDEX_FORMAT.md) for the full specification.
 
 ### Step 1 — Parse the WAV file
 
-The input WAV file is read and validated (RIFF header, format chunk, PCM data chunk). The raw PCM sample bytes and format properties are extracted into an `AudioData` struct containing the sample rate, bit depth, channel count, frame count, and sample bytes.
+The input WAV file is read and validated (RIFF header, format chunk, PCM data chunk). The raw PCM sample bytes are extracted into an `AudioData` struct.
 
-### Step 2 — Build the 13-byte header
+### Step 2 — Index the samples (payload only)
 
-A fixed-size header is constructed with the audio's format metadata:
-
-```cpp
-Byte 0:       0x01            (format version)
-Bytes 1–4:    frame count     (uint32, little-endian)
-Bytes 5–8:    sample rate     (uint32, little-endian)
-Bytes 9–10:   bit depth       (uint16, little-endian — 8, 16, or 32)
-Bytes 11–12:  channel count   (uint16, little-endian)
-```
-
-For example, 2 minutes of 44.1 kHz / 16-bit / mono audio has 5,292,000 frames and a 10,584,000-byte PCM payload.
-
-### Step 3 — Concatenate header + PCM data
-
-The 13-byte header and the raw PCM sample bytes are joined into a single byte array:
+The payload is read as a sequence of **unsigned little-endian 16-bit samples**
+(alphabet size `B = 1u << DEFAULT_BIT_DEPTH = 65536`). The integer is built with
+**bijective numeration**, where each digit is the sample value plus one:
 
 ```cpp
-[13-byte header] [PCM sample bytes (little-endian per sample)]
+n = 0;
+for each sample v in order:   // v in 0..65535
+    n = n * B + (v + 1);
 ```
 
-### Step 4 — Convert to a big integer
+Because each digit is `value + 1`, trailing zero (silence) samples are preserved:
+`k` vs `k+1` trailing zeros yield different indices. No header, version, frame
+count, sample rate, bit depth, or channel count is stored in the index.
 
-The byte array is imported into a `boost::multiprecision::cpp_int` using MSB-first ordering — byte 0 (the version byte) becomes the most significant byte, and the last PCM byte becomes the least significant:
+### Step 3 — Encode as bijective URL-safe base64
 
-```cpp
-boost::multiprecision::import_bits(index, bytes.begin(), bytes.end(), 8, true);
-```
-
-### Step 5 — Encode as URL-safe base64
-
-The big integer is exported back to bytes and then encoded using the URL-safe base64 alphabet (`A–Z a–z 0–9 - _`) with **no padding** characters. The result is a single continuous string like `AQMAAABELEGAABAACAA...` that uniquely identifies and fully contains the audio file.
+The big integer is rendered as a string over the URL-safe alphabet
+(`A–Z a–z 0–9 - _`, no padding) using the same bijective numeration
+(`Utilities::indexToB64`). The empty payload maps to integer `0`, which maps to
+the empty string.
 
 ## How Audio Is Reconstructed from an Index
 
-### Step 1 — Decode base64 to bytes
+### Step 1 — Decode the index string to a big integer
 
-The URL-safe base64 string (no padding) is decoded back into a byte array. Every character is validated against the allowed alphabet (`A–Z a–z 0–9 - _`).
+The URL-safe base64 string is converted back to a `cpp_int` with
+`Utilities::b64ToIndex` (`n = n * 64 + (alphaValue(c) + 1)` per character). Every
+alphabet-valid string decodes; there is intentionally **no integrity check**, so
+a truncated or mistyped index simply decodes to a different valid payload.
 
-### Step 2 — Import bytes into a big integer
+### Step 2 — Decode the integer back to samples
 
-The byte array is loaded into a `cpp_int` via `import_bits` (MSB-first).
-
-### Step 3 — Export the big integer back to bytes
-
-`export_bits` serializes the integer back to a byte vector. Because `export_bits` strips leading zeros that may have been trailing in the original payload, the header metadata is used to restore the expected length.
-
-### Step 4 — Parse the 13-byte header
-
-The first 13 bytes are read to recover format metadata: version (must be `0x01`), frame count, sample rate, bit depth, and channel count. These values are validated (e.g., bit depth must be 8, 16, or 32).
-
-### Step 5 — Restore trailing zero bytes
-
-The expected PCM payload size is computed from the header:
+The inverse bijection recovers the samples exactly, including leading and
+trailing zero samples and the exact sample count:
 
 ```cpp
-expected_bytes = frame_count × channel_count × (bit_depth / 8)
+while (n > 0) {
+    n -= 1;
+    v  = n mod B;   // emit v
+    n  = n / B;
+}                   // then reverse; serialize each sample little-endian
 ```
 
-If the actual payload is shorter (because big-integer export strips trailing zeros), zero bytes are appended until the expected size is reached.
+### Step 3 — Apply the fixed default header and write a WAV
 
-### Step 6 — Extract PCM samples
-
-Bytes 13 onward are sliced as the raw PCM audio data. Combined with the header metadata, this yields a complete `AudioData` struct ready for playback or WAV export.
-
-### Step 7 — Write a WAV file (optional)
-
-The `AudioData` is wrapped in a standard RIFF/WAVE container (44-byte header + PCM payload) and written to disk or returned to the browser as a playable `.wav` file.
+The decoded samples are wrapped in a fixed default header — **PCM, 44100 Hz,
+16-bit, mono** — and written as a standard RIFF/WAVE file. The header is applied
+only at this step; it is never part of the index.
 
 ## Library Position
 

@@ -66,30 +66,22 @@ void FileWriters::writeIndexToFile(const boost::multiprecision::cpp_int& index, 
         // best-effort
     }
 
-    // Export bytes once (MSB-first) and produce all encodings from these bytes
-    std::vector<uint8_t> bytes;
-    boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8, true);
+    // Serialize the index through the bijective base-64 encoding (single string
+    // encoding shared across the whole system).
+    std::string base64Str = Utilities::indexToB64(index);
 
-    // Make a short stable stem from first bytes (hex)
-    std::ostringstream stem_ss;
-    stem_ss << std::hex << std::setfill('0');
-    size_t take = std::min<size_t>(bytes.size(), 6);
-    for (size_t i = 0; i < take; ++i) {
-        stem_ss << std::setw(2) << static_cast<int>(bytes[i]);
-    }
-    std::string stem = stem_ss.str();
+    // Make a short stable stem from the leading characters of the index string.
+    // The empty index (integer 0) yields an empty string, so fall back to "0".
+    std::string stem = base64Str.empty() ? std::string("0") : base64Str.substr(0, std::min<size_t>(base64Str.size(), 12));
 
     // choose base name: provided filename or generated stem
     std::string name = filename.empty() ? stem : filename;
 
-    // write base64 textual representation as <dir>/<name>.b64.txt
     std::ofstream out((dir / (name + ".txt")).string());
     if (!out) {
         throw std::runtime_error("Failed to open output file: " + (dir / (name + ".txt")).string());
     }
 
-    // Use the centralized URL-safe base64 encoder from Utilities.h
-    std::string base64Str = encodeBase64Url(bytes);
     out << base64Str << '\n';
     out.close();
 }

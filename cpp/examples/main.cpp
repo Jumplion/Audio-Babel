@@ -8,6 +8,7 @@
 
 #include "AudioIndex.h"
 #include "FileWriters.h"
+#include "Utilities.h"
 #ifndef M_PI
 #    define M_PI 3.14159265358979323846
 #endif
@@ -21,7 +22,7 @@ auto main(int argc, char** argv) -> int {
         std::cerr << "  example_main <input> [output]\n";
         std::cerr << "Description:\n";
         std::cerr << "  If <input> is a .wav file the program will read it and produce an index file as output.\n";
-        std::cerr << "  If <input> is a decimal index file the program will reconstruct a .wav file as output.\n";
+        std::cerr << "  If <input> is a base64 index file the program will reconstruct a .wav file as output.\n";
         std::cerr << "Examples:\n";
         std::cerr << "  example_main song.wav song_index.txt\n";
         std::cerr << "  example_main song_index.txt song_recon.wav\n";
@@ -78,7 +79,7 @@ auto main(int argc, char** argv) -> int {
             if (!out) {
                 throw std::runtime_error("Failed to open output index file: " + output);
             }
-            out << idx.convert_to<std::string>() << "\n";
+            out << AudioBabel::Utilities::indexToB64(idx) << "\n";
             out.close();
 
             std::cerr << "Wrote index to: " << output << "\n";
@@ -127,14 +128,7 @@ auto main(int argc, char** argv) -> int {
             throw std::runtime_error("Empty index file: " + input);
         }
 
-        boost::multiprecision::cpp_int idx;
-        {
-            std::istringstream ss(contents);
-            ss >> idx;
-            if (ss.fail()) {
-                throw std::runtime_error("Failed to parse index from file: " + input);
-            }
-        }
+        boost::multiprecision::cpp_int idx = AudioBabel::Utilities::b64ToIndex(contents);
 
         std::cerr << "Reconstructing WAV from index...\n";
         AudioIndex::AudioData data = AudioIndex::indexToAudioData(idx);

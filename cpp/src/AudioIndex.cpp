@@ -17,6 +17,7 @@
 #include "Constants.h"
 #include "FileWriters.h"
 #include "IndexMetadata.h"
+#include "IndexScramble.h"
 #include "Utilities.h"
 
 using boost::multiprecision::cpp_int;
@@ -357,6 +358,11 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
         index = value + repunit;
     }
 
+    // Optional reversible scramble so similar payloads land far apart. This is a
+    // bijection that preserves the length-band, so it is identity-safe when
+    // disabled and never breaks the round-trip when enabled.
+    index = IndexScramble::applyScramble(index);
+
     lastDebug.import_pcm_bytes      = bytes.size();
     lastDebug.import_expected_bytes = bytes.size();
 
@@ -386,15 +392,19 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
      */
     auto t0_export = std::chrono::steady_clock::now();
 
+    // Undo the optional reversible scramble (identity unless enabled) before
+    // decoding. The stored index is what carries the scramble.
+    const cpp_int idx = IndexScramble::applyUnscramble(index);
+
     AudioData audioData{};
     audioData.audio_format = PCM_FORMAT_CODE;
     audioData.num_channels = DEFAULT_NUM_CHANNELS;
     audioData.sample_rate  = DEFAULT_SAMPLE_RATE;
     audioData.bit_rate     = DEFAULT_BIT_DEPTH;
 
-    if (index > 0) {
+    if (idx > 0) {
         // m = n*(B-1) + 1, computed without a general multiply: n*(B-1) = (n<<16) - n.
-        cpp_int m = (index << DEFAULT_BIT_DEPTH) - index + 1;
+        cpp_int m = (idx << DEFAULT_BIT_DEPTH) - idx + 1;
         size_t  L = static_cast<size_t>(boost::multiprecision::msb(m) / DEFAULT_BIT_DEPTH);
 
         // S_L repunit (L copies of 0x00 0x01, most-significant-sample first).
@@ -406,7 +416,7 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
         boost::multiprecision::import_bits(repunit, repunitBytes.begin(), repunitBytes.end(), BITS_PER_BYTE, true);
 
         // V = n - S_L is the base-B value of the samples (V < B^L).
-        cpp_int              value = index - repunit;
+        cpp_int              value = idx - repunit;
         std::vector<uint8_t> valueBytes;
         boost::multiprecision::export_bits(value, std::back_inserter(valueBytes), BITS_PER_BYTE, true);
 

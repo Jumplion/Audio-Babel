@@ -158,35 +158,74 @@ inline auto base64UrlValue(char c) -> int {
     return -1;
 }
 
-// integer -> index string (bijective base 64):
-//   while n > 0: { n -= 1; emit ALPHA[n mod 64]; n = n / 64 }  // then reverse
-inline auto indexToB64(boost::multiprecision::cpp_int n) -> std::string {
+// Number of bits per base-64 digit.
+constexpr unsigned BASE64_DIGIT_BITS = 6; // 1 << 6 == 64
+
+// integer -> index string (bijective base 64).
+//
+// Conceptually: while n > 0 { n -= 1; emit ALPHA[n mod 64]; n /= 64 } reversed.
+// That per-digit loop is O(len^2). We use the exact identity instead (see the
+// AudioIndex.cpp comments for the analogous base-B derivation):
+//   n = V64 + S64,  V64 = base-64 value of the digit string (digits 0..63),
+//                   S64 = (64^len - 1)/63 = base-64 repunit (all digits == 1).
+// The digit count is len = msb(n*63 + 1) / 6, recovered without bignum division.
+// All steps are linear in the output length.
+inline auto indexToB64(const boost::multiprecision::cpp_int& n) -> std::string {
     if (n < 0) {
         throw std::invalid_argument("indexToB64: index must be non-negative");
     }
-    std::string out;
-    while (n > 0) {
-        n -= 1;
-        auto digit = static_cast<unsigned>(n % BASE64_ALPHABET_SIZE);
-        out.push_back(BASE64_URL_ALPHA[digit]);
-        n /= BASE64_ALPHABET_SIZE;
+    if (n == 0) {
+        return std::string();
     }
-    std::reverse(out.begin(), out.end());
+
+    // len = floor(log_64(n*(64-1) + 1)).
+    boost::multiprecision::cpp_int m   = (n * (BASE64_ALPHABET_SIZE - 1)) + 1;
+    size_t                        len = static_cast<size_t>(boost::multiprecision::msb(m) / BASE64_DIGIT_BITS);
+
+    // S64 repunit: `len` digits all equal to 1.
+    std::vector<uint8_t> repunitDigits(len, 1);
+    boost::multiprecision::cpp_int repunit = 0;
+    boost::multiprecision::import_bits(repunit, repunitDigits.begin(), repunitDigits.end(), BASE64_DIGIT_BITS, true);
+
+    // V64 = n - S64; its base-64 digits (most significant first) are the output.
+    boost::multiprecision::cpp_int value = n - repunit;
+    std::vector<uint8_t>           digits;
+    boost::multiprecision::export_bits(value, std::back_inserter(digits), BASE64_DIGIT_BITS, true);
+
+    std::string out(len, BASE64_URL_ALPHA[0]);
+    // export_bits strips leading zero digits; align to the right of the output.
+    size_t offset = (digits.size() <= len) ? (len - digits.size()) : 0;
+    for (size_t i = 0; i < digits.size() && offset + i < len; ++i) {
+        out[offset + i] = BASE64_URL_ALPHA[digits[i]];
+    }
     return out;
 }
 
-// index string -> integer:
-//   n = 0; for each char c in order: n = n*64 + (alphaValue(c) + 1)
+// index string -> integer.
+//
+// Conceptually: n = 0; for each char c: n = n*64 + (alphaValue(c) + 1).
+// Using the same identity, n = V64 + S64 where V64 is built from the 6-bit digit
+// values in one linear import_bits pass and S64 is the base-64 repunit.
 inline auto b64ToIndex(const std::string& s) -> boost::multiprecision::cpp_int {
-    boost::multiprecision::cpp_int n = 0;
-    for (char c : s) {
-        int v = base64UrlValue(c);
+    if (s.empty()) {
+        return boost::multiprecision::cpp_int(0);
+    }
+
+    std::vector<uint8_t> digits(s.size());
+    std::vector<uint8_t> repunitDigits(s.size(), 1);
+    for (size_t i = 0; i < s.size(); ++i) {
+        int v = base64UrlValue(s[i]);
         if (v < 0) {
             throw std::invalid_argument("b64ToIndex: invalid base64 character in index");
         }
-        n = (n * BASE64_ALPHABET_SIZE) + (v + 1);
+        digits[i] = static_cast<uint8_t>(v);
     }
-    return n;
+
+    boost::multiprecision::cpp_int value   = 0;
+    boost::multiprecision::cpp_int repunit = 0;
+    boost::multiprecision::import_bits(value, digits.begin(), digits.end(), BASE64_DIGIT_BITS, true);
+    boost::multiprecision::import_bits(repunit, repunitDigits.begin(), repunitDigits.end(), BASE64_DIGIT_BITS, true);
+    return value + repunit;
 }
 
 } // namespace AudioBabel::Utilities

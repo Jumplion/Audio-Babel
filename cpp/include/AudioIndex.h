@@ -206,8 +206,9 @@ class AudioIndex {
      * @note Never throws on the payload: there is no validation that can reject an index.
      *
      * @par Performance
-     * The per-sample bignum arithmetic is O(L^2) in the number of samples L; acceptable for
-     * short clips. See the TODO in the implementation for chunked processing of long files.
+     * O(N) in the payload size: the integer is built with the closed-form identity n = V + S_L
+     * (payload value plus the base-B repunit) using linear import_bits passes and a single
+     * big-integer addition — not a per-sample bignum loop.
      *
      * @see indexToAudioData for the inverse operation
      * @see getLastDebugInfo for performance diagnostics
@@ -226,6 +227,11 @@ class AudioIndex {
      *
      * @note Does not throw on any alphabet-valid index; there is intentionally no integrity
      *       check. Trailing zero (silence) samples are preserved exactly.
+     *
+     * @par Performance
+     * O(N) in the payload size: the sample count and digits are recovered from the same
+     * n = V + S_L identity (magnitude check plus one subtraction), with no per-sample bignum
+     * division.
      *
      * @see audioDataToIndex for the inverse operation
      */

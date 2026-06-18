@@ -2,15 +2,15 @@
 Runs clang-tidy over the repository C++ sources using the build/ compile_commands.json.
 Usage:
     # analyze all cpp files under cpp/src
-    .\tools\run-clang-tidy.ps1
+    .\tools\powershell\run-clang-tidy.ps1
 
     # analyze specific files
-    .\tools\run-clang-tidy.ps1 -Files "cpp\\src\\AudioIndex.cpp"
+    .\tools\powershell\run-clang-tidy.ps1 -Files "cpp\\src\\AudioIndex.cpp"
 
     # apply compile error fixes
-    .\tools\run-clang-tidy.ps1 -FixErrors
+    .\tools\powershell\run-clang-tidy.ps1 -FixErrors
 
-Output is written to tools/clang-tidy-output.txt
+Output is written to tools/powershell/clang-tidy-output.txt
 #>
 Param(
     [Parameter(Mandatory = $false)]
@@ -18,7 +18,7 @@ Param(
 )
 
 $scriptDir = Split-Path -Parent $PSCommandPath
-$buildDir = Join-Path $scriptDir '..\build'
+$buildDir = Join-Path $scriptDir '..\..\build'
 $compileCommands = Join-Path $buildDir 'compile_commands.json'
 if (-not (Test-Path $compileCommands)) {
     Write-Error "compile_commands.json not found in $buildDir. Run: cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
@@ -27,7 +27,7 @@ if (-not (Test-Path $compileCommands)) {
 
 if (-not $Files) {
     # Collect common C/C++ source and header extensions from the repository root
-    $root = Join-Path $scriptDir '..\cpp'
+    $root = Join-Path $scriptDir '..\..\cpp'
     $extensions = @('.cpp', '.cxx', '.cc', '.c', '.h', '.hpp', '.hxx')
     $Files = Get-ChildItem -Path $root -Recurse -File | Where-Object {
         $ext = $_.Extension.ToLower()

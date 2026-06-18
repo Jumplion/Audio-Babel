@@ -4,7 +4,7 @@ param(
 )
 
 # Resolve repo root and default build dir
-$RepoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')
+$RepoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')
 if ([string]::IsNullOrWhiteSpace($BuildDir)) {
     $BuildDir = Join-Path $RepoRoot 'build'
 } elseif (-not [System.IO.Path]::IsPathRooted($BuildDir)) {

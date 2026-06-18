@@ -23,6 +23,6 @@ Create a new CLI tool for the Audio Babel project. Follow the existing pattern e
    endif()
    ```
 
-3. **Build and verify**: Run `tools/build.ps1 -Configuration Debug` to confirm it compiles.
+3. **Build and verify**: Run `tools/powershell/build.ps1 -Configuration Debug` to confirm it compiles.
 
 Reference [extract_index_cli.cpp](../../cpp/tools/extract_index_cli.cpp) and [reconstruct_cli.cpp](../../cpp/tools/reconstruct_cli.cpp) for working examples.

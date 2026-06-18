@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_DIR="$SCRIPT_DIR/../build"
+BUILD_DIR="$SCRIPT_DIR/../../build"
 if [ ! -f "$BUILD_DIR/compile_commands.json" ]; then
   echo "compile_commands.json not found in $BUILD_DIR. Run: cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON" >&2
   exit 2
 fi
 
 if [ "$#" -eq 0 ]; then
-  mapfile -t FILES < <(find "$SCRIPT_DIR/../cpp/src" -name '*.cpp')
+  mapfile -t FILES < <(find "$SCRIPT_DIR/../../cpp/src" -name '*.cpp')
 else
   FILES=("$@")
 fi
@@ -36,7 +36,7 @@ BASENAME_PATTERNS=()
 for f in "${FILES[@]}"; do
   # prefer realpath if available, fallback to the given path
   if command -v realpath >/dev/null 2>&1; then
-    abs="$ (realpath "$f")"
+    abs="$(realpath "$f")"
   else
     abs="$f"
   fi

@@ -55,8 +55,11 @@ TEST_CASE("Scramble: pure transform is an exact bijection", "[scramble][bijectio
     REQUIRE(IndexScramble::scramble(0, seed) == 0);
     REQUIRE(IndexScramble::unscramble(0, seed) == 0);
 
+    // Each round-trip now permutes across a whole length-tier (the tier-1 domain
+    // for these small values is ~88 KB), so this is intentionally a few hundred
+    // iterations rather than thousands — still a thorough bijection fuzz.
     std::mt19937_64 rng(2026);
-    for (int t = 0; t < 5000; ++t) {
+    for (int t = 0; t < 400; ++t) {
         // Random non-negative integer of a random bit width.
         size_t  bits = rng() % 800;
         cpp_int n    = 0;
@@ -126,6 +129,91 @@ TEST_CASE("Scramble: enabled pipeline still round-trips exactly", "[scramble][to
     auto decoded = AudioIndex::indexToAudioData(scrambledIndex);
     REQUIRE(decoded.samples == ad.samples);
     REQUIRE(decoded.num_frames == ad.samples.size() / 2);
+}
+
+namespace {
+
+// Recovers the sample-band L of an index, mirroring IndexScramble::bandIndex
+// (which is file-local). L is the decoded sample count for that index.
+auto bandOf(const cpp_int& n) -> size_t {
+    if (n == 0) {
+        return 0;
+    }
+    cpp_int m = (n * (SAMPLE_ALPHABET_SIZE - 1)) + 1;
+    return static_cast<size_t>(boost::multiprecision::msb(m) / DEFAULT_BIT_DEPTH);
+}
+
+// Builds an index whose sample-band sits comfortably inside `band`, without
+// having to materialise a full repunit in the test.
+auto indexInBand(size_t band, uint32_t jitter) -> cpp_int {
+    cpp_int n = cpp_int(1) << ((DEFAULT_BIT_DEPTH * band) + 5);
+    return n + jitter;
+}
+
+} // namespace
+
+TEST_CASE("Scramble: short indices spread into a much longer length tier", "[scramble][tier]") {
+    const uint64_t seed = 0xD15EA5E5EEDULL;
+
+    // A handful of short indices (a few samples each) of the kind a user might
+    // type. Decoding runs unscramble() internally, so this is the user-facing
+    // "type a short index, hear something interesting" path. Tier 1 caps at
+    // 44100 samples (1s @ 44.1 kHz); the top band holds ~(1 - 1/B) of the tier,
+    // so each one should land near that cap rather than at a few samples.
+    ScrambleGuard on(true, seed);
+    for (cpp_int small : {cpp_int(1), cpp_int(7), cpp_int(12345), cpp_int("99999999")}) {
+        auto decoded = AudioIndex::indexToAudioData(small);
+        INFO("short index = " << small << " -> frames = " << decoded.num_frames);
+        REQUIRE(decoded.num_frames >= 40000); // within the tier-1 (1s) cap
+        REQUIRE(decoded.num_frames <= 44100);
+    }
+}
+
+TEST_CASE("Scramble: a 3-sample payload is still represented and exact", "[scramble][tier][roundtrip]") {
+    const uint64_t seed = 0xA11CE;
+    ScrambleGuard  on(true, seed);
+
+    // The bijection still has room for tiny payloads; encoding one produces a
+    // valid (scattered, much larger) index that decodes back to exactly 3
+    // samples. Nothing about tiering removes short audio from the codomain.
+    auto ad     = makePayload({1234, 0, 65535});
+    auto index  = AudioIndex::audioDataToIndex(ad); // scrambled / "public" index
+    auto back   = AudioIndex::indexToAudioData(index);
+    REQUIRE(back.num_frames == 3);
+    REQUIRE(back.samples == ad.samples);
+}
+
+TEST_CASE("Scramble: tiered permutation is a bijection and stays within its tier", "[scramble][tier][bijection]") {
+    const uint64_t seed = 0xBADC0FFEE0DDF00DULL;
+
+    // One representative band inside several tiers: tier 2 (<=5s), tier 4
+    // (<=20s) and tier 6 (<=45s). scramble()/unscramble() must round-trip, and
+    // the scrambled index must stay inside the same tier's length bounds.
+    struct Case {
+        size_t band;
+        size_t tierLow;
+        size_t tierHigh;
+    };
+    const std::vector<Case> cases = {
+        {150000, 44101, 220500},   // tier 2
+        {700000, 441001, 882000},  // tier 4
+        {1500000, 1323001, 1984500} // tier 6
+    };
+
+    for (const auto& c : cases) {
+        cpp_int n = indexInBand(c.band, 4242);
+        INFO("band ~= " << c.band);
+        REQUIRE(bandOf(n) >= c.tierLow);
+        REQUIRE(bandOf(n) <= c.tierHigh);
+
+        cpp_int s = IndexScramble::scramble(n, seed);
+        REQUIRE(IndexScramble::unscramble(s, seed) == n);
+
+        // Length changed (scattered) but is still bounded by the same tier.
+        size_t sBand = bandOf(s);
+        REQUIRE(sBand >= c.tierLow);
+        REQUIRE(sBand <= c.tierHigh);
+    }
 }
 
 TEST_CASE("Scramble: invariants hold with scramble enabled", "[scramble][bijection][roundtrip]") {

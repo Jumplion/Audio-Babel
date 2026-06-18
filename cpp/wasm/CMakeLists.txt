@@ -49,6 +49,7 @@ set(AUDIO_INDEX_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/IndexMetadata.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/FileWriters.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/LibraryPosition.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/IndexScramble.cpp
 )
 
 # WASM bindings

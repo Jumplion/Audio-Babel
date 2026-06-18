@@ -358,9 +358,10 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
         index = value + repunit;
     }
 
-    // Optional reversible scramble so similar payloads land far apart. This is a
-    // bijection that preserves the length-band, so it is identity-safe when
-    // disabled and never breaks the round-trip when enabled.
+    // Optional reversible scramble so similar payloads land far apart (and short
+    // indices reach a wider range of lengths). It is a bijection within each
+    // length-tier, so it is identity-safe when disabled and never breaks the
+    // round-trip when enabled. See IndexScramble.h.
     index = IndexScramble::applyScramble(index);
 
     lastDebug.import_pcm_bytes      = bytes.size();

@@ -15,8 +15,8 @@ pushd "$BUILD_DIR" >/dev/null
 if [[ -z "$TEST_MODE" ]]; then
   echo ""
   echo "Select tests to run:"
-  echo "  1) Unit tests (tests_catch2.exe)"
-  echo "  2) Performance benchmarks (performance_benchmarks.exe)"
+  echo "  1) Unit tests (tests_catch2)"
+  echo "  2) Performance benchmarks (performance_benchmarks)"
   echo "  3) Both"
   echo ""
   read -p "Enter choice (1-3): " choice
@@ -37,7 +37,7 @@ exit_code=0
 
 # Run unit tests
 if [[ "$TEST_MODE" == "unit" || "$TEST_MODE" == "both" ]]; then
-  UNIT_TEST_EXE="tests_catch2.exe"
+  UNIT_TEST_EXE="tests_catch2"
   if [[ ! -x "$UNIT_TEST_EXE" && ! -f "$UNIT_TEST_EXE" ]]; then
     echo "Unit test executable '$UNIT_TEST_EXE' not found in $(pwd)" >&2
     popd >/dev/null
@@ -51,7 +51,7 @@ fi
 
 # Run performance benchmarks
 if [[ "$TEST_MODE" == "performance" || "$TEST_MODE" == "both" ]]; then
-  PERF_TEST_EXE="performance_benchmarks.exe"
+  PERF_TEST_EXE="performance_benchmarks"
   if [[ ! -x "$PERF_TEST_EXE" && ! -f "$PERF_TEST_EXE" ]]; then
     echo "Warning: Performance benchmark executable '$PERF_TEST_EXE' not found in $(pwd)" >&2
     if [[ "$TEST_MODE" == "performance" ]]; then

@@ -12,7 +12,7 @@ function Open-Browser($url) {
 }
 
 # Resolve repo root
-$RepoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')
+$RepoRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')
 
 # Prefer server package.json in web/server
 $serverPkg = Join-Path $RepoRoot 'web\server\package.json'

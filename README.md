@@ -25,7 +25,7 @@ Every unique audio file maps to exactly one index, and every index maps to exact
 | `cpp/wasm/` | Emscripten WASM build; outputs to `docs/wasm/` |
 | `cpp/examples/`, `cpp/tools/` | CLI binaries (example, extract, reconstruct) |
 | `docs/` | Static web app (GitHub Pages) |
-| `tools/` | Cross-platform build/test/run scripts |
+| `tools/powershell/`, `tools/bash/` | Build/test/run scripts (PowerShell, Bash) |
 
 ## How an Index Is Generated from Audio
 
@@ -118,47 +118,58 @@ The index integer is divided by 9,600. The quotient identifies the room (base64-
 **PowerShell (Windows):**
 
 ```powershell
-.\tools\build.ps1 -Configuration Debug
+.\tools\powershell\build.ps1 -Configuration Debug
 ```
 
 **Bash (Linux / WSL):**
 
 ```bash
-./tools/build.sh Debug
+./tools/bash/build.sh Debug "Unix Makefiles" build
 ```
 
 This creates the `build/` directory and compiles:
 
 | Output | Description |
 | -------- | ------------- |
-| `build/audiolib.lib` | Static library |
-| `build/tests_catch2.exe` | Unit tests |
-| `build/example_main.exe` | Example CLI |
-| `build/extract_index_cli.exe` | Extract an index from a WAV file |
-| `build/reconstruct_cli.exe` | Reconstruct a WAV file from an index |
+| `build/audiolib.lib` or `build/libaudiolib.a` (toolchain-dependent) | Static library |
+| `build/tests_catch2.exe` (Windows) / `build/tests_catch2` (Linux) | Unit tests |
+| `build/example_main.exe` (Windows) / `build/example_main` (Linux) | Example CLI |
+| `build/extract_index_cli.exe` (Windows) / `build/extract_index_cli` (Linux) | Extract an index from a WAV file |
+| `build/reconstruct_cli.exe` (Windows) / `build/reconstruct_cli` (Linux) | Reconstruct a WAV file from an index |
 
 ### Running Tests
 
 ```powershell
-.\tools\run_tests.ps1          # PowerShell
-./tools/run_tests.sh           # Bash
+.\tools\powershell\run_tests.ps1   # PowerShell
+./tools/bash/run_tests.sh build unit   # Bash
 ```
 
 Tests use Catch2 v3 and cover base64 encoding/decoding, index generation/reconstruction, WAV parsing, metadata extraction, library position calculation, and end-to-end integration.
 
 ### Manual CMake Build
 
-```bash
-mkdir build && cd build
+```powershell
+mkdir build; cd build
 cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Debug ..
 mingw32-make -j4
+```
+
+```bash
+mkdir build && cd build
+cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug ..
+make -j4
 ```
 
 ### Cleaning Build Artifacts
 
 ```powershell
-.\tools\clean.ps1              # Clean build artifacts
-.\tools\clean.ps1 -RemoveDir   # Delete the build/ directory entirely
+.\tools\powershell\clean.ps1              # Clean build artifacts
+.\tools\powershell\clean.ps1 -RemoveDir   # Delete the build/ directory entirely
+```
+
+```bash
+./tools/bash/clean.sh build              # Clean build artifacts
+./tools/bash/clean.sh build --remove     # Delete the build/ directory entirely
 ```
 
 ## Building the WASM Module

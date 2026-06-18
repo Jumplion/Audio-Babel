@@ -11,20 +11,20 @@ Native C++ audio-indexing library with WebAssembly bindings for a serverless bro
 | `cpp/wasm/` | Emscripten WASM build; outputs to `docs/wasm/` |
 | `cpp/examples/`, `cpp/tools/` | CLI binaries (example, extract, reconstruct) |
 | `docs/` | Static web app (ES6 modules, no server) |
-| `tools/` | Cross-platform build/test/run scripts |
+| `tools/powershell/`, `tools/bash/` | Build/test/run scripts (PowerShell, Bash) |
 
 ### Build and test
 
 ```powershell
 # Native (PowerShell — preferred on Windows)
-& "${PWD}\tools\build.ps1" -Configuration Debug
-& "${PWD}\tools\run_tests.ps1" -TestMode unit
+& "${PWD}\tools\powershell\build.ps1" -Configuration Debug
+& "${PWD}\tools\powershell\run_tests.ps1" -TestMode unit
 
 # WASM (requires activated Emscripten: .\emsdk\emsdk_env.ps1)
 cd cpp/wasm; .\build-wasm.ps1
 ```
 
-Bash equivalents: `tools/build.sh Debug`, `tools/run_tests.sh`, `cpp/wasm/build-wasm.sh`.
+Bash equivalents (from repo root): `tools/bash/build.sh Debug "Unix Makefiles" build`, `tools/bash/run_tests.sh build unit`, `cpp/wasm/build-wasm.sh`.
 
 VS Code tasks are available: "Build (PowerShell)", "Run Tests (PowerShell)".
 
@@ -51,6 +51,6 @@ VS Code tasks are available: "Build (PowerShell)", "Run Tests (PowerShell)".
 
 ### After making changes
 
-- Run tests: `tools/run_tests.ps1 -TestMode unit`
+- Run tests: `tools/powershell/run_tests.ps1 -TestMode unit`
 - New tests use **Catch2** `REQUIRE`/`CHECK` macros (not legacy `RUN_CHECK`)
 - Serialization changes → update both code paths **and** tests in `cpp/tests/`

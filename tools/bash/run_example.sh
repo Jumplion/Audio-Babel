@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BUILD_DIR=${1:-../build}
-EXE=${2:-example_main.exe}
+EXE=${2:-example_main}
 
 if [[ ! -d "$BUILD_DIR" ]]; then
   echo "Build directory '$BUILD_DIR' does not exist. Run build.sh first." >&2

@@ -10,8 +10,8 @@
 
 set -e
 
-# Get the repository root (parent of tools/)
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Get the repository root (parent of tools/bash/)
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 echo "=================================================="
@@ -34,15 +34,16 @@ fi
 # Configure with Release mode
 echo "Configuring CMake (Release mode)..."
 cd build
-cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release ..
+cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release ..
 
 # Build
 echo ""
 echo "Building performance benchmarks..."
-mingw32-make performance_benchmarks -j 4
+JOBS=$(nproc 2>/dev/null || echo 4)
+make performance_benchmarks -j "$JOBS"
 
 # Check if executable exists
-EXE_PATH="./performance_benchmarks.exe"
+EXE_PATH="./performance_benchmarks"
 if [[ ! -f "$EXE_PATH" ]]; then
     echo "ERROR: Performance benchmarks executable not found at: $EXE_PATH"
     exit 1

@@ -11,4 +11,4 @@ applyTo: "cpp/tests/**"
 - For temp files use `TempFile` (RAII auto-delete) and `make_temp_path("name")` from `test_common.h`.
 - Include `<catch2/catch_test_macros.h>` — Catch2 provides `main()` via `Catch2::Catch2WithMain`.
 - New test files must be added to `CATCH2_TEST_SOURCES` in the root `CMakeLists.txt`.
-- Run tests: `tools/run_tests.ps1 -TestMode unit` (or `tools/run_tests.sh`).
+- Run tests: `tools/powershell/run_tests.ps1 -TestMode unit` (or `tools/bash/run_tests.sh`).

@@ -21,8 +21,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Get the repository root (parent of tools/)
-$RepoRoot = Split-Path -Parent $PSScriptRoot
+# Get the repository root (parent of tools/powershell/)
+$RepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Push-Location $RepoRoot
 
 try {

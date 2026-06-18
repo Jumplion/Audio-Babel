@@ -102,5 +102,6 @@ dist/
 
 # End of .gitignore
 .vscode/tasks.json
-tools/clang-tidy-output.txt
+tools/bash/clang-tidy-output.txt
+tools/powershell/clang-tidy-output.txt
 .cache/clangd/index/*

@@ -1,87 +1,119 @@
 /**
  * search.js
- * 
- * Handles decoding and playback of base64 audio indexes.
- * Validates input, reconstructs audio from indexes, and provides
- * input filtering to ensure only valid base64 characters are entered.
+ *
+ * Single consolidated module for the Search page: reconstruct audio from a
+ * pasted index, generate a random index, or upload a WAV to derive its index.
+ * All three actions converge on the same render pipeline (buildResultForIndex),
+ * so genre/artist/album/track/position always come from the real C++/WASM
+ * getMetadata/calculatePosition calls — never fabricated client-side.
+ *
+ * The index string is passed to/from WASM exactly as-is: no header is ever
+ * prepended, appended, or stripped. The bijective base64 index IS the payload
+ * encoding; WAV headers only exist on the materialized .wav Blob for playback.
  */
 
-import { buildResult, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/resultBuilder.js';
+import { buildResultForIndex } from '../utils/resultBuilder.js';
 import { isValidBase64Url } from '../utils/validationUtils.js';
 import { getWasmModule } from '../core/wasmModule.js';
-import { addIndexHeader } from '../utils/indexHeader.js';
-import { decodeBase64Url, encodeBase64Url } from '../utils/base64.js';
+import { parseWavFile } from '../utils/wavUtils.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
 
+const BASE64_URL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
+// Default random index length range (characters), chosen for a reasonable
+// demo duration without configurable "advanced options".
+const RANDOM_MIN_CHARS = 65536;   // ~64 KB
+const RANDOM_MAX_CHARS = 1048576; // ~1 MB
+
 /**
- * Generate audio from an index string
- * Validates the index, reconstructs PCM data, and generates playback audio
+ * Render an index string: fetch its real metadata/audio from WASM and hand
+ * the result to the shared display handler.
+ * @param {string} indexString - Bijective base64 index (no header)
+ * @param {Function} handleJsonResponse - Callback for handling response
+ */
+async function renderIndex(indexString, handleJsonResponse) {
+  const wasm = await getWasmModule();
+  const result = await buildResultForIndex(wasm, indexString);
+  await handleJsonResponse(result, indexString);
+}
+
+/**
+ * Reconstruct audio from a user-entered index string.
  * @param {HTMLElement} inputEl - Input element containing the index
  * @param {Function} handleJsonResponse - Callback for handling response
  * @param {Function} setLoading - Callback for loading state
  */
 export async function generateFromIndex(inputEl, handleJsonResponse, setLoading) {
   const indexString = inputEl.value || '';
-  
-  // Validate index characters (A-Z, a-z, 0-9, -, _)
+
   if (!isValidBase64Url(indexString)) {
     showValidationError('Invalid characters in index. Only A-Z, a-z, 0-9, - and _ are allowed.');
     return;
   }
-  
+
   try {
     setLoading(true);
-    
-    // Use WASM to reconstruct audio from index
-    const wasm = await getWasmModule();
-    
-    // The user input is PCM-only (no header). We need to add a header to make it a valid audio index.
-    let pcmBytes = decodeBase64Url(indexString);
-    const bytesPerSample = DEFAULT_BIT_DEPTH / 8;
-    const numChannels = DEFAULT_NUM_CHANNELS;
-    
-    // Pad with zero byte if odd number of bytes (required for 16-bit audio)
-    let pcmBase64 = indexString; // Will be updated if we pad
-    if (pcmBytes.length % bytesPerSample !== 0) {
-      console.log(`[search.js] Padding PCM data from ${pcmBytes.length} to ${pcmBytes.length + 1} bytes`);
-      const paddedBytes = new Uint8Array(pcmBytes.length + 1);
-      paddedBytes.set(pcmBytes, 0);
-      paddedBytes[pcmBytes.length] = 0; // Pad with zero byte
-      pcmBytes = paddedBytes;
-      // Re-encode to base64 so addIndexHeader gets the padded data
-      pcmBase64 = encodeBase64Url(pcmBytes);
-    }
-    
-    const numFrames = pcmBytes.length / bytesPerSample / numChannels;
-    
-    // Add 13-byte header to create a valid audio index
-    const fullIndex = addIndexHeader(pcmBase64, {
-      numFrames: numFrames,
-      sampleRate: DEFAULT_SAMPLE_RATE,
-      bitDepth: DEFAULT_BIT_DEPTH,
-      numChannels: DEFAULT_NUM_CHANNELS
-    });
-    
-    console.log('[search.js] Debug info:', {
-      inputLength: indexString.length,
-      pcmBytesLength: pcmBytes.length,
-      numFrames: numFrames,
-      fullIndexLength: fullIndex.length,
-      fullIndexStart: fullIndex.substring(0, 20)
-    });
-    
-    // Reconstruct audio from the full index (with header)
-    const pcmData = wasm.reconstructAudioFromIndex(fullIndex);
-    
-    // Create result object
-    const result = buildResult({ indexBase64: indexString, genre: 'decoded', artist: 'search', pcmDataSize: pcmData.length });
-    
-    // Generate WAV for playback
-    result.wavBase64 = await wasm.samplesToWavBase64(pcmData, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS);
-    
-    await handleJsonResponse(result, indexString);
+    await renderIndex(indexString, handleJsonResponse);
   } catch (error) {
     handleError('search.js:generateFromIndex', error, error.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * Generate a random valid index string and reconstruct its audio.
+ * Per the index format, every alphabet-valid string decodes to a valid
+ * payload — so a random index never needs to go through the PCM->index
+ * encode path.
+ * @param {Function} handleJsonResponse - Callback for handling response
+ * @param {Function} setLoading - Callback for loading state
+ */
+export async function generateRandom(handleJsonResponse, setLoading) {
+  try {
+    setLoading(true);
+
+    const length = RANDOM_MIN_CHARS + Math.floor(Math.random() * (RANDOM_MAX_CHARS - RANDOM_MIN_CHARS + 1));
+    const randomIndices = new Uint8Array(length);
+    window.crypto.getRandomValues(randomIndices);
+
+    let indexString = '';
+    for (let i = 0; i < length; i++) {
+      indexString += BASE64_URL_ALPHABET[randomIndices[i] % BASE64_URL_ALPHABET.length];
+    }
+
+    await renderIndex(indexString, handleJsonResponse);
+  } catch (error) {
+    handleError('search.js:generateRandom', error, error.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * Upload a WAV file, derive its real index via WASM's encodeIndex, and
+ * reconstruct/display it through the same pipeline as a pasted index.
+ * @param {File} file - WAV file to upload
+ * @param {Function} handleJsonResponse - Callback for handling response
+ * @param {Function} setLoading - Callback for loading state
+ */
+export async function uploadWav(file, handleJsonResponse, setLoading) {
+  if (!file) {
+    throw new Error('No file provided');
+  }
+
+  try {
+    setLoading(true);
+
+    const wasm = await getWasmModule();
+    const arrayBuffer = await file.arrayBuffer();
+    const { pcmData, sampleRate, numChannels, bitDepth } = parseWavFile(arrayBuffer);
+
+    const indexString = wasm.encodeIndexFromPcm(pcmData, sampleRate, bitDepth, numChannels);
+
+    await renderIndex(indexString, handleJsonResponse);
+  } catch (error) {
+    handleError('search.js:uploadWav', error, error.message);
   } finally {
     setLoading(false);
   }
@@ -120,17 +152,17 @@ function handlePaste(e, inputEl) {
   try {
     const text = (e.clipboardData || window.clipboardData).getData('text') || '';
     const filtered = filterToValidChars(text);
-    
+
     if (filtered !== text) {
       e.preventDefault();
-      
+
       // Insert filtered text at caret position
       const start = inputEl.selectionStart || 0;
       const end = inputEl.selectionEnd || 0;
       const currentValue = inputEl.value || '';
-      
+
       inputEl.value = currentValue.slice(0, start) + filtered + currentValue.slice(end);
-      
+
       const newPosition = start + filtered.length;
       inputEl.setSelectionRange(newPosition, newPosition);
       autosizeTextarea(inputEl);
@@ -147,16 +179,16 @@ function handlePaste(e, inputEl) {
 function handleInput(inputEl) {
   const value = inputEl.value || '';
   const filtered = filterToValidChars(value);
-  
+
   if (filtered !== value) {
     const cursorPos = inputEl.selectionStart || filtered.length;
     inputEl.value = filtered;
-    
+
     // Restore cursor position (adjust by 1 if character was removed)
     const newPos = Math.max(0, cursorPos - 1);
     inputEl.setSelectionRange(newPos, newPos);
   }
-  
+
   autosizeTextarea(inputEl);
 }
 
@@ -168,9 +200,9 @@ function handleInput(inputEl) {
  */
 export function attachSearchInputFilter(inputEl) {
   if (!inputEl) return;
-  
+
   const allowed = /[A-Za-z0-9_-]/;
-  
+
   // Prevent invalid keypress
   inputEl.addEventListener('keypress', (e) => {
     const char = String.fromCharCode(e.charCode || e.which || 0);
@@ -178,13 +210,13 @@ export function attachSearchInputFilter(inputEl) {
       e.preventDefault();
     }
   });
-  
+
   // Sanitize pasted content
   inputEl.addEventListener('paste', (e) => handlePaste(e, inputEl));
-  
+
   // Sanitize programmatic input (drag/drop, etc.)
   inputEl.addEventListener('input', () => handleInput(inputEl));
-  
+
   // Set initial size
   autosizeTextarea(inputEl);
 }

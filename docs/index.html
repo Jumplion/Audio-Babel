@@ -29,9 +29,7 @@
 
       <div class="index-links options">
         <a class="option" href="./browse.html">Browse</a>
-        <a class="option" href="./random.html">Random</a>
         <a class="option" href="./search.html">Search</a>
-        <a class="option" href="./fileSearch.html">Extract</a>
       </div>
     </main>
   </div>
@@ -63,13 +61,14 @@
       <p>
         Every audio file is generated from a unique "address" that encodes the audio data. The address is a string of
         characters that can be used to recreate the exact same audio file.
-        These addresses are read as a <a href="https://en.wikipedia.org/wiki/Base64">base64</a> number (specifically URL
-        Safe) and converted to binary. This represents the raw audio sample data, which then has a pre-determined <a
-          href="https://en.wikipedia.org/wiki/WAV">WAV</a> header appended at the end to create a valid audio file.
-        The .wav header is fixed, meaning all resulting audio files will have the same sample rate (44.1kHz), bit depth
-        (16-bit), and number of channels (mono).
+        These addresses are read as a bijective <a href="https://en.wikipedia.org/wiki/Base64">base64</a> number
+        (specifically URL Safe) and converted to a big integer, which decodes directly to the raw audio sample data —
+        no header or format information is stored in the address itself. Only when generating a playable file is a
+        pre-determined <a href="https://en.wikipedia.org/wiki/WAV">WAV</a> header attached separately, wrapping the
+        decoded samples. That WAV header is fixed, meaning all resulting audio files will have the same sample rate
+        (44.1kHz), bit depth (16-bit), and number of channels (mono).
 
-        Essentially, the index represent the specific sequence of audio samples that make up the sound.
+        Essentially, the index represents the specific sequence of audio samples that make up the sound.
       </p>
 
       <h2>Surfing the Audio .WAV</h2>

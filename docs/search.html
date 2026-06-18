@@ -13,20 +13,45 @@
 <body class="search">
     <div id="navContainer"></div>
 
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-overlay-content">
+            <div class="loading-overlay-spinner"></div>
+            <div class="loading-overlay-text">Generating Audio</div>
+            <div class="loading-overlay-subtext">Reconstructing from index...</div>
+        </div>
+    </div>
+
     <div class="wrap">
         <main class="card">
-            <h1>Search Index</h1>
-            <div class="search-container">
+            <h1>Search</h1>
+
+            <section class="search-section">
+                <h2>By Index</h2>
                 <label for="searchInput">Enter an index string (A-Z, a-z, 0-9, - and _):</label>
                 <textarea id="searchInput" rows="1" placeholder="Type index here..."></textarea>
-                
                 <div class="search-actions">
-                    <button class="btn" id="doSearchGenerate" disabled>Generate from index</button>
+                    <button class="btn" id="doSearchGenerate" disabled>Reconstruct</button>
                 </div>
                 <p class="search-help">
-                    <small>Only characters A-Z a-z 0-9 - and _ are allowed. 3 symbols per sample.</small>
+                    <small>Only characters A-Z a-z 0-9 - and _ are allowed.</small>
                 </p>
-            </div>
+            </section>
+
+            <section class="search-section">
+                <h2>Random</h2>
+                <button class="btn" id="doRandomGenerate">Generate Random Index</button>
+                <p class="search-help"><small>Generates a random valid index and reconstructs its audio.</small></p>
+            </section>
+
+            <section class="search-section">
+                <h2>From WAV File</h2>
+                <input type="file" id="fileInput" accept=".wav,audio/wav" />
+                <div class="search-actions">
+                    <button class="btn" id="doFileSearch">Upload &amp; Extract Index</button>
+                </div>
+                <p class="search-help"><small>Derives the real index for an uploaded WAV file.</small></p>
+            </section>
 
             <div id="statusLine">
                 <span id="statusMsg">Ready</span><span id="statusSpinner" class="spinner"></span>
@@ -34,12 +59,12 @@
             <div id="resultContainer"></div>
 
             <footer>
-                <small>Search anindex string and reconstruct audio.</small>
+                <small>Search, generate, or upload an index to reconstruct audio.</small>
             </footer>
         </main>
     </div>
 
-    <script type="module" src="./js/pages/main.js?v=4"></script>
+    <script type="module" src="./js/pages/main.js?v=5"></script>
     <script type="module">
         import { loadFragment } from './js/ui/loadFragment.js';
         import { highlightActiveNav } from './js/ui/nav.js';

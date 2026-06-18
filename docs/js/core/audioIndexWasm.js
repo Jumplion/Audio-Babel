@@ -89,6 +89,25 @@ class AudioIndexWASM {
     }
 
     /**
+     * Encode raw PCM bytes into a bijective base64 index string
+     * @param {Uint8Array} pcmBytes - Raw PCM sample bytes
+     * @param {number} sampleRate - Sample rate
+     * @param {number} bitDepth - Bit depth
+     * @param {number} numChannels - Channel count
+     * @returns {string} Bijective base64 index (no header — pure PCM bijection)
+     */
+    encodeIndexFromPcm(pcmBytes, sampleRate, bitDepth, numChannels) {
+        this._ensureInitialized();
+
+        const result = this.module.encodeIndex(pcmBytes, sampleRate, bitDepth, numChannels);
+        if (!result || result.startsWith('{')) {
+            const errResult = result ? JSON.parse(result) : {};
+            throw new Error(errResult.error || 'Failed to encode index from PCM data');
+        }
+        return result;
+    }
+
+    /**
      * Convert audio samples to WAV format (client-side)
      * @param {Uint8Array} samples - PCM samples
      * @param {number} sampleRate - Sample rate

@@ -11,6 +11,7 @@
  * - reconstructAudio: Decode index to PCM samples
  * - calculatePosition: Calculate library position from index
  * - reconstructIndex: Reconstruct index from library position
+ * - encodeIndex: Encode raw PCM bytes into a bijective base64 index string
  * - calculateSize: Get the size of audio data for a given duration
  * - getLibraryConstants: Return library hierarchy constants as JSON
  * 
@@ -19,6 +20,7 @@
 
 #include <emscripten/bind.h>
 #include <emscripten/emscripten.h>
+#include <emscripten/val.h>
 
 #include <boost/multiprecision/cpp_int.hpp>
 #include <cstdint>
@@ -189,6 +191,31 @@ static int calculatePcmByteSize(int durationSeconds, int sampleRate, int bitDept
     return bytes;
 }
 
+/**
+ * Encode raw PCM bytes into a bijective base64 index string.
+ * This is the forward direction (PCM -> index); reconstructAudio is its inverse.
+ * No header is embedded — the index is a pure bijection over the PCM payload.
+ */
+static std::string encodeIndexWrapper(const emscripten::val& pcmBytes, int sampleRate, int bitDepth, int numChannels) {
+    try {
+        std::vector<uint8_t> samples = emscripten::vecFromJSArray<uint8_t>(pcmBytes);
+
+        AudioIndex::AudioData audioData;
+        audioData.sample_rate  = static_cast<uint32_t>(sampleRate);
+        audioData.bit_rate     = static_cast<uint16_t>(bitDepth);
+        audioData.num_channels = static_cast<uint16_t>(numChannels);
+        audioData.audio_format = 1;
+        audioData.num_frames   = samples.size() / (bitDepth / 8) / numChannels;
+        audioData.samples      = std::move(samples);
+
+        cpp_int index = AudioIndex::audioDataToIndex(audioData);
+        return AudioBabel::Utilities::indexToB64(index);
+
+    } catch (const std::exception& e) {
+        return makeJsonError(e.what());
+    }
+}
+
 // Return library hierarchy constants as JSON so JS doesn't need to hardcode them.
 static std::string getLibraryConstantsWrapper() {
     std::string json = "{";
@@ -209,6 +236,7 @@ EMSCRIPTEN_BINDINGS(audio_index_module) {
     function("reconstructAudio", &reconstructAudioWrapper);
     function("calculatePosition", &calculatePositionWrapper);
     function("reconstructIndex", &reconstructIndexWrapper);
+    function("encodeIndex", &encodeIndexWrapper);
 
     // Functions that don't need wrappers
     function("calculateSize", &calculatePcmByteSize);

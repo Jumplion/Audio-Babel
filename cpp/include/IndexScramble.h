@@ -13,20 +13,33 @@
  * audio. This module applies a keyed, reversible permutation so that neighbours
  * are scattered across the space while the mapping stays a perfect bijection.
  *
- * @section algorithm Algorithm (keyed Feistel permutation per length-band)
+ * @section algorithm Algorithm (keyed Feistel permutation, per tier)
  * Every index lives in a length-band: an L-sample payload maps to an integer in
  * [S_L, S_{L+1}) where S_L = (B^L - 1)/(B - 1) and the band width is exactly
- * B^L = 2^(16L). We subtract S_L to get the band value y in [0, 2^(16L)), then
- * permute y with a keyed Feistel network (4 rounds; halves of 8L bits each, since
- * 16L is always even). The round keys are derived from a seed and the band index.
+ * B^L = 2^(16L).
+ *
+ * Length-bands are grouped into TIERS (see kTierMaxSamples in the .cpp), each a
+ * contiguous run of bands capped at a target audio duration (1s, 5s, ... 240s).
+ * Instead of permuting within one band, scramble() permutes across the whole
+ * tier domain [S_lo, S_hi): it subtracts the tier's low end to get a value in
+ * [0, N), runs it through a keyed Feistel network (4 rounds, balanced halves)
+ * defined on the smallest even-bit power-of-two domain 2^e >= N, and cycle-walks
+ * (re-applies the permutation until the result is back in [0, N)) so the domain
+ * size need not be a power of two. Because each extra sample multiplies a band's
+ * size by B, a tier's top band holds ~(1 - 1/B) of the tier, so a short index
+ * almost always lands near the tier's maximum length — short user input now
+ * yields a wide, interesting range of audio lengths instead of near-silence.
+ * Payloads longer than the last tier keep the original per-band permutation.
  *
  * A Feistel network is a bijection for ANY round function and is inverted simply
  * by running the rounds in reverse — so unscramble() needs no modular inverse and
- * both directions are O(N) in the payload size. Because the permutation stays
- * inside the band, the payload length is preserved, 0 maps to 0, and every integer
+ * both directions are O(tier width). Cycle-walking preserves the bijection on
+ * [0, N), the permutation never leaves the tier, 0 maps to 0, and every integer
  * maps to a valid integer, so the bijection and "nothing is ever rejected"
- * invariants still hold. With four rounds a single-sample change avalanches across
- * the whole index, so numerically adjacent payloads land far apart.
+ * invariants still hold. The mapping is NOT length-preserving inside a tier: a
+ * given length still has exactly as many indices as before (every payload, down
+ * to 3 samples, remains reachable), but which indices land on it are scattered
+ * across the tier.
  *
  * (An earlier design used an affine map y -> (a*y + c) mod 2^(16L); it was
  * replaced because undoing it needs a big-integer modular inverse, which made
@@ -62,7 +75,9 @@ inline constexpr bool kScrambleEnabledByDefault = false;
  * @brief Keyed, reversible permutation of a non-negative index.
  * @param index Non-negative stored index value.
  * @param seed  Key selecting the permutation.
- * @return The scrambled index (same length-band as the input).
+ * @return The scrambled index. It stays within the same tier as the input, so
+ *         the decoded length may change but is bounded by that tier's maximum
+ *         (indices longer than the last tier keep their exact length).
  */
 auto scramble(const cpp_int& index, uint64_t seed) -> cpp_int;
 

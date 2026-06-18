@@ -147,21 +147,36 @@ auto feistel(const cpp_int& y, size_t L, uint64_t seed, bool encrypt) -> cpp_int
 // with the first tier starting at 1 sample. Anything longer than the last entry
 // keeps the original length-preserving feistel().
 
-// Per-tier maximum sample count at the 44100 Hz decode rate. Durations:
-// 1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 240 seconds.
-constexpr std::array<uint32_t, 11> kTierMaxSamples = {
-    44100,    // 1s
-    220500,   // 5s
-    441000,   // 10s
-    882000,   // 20s
-    1323000,  // 30s
-    1984500,  // 45s
-    2646000,  // 60s
-    3969000,  // 90s
-    5292000,  // 120s
-    7938000,  // 180s
-    10584000, // 240s
-};
+// Tier boundaries in seconds, configurable at compile time via
+// AUDIOBABEL_SCRAMBLE_TIER_SECONDS (see IndexScramble.h). Defaults to 11 tiers
+// at 1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 240 seconds.
+constexpr std::array kTierSeconds = AUDIOBABEL_SCRAMBLE_TIER_SECONDS;
+
+template <typename T, size_t N>
+constexpr auto isStrictlyIncreasing(const std::array<T, N>& values) -> bool {
+    for (size_t i = 1; i < N; ++i) {
+        if (!(values[i - 1] < values[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static_assert(kTierSeconds.size() > 0, "AUDIOBABEL_SCRAMBLE_TIER_SECONDS must list at least one tier");
+static_assert(isStrictlyIncreasing(kTierSeconds), "AUDIOBABEL_SCRAMBLE_TIER_SECONDS must be strictly increasing");
+
+template <typename T, size_t N>
+constexpr auto secondsToMaxSamples(const std::array<T, N>& seconds) -> std::array<uint32_t, N> {
+    std::array<uint32_t, N> result{};
+    for (size_t i = 0; i < N; ++i) {
+        result[i] = static_cast<uint32_t>(seconds[i]) * DEFAULT_SAMPLE_RATE;
+    }
+    return result;
+}
+
+// Per-tier maximum sample count at DEFAULT_SAMPLE_RATE, derived from kTierSeconds.
+constexpr auto kTierMaxSamples = secondsToMaxSamples(kTierSeconds);
+static_assert(isStrictlyIncreasing(kTierMaxSamples), "Tier seconds must map to strictly increasing sample counts");
 
 // Tier (1-based) containing sample-band L, or 0 if L is beyond the last tier
 // (those keep the legacy length-preserving scramble). L is assumed >= 1.

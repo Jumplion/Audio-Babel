@@ -164,7 +164,7 @@ while keeping the mapping a perfect bijection.
 ### Length tiers
 
 Length-bands are grouped into contiguous **tiers**, each capped at a target
-decoded duration at 44100 Hz:
+decoded duration at 44100 Hz. The default tier table is:
 
 | Tier | Max duration | Max samples |
 |------|--------------|-------------|
@@ -183,6 +183,15 @@ decoded duration at 44100 Hz:
 Tier *i* covers all sample counts from the previous tier's cap + 1 up to its own
 cap (tier 1 starts at 1 sample). Payloads longer than 240s (tier 11) keep the
 original length-preserving permutation.
+
+The tier durations (and how many tiers there are) are a compile-time setting,
+`AUDIOBABEL_SCRAMBLE_TIER_SECONDS` in `cpp/include/IndexScramble.h` — a
+brace-initializer list of seconds, e.g. the default
+`{1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 240}`. Override it at build time
+(`-DAUDIOBABEL_SCRAMBLE_TIER_SECONDS="{2, 30}"`) to use a different number of
+tiers or different cutoffs; it must be non-empty and strictly increasing, which
+is enforced by `static_assert` in `cpp/src/IndexScramble.cpp`. There is no
+runtime setting for this — it is baked into the binary, like the scramble seed.
 
 ### Keyed permutation across a tier
 

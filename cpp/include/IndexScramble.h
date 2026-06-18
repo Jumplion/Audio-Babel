@@ -18,8 +18,12 @@
  * [S_L, S_{L+1}) where S_L = (B^L - 1)/(B - 1) and the band width is exactly
  * B^L = 2^(16L).
  *
- * Length-bands are grouped into TIERS (see kTierMaxSamples in the .cpp), each a
- * contiguous run of bands capped at a target audio duration (1s, 5s, ... 240s).
+ * Length-bands are grouped into TIERS, each a contiguous run of bands capped at
+ * a target audio duration. The tier boundaries (in seconds) are a compile-time
+ * list, AUDIOBABEL_SCRAMBLE_TIER_SECONDS (default 1s, 5s, ... 240s, 11 tiers);
+ * overriding it changes both the number of tiers and where they fall, e.g.
+ * `-DAUDIOBABEL_SCRAMBLE_TIER_SECONDS="{2, 30}"` for two tiers capped at 2s and
+ * 30s. See kTierMaxSamples in the .cpp for the derived per-tier sample caps.
  * Instead of permuting within one band, scramble() permutes across the whole
  * tier domain [S_lo, S_hi): it subtracts the tier's low end to get a value in
  * [0, N), runs it through a keyed Feistel network (4 rounds, balanced halves)
@@ -61,6 +65,14 @@ using boost::multiprecision::cpp_int;
 // --- Compile-time configuration ---------------------------------------------
 #ifndef AUDIOBABEL_SCRAMBLE_SEED
 #    define AUDIOBABEL_SCRAMBLE_SEED 0x9E3779B97F4A7C15ULL
+#endif
+
+/// Tier boundaries in seconds, brace-initializer-list form. Defines both the
+/// number of tiers and where they fall; must be non-empty and strictly
+/// increasing (enforced by static_assert in IndexScramble.cpp). Override at
+/// build time to experiment, e.g. -DAUDIOBABEL_SCRAMBLE_TIER_SECONDS="{2, 30}".
+#ifndef AUDIOBABEL_SCRAMBLE_TIER_SECONDS
+#    define AUDIOBABEL_SCRAMBLE_TIER_SECONDS {1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 240}
 #endif
 
 #ifdef AUDIOBABEL_SCRAMBLE

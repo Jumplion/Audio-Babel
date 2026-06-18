@@ -92,6 +92,10 @@ build/test_run.log
 node_modules/
 .fallow/
 
+### Emscripten / WASM local toolchain and headers
+cpp/wasm/emsdk/
+cpp/wasm/boost/
+
 ### Misc
 coverage/
 dist/

@@ -90,22 +90,31 @@ export function bytesToBase64Chunked(bytes, chunkSize = 0x8000) {
 }
 
 /**
- * Convert index BigInt to base64 URL-safe string (no padding)
- * Used for encoding room numbers in the library hierarchy
- * @param {BigInt} index - BigInt to encode
- * @returns {string} Base64 URL-safe encoded string
+ * Convert a room number to a bijective base64 string (no padding).
+ * Used for encoding room numbers in the library hierarchy.
+ *
+ * NOTE: this is the BIJECTIVE base64 used by the C++ index/room encoding
+ * (digit = value + 1; see Utilities::indexToB64), NOT the standard bit-packing
+ * base64 above. LibraryPosition::calculateLibraryPosition encodes pos.room via
+ * Utilities::indexToB64, and reconstructIndexFromPosition decodes it via
+ * Utilities::b64ToIndex — so room numbers typed here must round-trip through
+ * the same bijective scheme or reconstructIndex will silently resolve to the
+ * wrong room.
+ * @param {BigInt} index - Room number to encode
+ * @returns {string} Bijective base64 URL-safe encoded string
  */
 export function indexToBase64(index) {
-  const idx = BigInt(index);
-  if (idx === 0n) return ''; // Room 0 is encoded as the empty string
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  let n = BigInt(index);
+  if (n === 0n) return ''; // Room 0 is encoded as the empty string
 
-  // Convert BigInt to bytes (big-endian)
-  const bytes = [];
-  let temp = idx;
-  while (temp > 0n) {
-    bytes.unshift(Number(temp & 0xFFn));
-    temp = temp >> 8n;
+  const digits = [];
+  while (n > 0n) {
+    n -= 1n;
+    digits.push(Number(n % 64n));
+    n /= 64n;
   }
+  digits.reverse();
 
-  return encodeBase64Url(new Uint8Array(bytes));
+  return digits.map((d) => alphabet[d]).join('');
 }

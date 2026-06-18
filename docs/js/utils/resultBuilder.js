@@ -1,8 +1,8 @@
 /**
  * resultBuilder.js
  *
- * Builds the standardised result object passed to handleJsonResponse,
- * deriving display metadata (duration, size) from raw audio parameters.
+ * Builds the standardised result object passed to handleJsonResponse.
+ * Metadata always comes from the C++/WASM getMetadata call — never fabricated client-side.
  */
 
 import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from './audioConstants.js';
@@ -11,46 +11,21 @@ import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from './
 export { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS };
 
 /**
- * Calculate the duration of audio from byte count and format
- * @param {number} numBytes - Number of PCM bytes
- * @param {number} sampleRate - Sample rate
- * @param {number} bitDepth - Bit depth
- * @param {number} numChannels - Number of channels
- * @returns {number} Duration in seconds
+ * Reconstruct audio and metadata for an index string and build the result object
+ * consumed by handleJsonResponse.
+ * @param {Object} wasm - Initialized AudioIndexWASM instance
+ * @param {string} indexBase64 - Bijective base64 index (no header)
+ * @returns {Promise<Object>} Result object with indexBase64, metadata, and wavBase64
  */
-export function calculateDuration(numBytes, sampleRate = DEFAULT_SAMPLE_RATE, bitDepth = DEFAULT_BIT_DEPTH, numChannels = DEFAULT_NUM_CHANNELS) {
-    const bytesPerSample = bitDepth / 8;
-    const numSamples = numBytes / (bytesPerSample * numChannels);
-    return numSamples / sampleRate;
-}
+export async function buildResultForIndex(wasm, indexBase64) {
+    const metadataJson = wasm.module.getMetadata(indexBase64);
+    const metadata = JSON.parse(metadataJson);
+    if (metadata.error) {
+        throw new Error(metadata.error);
+    }
 
-/**
- * Build a standardised result object for handleJsonResponse.
- * Callers still append wavBase64 after WAV generation.
- * @param {Object} opts
- * @param {string} opts.indexBase64 - Base64-encoded audio index
- * @param {string} opts.genre - Source genre label
- * @param {string} opts.artist - Source artist label
- * @param {number} opts.pcmDataSize - PCM byte count
- * @param {number} [opts.sampleRate]
- * @param {number} [opts.numChannels]
- * @param {number} [opts.bitDepth]
- * @returns {Object} Result object ready for handleJsonResponse (minus wavBase64)
- */
-export function buildResult({ indexBase64, genre, artist, pcmDataSize, sampleRate = DEFAULT_SAMPLE_RATE, numChannels = DEFAULT_NUM_CHANNELS, bitDepth = DEFAULT_BIT_DEPTH }) {
-    const duration = calculateDuration(pcmDataSize, sampleRate, bitDepth, numChannels);
-    return {
-        indexBase64,
-        metadata: {
-            genre,
-            artist,
-            album: `${duration.toFixed(2)}s`,
-            track: `${(indexBase64.length / 1024).toFixed(2)} KB`,
-            cover: ''
-        },
-        sampleRate,
-        numChannels,
-        dataSize: pcmDataSize,
-        duration
-    };
+    const pcmData = wasm.reconstructAudioFromIndex(indexBase64);
+    const wavBase64 = await wasm.samplesToWavBase64(pcmData, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS);
+
+    return { indexBase64, metadata, wavBase64 };
 }

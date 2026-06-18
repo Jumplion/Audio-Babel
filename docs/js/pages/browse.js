@@ -1,8 +1,7 @@
 // browse.js - Hierarchical navigation through the Record Shop library
 import { getWasmModule } from '../core/wasmModule.js';
-import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/resultBuilder.js';
-import { addIndexHeader } from '../utils/indexHeader.js';
-import { decodeBase64Url, indexToBase64 } from '../utils/base64.js';
+import { buildResultForIndex } from '../utils/resultBuilder.js';
+import { indexToBase64 } from '../utils/base64.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
 import { handleJsonResponse, cleanupResultHandler } from '../core/resultDisplay.js';
 
@@ -422,68 +421,27 @@ async function generateAndDisplayTrack() {
         );
         
         // Reconstruct base64 index from position using WASM
-        // This returns the position index (PCM data only, no header)
-        const positionIndexBase64 = wasm.module.reconstructIndex(
+        const base64Index = wasm.module.reconstructIndex(
             navState.room.toString(),
             validatedPos.wall,
             validatedPos.shelf,
             validatedPos.album,
             validatedPos.track
         );
-        console.log('Position index (PCM only):', positionIndexBase64?.substring(0, 50) + '...');
-        
-        if (!positionIndexBase64) {
+        console.log('Position index:', base64Index?.substring(0, 50) + '...');
+
+        if (!base64Index) {
             throw new Error('Failed to reconstruct position index');
         }
         // On failure, reconstructIndex returns a JSON error object: {"error":"..."}
-        if (positionIndexBase64.startsWith('{')) {
-            const errResult = JSON.parse(positionIndexBase64);
+        if (base64Index.startsWith('{')) {
+            const errResult = JSON.parse(base64Index);
             throw new Error(errResult.error || 'Failed to reconstruct position index');
         }
-        
-        // The position index is just the PCM data. We need to add a header to make it a valid audio index.
-        // Decode to get actual byte count
-        const pcmBytes = decodeBase64Url(positionIndexBase64);
-        const bytesPerSample = DEFAULT_BIT_DEPTH / 8;
-        const numFrames = Math.floor(pcmBytes.length / bytesPerSample / DEFAULT_NUM_CHANNELS);
-        
-        // Add 13-byte header to create a valid audio index
-        console.log('PCM size:', pcmBytes.length, 'bytes, numFrames:', numFrames);
-        const base64Index = addIndexHeader(positionIndexBase64, {
-            numFrames: numFrames,
-            sampleRate: DEFAULT_SAMPLE_RATE,
-            bitDepth: DEFAULT_BIT_DEPTH,
-            numChannels: DEFAULT_NUM_CHANNELS
-        });
-        console.log('Full audio index (with header):', base64Index?.substring(0, 50) + '...');
-        
-        // Get metadata from WASM
-        console.log('Getting metadata...');
-        const metadataJson = wasm.module.getMetadata(base64Index);
-        const metadata = JSON.parse(metadataJson);
-        
-        if (metadata.error) {
-            throw new Error(metadata.error);
-        }
-        console.log('Metadata retrieved:', metadata);
-        
-        // Decode audio from index
-        console.log('Reconstructing audio from index...');
-        const pcmData = wasm.reconstructAudioFromIndex(base64Index);
-        console.log('PCM data reconstructed, size:', pcmData?.length, 'bytes');
-        
-        // Generate WAV blob and convert to base64 for audio player
-        console.log('Creating WAV blob...');
-        const wavBase64 = await wasm.samplesToWavBase64(pcmData, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS);
-        
-        // Create result object for handleJsonResponse
-        const result = {
-            indexBase64: base64Index,
-            metadata: metadata,
-            wavBase64: wavBase64
-        };
-        
-        // Use the shared result handler for consistent UI
+
+        // The index from reconstructIndex IS the full real index — no header to add.
+        // Fetch its metadata/audio and render through the shared result handler.
+        const result = await buildResultForIndex(wasm, base64Index);
         await handleJsonResponse(result, base64Index);
         
     } catch (err) {

@@ -2,8 +2,19 @@
  * Styles specific to the search.html page
  */
 
-.search .search-container {
-    margin-bottom: 12px;
+.search .search-section {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.search .search-section:last-of-type {
+    border-bottom: none;
+}
+
+.search .search-section h2 {
+    font-size: 16px;
+    margin-bottom: 8px;
 }
 
 .search #searchInput {
@@ -20,6 +31,11 @@
 
 .search .search-help {
     margin-top: 8px;
+}
+
+.search #fileInput {
+    display: block;
+    margin-top: 6px;
 }
 
 .search #statusLine {

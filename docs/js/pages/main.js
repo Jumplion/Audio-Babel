@@ -1,19 +1,13 @@
 /**
  * main.js
- * 
- * Main entry point for page-specific functionality.
- * Coordinates page initialization, event handlers, and UI state management
- * for random generation, search, and file upload pages.
+ *
+ * Main entry point for the consolidated Search page: wires up the
+ * reconstruct-from-index, generate-random, and upload-WAV actions.
  */
 
-import { generateAndSend } from './random.js';
-import { generateFromIndex, attachSearchInputFilter } from './search.js';
-import { uploadFile } from './fileSearch.js';
+import { generateFromIndex, generateRandom, uploadWav, attachSearchInputFilter } from './search.js';
 import { handleJsonResponse } from '../core/resultDisplay.js';
-import { createSizeValidator } from '../utils/validationUtils.js';
 import { showValidationError } from '../utils/errorHandler.js';
-
-// Note: No longer using fetch interception - using direct function calls instead
 
 /**
  * Set loading state for the UI
@@ -24,13 +18,13 @@ import { showValidationError } from '../utils/errorHandler.js';
 function setLoading(on) {
   const spinner = document.getElementById('statusSpinner');
   const msg = document.getElementById('statusMsg');
-  const regenBtn = document.getElementById('regenBtn');
   const doSearchGenerate = document.getElementById('doSearchGenerate');
+  const doRandomGenerate = document.getElementById('doRandomGenerate');
   const doFileSearch = document.getElementById('doFileSearch');
-  const controls = [regenBtn, doSearchGenerate, doFileSearch];
+  const controls = [doSearchGenerate, doRandomGenerate, doFileSearch];
   const resultContainer = document.getElementById('resultContainer');
   const loadingOverlay = document.getElementById('loadingOverlay');
-  
+
   if (on) {
     if (spinner) spinner.style.display = 'inline-block';
     if (msg) msg.textContent = 'Loading...';
@@ -47,45 +41,16 @@ function setLoading(on) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Random page: Generate button and input validation
-  const regenBtn = document.getElementById('regenBtn');
-  if (regenBtn) {
-    regenBtn.addEventListener('click', () => generateAndSend(handleJsonResponse, setLoading));
-    
-    // Set up input validation for random page size inputs
-    const minSizeInput = document.getElementById('minSize');
-    const maxSizeInput = document.getElementById('maxSize');
-    const minSizeWarning = document.getElementById('minSizeWarning');
-    const maxSizeWarning = document.getElementById('maxSizeWarning');
-    const rangeError = document.getElementById('rangeError');
-    
-    if (minSizeInput && maxSizeInput && minSizeWarning && maxSizeWarning && rangeError) {
-      const validator = createSizeValidator({
-        minSizeInput,
-        maxSizeInput,
-        minSizeWarning,
-        maxSizeWarning,
-        rangeError
-      });
-      
-      // Attach validator to input events
-      validator.attach();
-    }
-  }
-
-  // Search page: Input and generate button
+  // Search by index: input and generate button
   const searchInput = document.getElementById('searchInput');
   const doSearchGenerate = document.getElementById('doSearchGenerate');
   if (searchInput && doSearchGenerate) {
-    // Attach filtering to prevent invalid characters
     attachSearchInputFilter(searchInput);
-    
-    // Generate button click handler
+
     doSearchGenerate.addEventListener('click', () => {
       generateFromIndex(searchInput, handleJsonResponse, setLoading);
     });
-    
-    // Enable/disable generate button based on input
+
     const updateSearchButtonState = () => {
       const value = searchInput.value.trim();
       if (value.length > 0) {
@@ -95,10 +60,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
     searchInput.addEventListener('input', updateSearchButtonState);
-    updateSearchButtonState(); // Set initial state
+    updateSearchButtonState();
   }
 
-  // File upload page: File input and upload button
+  // Generate random index
+  const doRandomGenerate = document.getElementById('doRandomGenerate');
+  if (doRandomGenerate) {
+    doRandomGenerate.addEventListener('click', () => generateRandom(handleJsonResponse, setLoading));
+  }
+
+  // Upload WAV file
   const fileInput = document.getElementById('fileInput');
   const doFileSearch = document.getElementById('doFileSearch');
   if (fileInput && doFileSearch) {
@@ -108,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showValidationError('Please select a .wav file first');
         return;
       }
-      await uploadFile(file, handleJsonResponse, setLoading);
+      await uploadWav(file, handleJsonResponse, setLoading);
     });
   }
 });

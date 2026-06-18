@@ -13,6 +13,7 @@
 #include <boost/multiprecision/cpp_int.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <random>
+#include <set>
 
 #include "test_common.h"
 
@@ -143,11 +144,19 @@ auto bandOf(const cpp_int& n) -> size_t {
     return static_cast<size_t>(boost::multiprecision::msb(m) / DEFAULT_BIT_DEPTH);
 }
 
-// Builds an index whose sample-band sits comfortably inside `band`, without
-// having to materialise a full repunit in the test.
+// S_L = (B^L - 1)/(B - 1), the exact start of sample-band L (mirrors the
+// repunit used internally by IndexScramble and AudioIndex).
+auto repunitOf(size_t band) -> cpp_int {
+    if (band == 0) {
+        return cpp_int(0);
+    }
+    return ((cpp_int(1) << (DEFAULT_BIT_DEPTH * band)) - 1) / (SAMPLE_ALPHABET_SIZE - 1);
+}
+
+// Builds an index that lands exactly in sample-band `band` (jitter must stay
+// under the band width, true for any jitter fitting in a uint32_t here).
 auto indexInBand(size_t band, uint32_t jitter) -> cpp_int {
-    cpp_int n = cpp_int(1) << ((DEFAULT_BIT_DEPTH * band) + 5);
-    return n + jitter;
+    return repunitOf(band) + jitter;
 }
 
 } // namespace
@@ -214,6 +223,50 @@ TEST_CASE("Scramble: tiered permutation is a bijection and stays within its tier
         REQUIRE(sBand >= c.tierLow);
         REQUIRE(sBand <= c.tierHigh);
     }
+}
+
+TEST_CASE("Scramble: distinct indices in a tier never collide", "[scramble][tier][bijection][injective]") {
+    // A true bijection cannot map two different inputs to the same output.
+    // Sample many distinct indices from the same band (well within tier 1) and
+    // confirm every scrambled output is unique. With a domain of ~2^(16*44100)
+    // values, any observed collision among a few thousand draws would indicate
+    // a real bug, not bad luck.
+    const uint64_t seed = 0x1357246ULL;
+    std::set<cpp_int> outputs;
+    for (uint32_t i = 0; i < 1500; ++i) {
+        cpp_int n = indexInBand(10, i); // band well inside tier 1
+        cpp_int s = IndexScramble::scramble(n, seed);
+        INFO("i = " << i);
+        REQUIRE(outputs.insert(s).second); // false if s was already present
+    }
+}
+
+TEST_CASE("Scramble: smallest payload lengths (0, 1, 2 samples) round-trip exactly", "[scramble][tier][roundtrip]") {
+    const uint64_t seed = 0xFEED5EEDULL;
+    ScrambleGuard  on(true, seed);
+
+    REQUIRE(AudioIndex::indexToAudioData(AudioIndex::audioDataToIndex(makePayload({}))).samples.empty());
+
+    for (auto samples : std::vector<std::vector<uint16_t>>{{42}, {0}, {65535}, {1, 2}, {0, 0}}) {
+        auto ad     = makePayload(samples);
+        auto index  = AudioIndex::audioDataToIndex(ad);
+        auto back   = AudioIndex::indexToAudioData(index);
+        REQUIRE(back.samples == ad.samples);
+    }
+}
+
+TEST_CASE("Scramble: payloads beyond the last tier keep exact length", "[scramble][tier][legacy]") {
+    // Tier 11 caps at 10,584,000 samples (240s). Anything longer keeps the
+    // original per-band permutation, so length must be preserved exactly, just
+    // like the un-tiered scramble did before tiering existed.
+    const uint64_t seed = 0xC0DEC0DEULL;
+    size_t         L    = 10584000 + 50; // just past the last tier
+    cpp_int        n    = indexInBand(L, 777);
+    REQUIRE(bandOf(n) == L);
+
+    cpp_int s = IndexScramble::scramble(n, seed);
+    REQUIRE(bandOf(s) == L); // length-preserving, as before tiering
+    REQUIRE(IndexScramble::unscramble(s, seed) == n);
 }
 
 TEST_CASE("Scramble: invariants hold with scramble enabled", "[scramble][bijection][roundtrip]") {

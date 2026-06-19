@@ -32,11 +32,8 @@ auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_in
     std::string          b64str = ::AudioBabel::Utilities::indexToB64(index);
     std::vector<uint8_t> values = b64StringToValues(b64str);
 
-    // Build metadata with content-derived labels
     IndexMetadata meta = buildMetadataFromBytesAndB64(values, b64str);
-
-    // Calculate hierarchical position
-    meta.position = calculateLibraryPosition(index);
+    meta.position      = calculateLibraryPosition(index);
 
     return meta;
 }
@@ -50,18 +47,14 @@ auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> 
 
     std::vector<uint8_t> values = b64StringToValues(base64Index);
 
-    // Build metadata with content-derived labels
     IndexMetadata meta = buildMetadataFromBytesAndB64(values, base64Index);
 
-    // Reconstruct the integer index from the bijective base-64 string for position.
     boost::multiprecision::cpp_int index = ::AudioBabel::Utilities::b64ToIndex(base64Index);
     meta.position                        = calculateLibraryPosition(index);
 
     return meta;
 }
 
-// Centralized helper that builds IndexMetadata from raw bytes and the corresponding base64 string.
-// Define the static helper declared in the header so the symbol is available
 auto IndexMetadata::buildMetadataFromBytesAndB64(const std::vector<uint8_t>& bytes, const std::string& b64str) -> IndexMetadata {
     IndexMetadata meta;
     if (b64str.empty()) {

@@ -110,17 +110,9 @@ namespace {
     }
 
     // --- Tiered cross-band scramble ---------------------------------------------
-    //
-    // feistel() above stays inside a single length-band, so payload length is
-    // preserved. To give short, user-typed indices a wider and more interesting
-    // range of audio lengths, an index whose band falls within a configured tier is
-    // permuted across the WHOLE tier (a contiguous run of length-bands) rather than
-    // a single band. Because each extra sample multiplies a band's size by B, the
-    // top band of a tier holds ~(1 - 1/B) of that tier's values, so almost every
-    // index in a tier lands near the tier's maximum length. Tiers therefore act as
-    // length "snap" levels while remaining an exact bijection: a tier maps onto
-    // itself, so the original count of indices still lands in every band (a 3-sample
-    // payload is still reachable, just astronomically unlikely to be hit by chance).
+    // See IndexScramble.h for why tiers exist. feistel() above stays inside one
+    // length-band; the functions below instead permute across a whole tier (a
+    // contiguous run of bands), bounded by kTierMaxSamples.
     //
     // Tier i (1-based) covers sample counts (kTierMaxSamples[i-2], kTierMaxSamples[i-1]]
     // with the first tier starting at 1 sample. Anything longer than the last entry

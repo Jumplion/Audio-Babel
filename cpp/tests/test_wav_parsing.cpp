@@ -1,5 +1,5 @@
 /**
- * @file test_wav_parsing_new.cpp
+ * @file test_wav_parsing.cpp
  * @brief Unit tests for WAV file parsing, header validation, and edge cases.
  *
  * Tests WAV file parsing functionality including:
@@ -9,8 +9,6 @@
  *  - truncated/malformed files
  *  - unsupported bit depths
  *  - declared data chunk larger than actual
- * 
- * Migrated to Catch2 v3 framework.
  */
 
 #include <catch2/catch_test_macros.hpp>

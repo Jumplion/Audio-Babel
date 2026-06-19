@@ -39,39 +39,13 @@ auto isBitDepthSupported(uint16_t bitDepth) -> bool {
 // ---------------------------------------------------------------------------
 
 auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> AudioIndex::AudioData {
-    /**
-     * EXPLANATION FOR EXTRACTION ALGORITHM
-     * This function extracts audio data from a WAV file by reading its headers
-     * and data chunks. It supports only PCM format and assumes a specific chunk
-     * layout.
-     *
-     * A .wav file consists of a header and a data chunk. The header contains
-     * metadata about the audio format, while the data chunk contains the actual
-     * PCM audio samples.
-     *
-     * The header is 44 bytes long and contains the following fields:
-     * - ChunkID (4 bytes): Contains the letters "RIFF" in ASCII form.
-     * - ChunkSize (4 bytes): 36 + SubChunk2Size, or more generally: 4 + (8 + SubChunk2Size)
-     * - Format (4 bytes): Contains the letters "WAVE".
-     * - Subchunk1ID (4 bytes): Contains the letters "fmt ".
-     * - Subchunk1Size (4 bytes): 16 for PCM.
-     * - AudioFormat (2 bytes): PCM = 1.
-     * - NumChannels (2 bytes): Mono = 1, Stereo = 2. (NOTE: We Assume 1)
-     * - SampleRate (4 bytes): 8000, 44100, etc.    (NOTE: We assume 44100)
-     * - ByteRate (4 bytes): SampleRate * NumChannels * BitsPerSample/8.
-     * - BlockAlign (2 bytes): NumChannels * BitsPerSample/8.
-     * - BitsPerSample (2 bytes): 8 bits = 8, 16 bits = 16. (NOTE: We Assume 16)
-     *
-     * The data chunk contains the actual PCM audio samples.
-     */
+    // Extracts PCM audio data from a WAV file's RIFF/WAVE chunk layout. Only PCM is supported.
 
-    // Open the WAV file for reading
     std::ifstream fileInput(path, std::ios::binary);
     if (!fileInput) {
         throw std::runtime_error(std::string("Failed to open WAV file: ") + path);
     }
 
-    // Read RIFF header, throw error if not found
     std::array<char, WAV_ID_LEN> riff{};
     fileInput.read(riff.data(), WAV_ID_LEN);
     if (!tagEquals(riff, "RIFF")) {
@@ -81,11 +55,9 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
         throw std::runtime_error(ss.str());
     }
 
-    // Read file size
-    std::array<char, WAV_ID_LEN> tmp4{};
+    std::array<char, WAV_ID_LEN> tmp4{}; // file size field, unused
     fileInput.read(tmp4.data(), WAV_ID_LEN);
 
-    // Read "WAVE" header, throw error if not found
     std::array<char, WAV_ID_LEN> wave{};
     fileInput.read(wave.data(), WAV_ID_LEN);
     if (!tagEquals(wave, "WAVE")) {
@@ -97,14 +69,6 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
 
     AudioData audioData{};
     while (fileInput) {
-        /**
-         * Each iteration reads a 4 bytes into a char[4] and then reads the next 4 bytes into a
-         * temporary buffer sizeBuf. The code converts those four bytes to a uint32_t.
-         * This explicitly interprets the on‑disk size as LITTLE-ENDIAN
-         *     - (see: Endianness [https://en.wikipedia.org/wiki/Endianness]) -
-         * which is why the size is read then converted, rather than read directly into a uint32_t.
-         */
-        // Read chunk ID
         std::array<char, WAV_ID_LEN> id{};
         if (!fileInput.read(id.data(), WAV_ID_LEN)) {
             break;
@@ -121,18 +85,7 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
             break;
         }
 
-        /**
-         * Process "fmt " chunk. Requires at least 16 bytes (minimum for PCM fmt).
-         *     (NOTE: the space at the end is intentional)
-         *     Reads the entire chunk into a temporary buffer, then extracts
-         *     fields using the provided little‑endian helpers:
-         *     - audio_format at offset 0
-         *     - num_channels at offset 2
-         *     - sample_rate at offset 4
-         *     - bits_per_sample at offset 14
-         *         NOTE: These offsets correspond to the standard 16‑byte PCM fmt layout:
-         *             AudioFormat, NumChannels, SampleRate, ByteRate, BlockAlign, BitsPerSample
-         */
+        // "fmt " (trailing space intentional) requires at least 16 bytes for PCM
         if (tagEquals(id, "fmt ")) {
             if (chunkSize < FMT_CHUNK_MIN_SIZE) {
                 break;
@@ -157,13 +110,7 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
             }
         }
 
-        /**
-         *  Process "data" chunk (the samples)
-         *  Resizes audioData.samples to the chunk size and 
-         *  reads raw sample bytes into that buffer.
-         */
         else if (tagEquals(id, "data")) {
-            // Reserve space for the declared data chunk then attempt to read it.
             audioData.samples.resize(chunkSize);
             fileInput.read(reinterpret_cast<char*>(audioData.samples.data()), static_cast<std::streamsize>(chunkSize));
 
@@ -177,11 +124,7 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
             }
         }
 
-        /**
-         * We have an unknown chunk. 
-         * Skip this chunk and account for RIFF padding (chunks are even-sized) by
-         * advancing the stream by sz bytes plus one extra byte when sz is odd (sz + (sz & 1)),
-         */
+        // Unknown chunk: skip it, plus one pad byte if its size is odd (RIFF chunks are even-sized).
         else {
             fileInput.seekg(chunkSize + (chunkSize & 1), std::ios::cur);
             if (!fileInput) {
@@ -220,22 +163,17 @@ auto AudioIndex::extractAudioDataFromSamples(const std::vector<int32_t>& samples
     audioData.num_channels = DEFAULT_NUM_CHANNELS; // assuming mono input
     audioData.audio_format = PCM_FORMAT_CODE;      // PCM format
 
-    // Convert int32 samples to bytes (little-endian)
     size_t bytes_per_sample = bitDepth / BITS_PER_BYTE;
     audioData.samples.resize(samples.size() * bytes_per_sample);
 
-    // Loop through samples.
     for (size_t sampleIndex = 0; sampleIndex < samples.size(); ++sampleIndex) {
         int32_t sample = samples[sampleIndex];
-
-        // Convert this sample to
         for (size_t byteIndex = 0; byteIndex < bytes_per_sample; ++byteIndex) {
             audioData.samples[(sampleIndex * bytes_per_sample) + byteIndex] =
                 static_cast<uint8_t>((sample >> (byteIndex * BITS_PER_BYTE)) & BYTE_MASK);
         }
     }
 
-    // Compute number of frames
     audioData.num_frames = samples.size() / audioData.num_channels;
     return audioData;
 }
@@ -245,33 +183,26 @@ static constexpr size_t SAMPLE_BYTES = DEFAULT_BIT_DEPTH / BITS_PER_BYTE;
 
 auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boost::multiprecision::cpp_int {
     /**
-     * PAYLOAD-ONLY BIJECTION (samples -> integer), O(N) closed form.
+     * Payload-only bijection (samples -> integer), O(N) closed form.
      *
-     * The index encodes ONLY the PCM sample payload; no header/version/format
-     * metadata is stored. The atomic unit is one PCM sample interpreted as an
-     * UNSIGNED little-endian value in 0..B-1, where B = SAMPLE_ALPHABET_SIZE
-     * (65536 at the 16-bit default).
-     *
-     * Conceptually this is bijective numeration (digit = value + 1):
+     * Each PCM sample is one base-B digit, B = SAMPLE_ALPHABET_SIZE (65536 at
+     * 16-bit). This is bijective numeration (digit = value + 1):
      *   n = 0; for each sample v: n = n*B + (v + 1)
      *
-     * That per-sample loop is O(L^2) in bignum arithmetic. We use the exact
-     * algebraic identity instead. With digit d_i = v_i + 1:
-     *   n = Sum_i (v_i + 1) B^(L-1-i)
-     *     = Sum_i v_i B^(L-1-i)  +  Sum_{j=0}^{L-1} B^j
-     *     = V + S_L
+     * That per-sample loop is O(L^2) in bignum arithmetic, so we use the
+     * equivalent closed form instead. With digit d_i = v_i + 1:
+     *   n = Sum_i (v_i + 1) B^(L-1-i) = Sum_i v_i B^(L-1-i) + Sum_j B^j = V + S_L
      * where:
      *   - V is the payload read as a base-B number (first sample most
-     *     significant) -- i.e. the sample bytes themselves, big-endian per
-     *     sample. Built in one linear import_bits pass.
+     *     significant), i.e. the sample bytes big-endian per sample, built in
+     *     one linear import_bits pass.
      *   - S_L = (B^L - 1)/(B - 1) is the base-B repunit (every digit == 1),
-     *     whose byte pattern is L copies of 0x00 0x01. Built in one linear pass.
-     * The single bignum addition propagates the per-sample (+1) carries. The
-     * whole operation is O(N) in the payload size; the per-sample loop is never
-     * executed.
+     *     byte pattern L copies of 0x00 0x01, built in one linear pass.
+     * A single bignum addition propagates the per-sample (+1) carries, so the
+     * whole operation is O(N) with no per-sample loop.
      *
-     * Because every digit is value+1, a trailing zero sample contributes a real
-     * digit and is therefore preserved (k vs k+1 trailing zeros differ).
+     * Since every digit is value+1, a trailing zero sample is a real digit and
+     * is preserved (k vs k+1 trailing zeros give different indices).
      */
     const auto&  bytes = audioData.samples;
     const size_t L     = (bytes.size() + (SAMPLE_BYTES - 1)) / SAMPLE_BYTES; // whole samples (ceil)
@@ -310,20 +241,19 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
 
 auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -> AudioIndex::AudioData {
     /**
-     * PAYLOAD-ONLY BIJECTION (integer -> samples), O(N) closed form.
+     * Payload-only bijection (integer -> samples), O(N) closed form.
      *
      * Inverse of audioDataToIndex via the same identity n = V + S_L. Every
-     * alphabet-valid index decodes; nothing is rejected and there is
+     * alphabet-valid index decodes; nothing is rejected, and there is
      * intentionally no integrity check.
      *
-     * The sample count L is recovered without any bignum division: for an
-     * L-sample payload, n lies in [S_L, S_{L+1}-1], and one can show that with
-     *   m = n*(B-1) + 1
-     * the count is L = floor(log_B(m)) = msb(m) / log2(B) = msb(m) / 16.
-     * Then S_L is the repunit, V = n - S_L (V < B^L), and the L base-B digits of
-     * V are the samples (first digit most significant). All steps are O(N).
+     * The sample count L is recovered without bignum division: for an L-sample
+     * payload, n lies in [S_L, S_{L+1}-1], and with m = n*(B-1) + 1,
+     *   L = floor(log_B(m)) = msb(m) / log2(B) = msb(m) / 16.
+     * Then S_L is the repunit, V = n - S_L (V < B^L), and the L base-B digits
+     * of V are the samples (most significant first). All steps are O(N).
      *
-     * The decoded samples are serialized little-endian and wrapped in a fixed
+     * Decoded samples are serialized little-endian and wrapped in a fixed
      * default header (PCM, 44100 Hz, 16-bit, mono) for WAV writing.
      */
     // Undo the optional reversible scramble (identity unless enabled) before

@@ -45,59 +45,69 @@ TEST_CASE("Bijection: payload round-trips exactly (edge cases)", "[bijection][ro
         REQUIRE(decoded.empty());
     }
 
-    SECTION("Single sample") {
-        std::vector<uint16_t> s = {0x1234};
-        REQUIRE(roundTripBytes(s) == makePayload(s));
-    }
+    // Table-driven replacement for what used to be six near-identical
+    // single-case SECTIONs, each just checking roundTripBytes(s) == makePayload(s).
+    std::vector<std::pair<std::string, std::vector<uint16_t>>> cases = {
+        {"Single sample", {0x1234}},
+        {"Single zero sample is preserved", {0}},
+        {"Leading zero samples", {0, 0, 0, 42, 1000}},
+        {"Trailing zero samples", {42, 1000, 0, 0, 0}},
+        {"Leading and trailing zero samples", {0, 0, 7, 0, 65535, 0, 0}},
+        {"Maximum-valued samples", {65535, 65535, 65535}},
+    };
 
-    SECTION("Single zero sample is preserved") {
-        std::vector<uint16_t> s       = {0};
-        auto                  decoded = roundTripBytes(s);
-        REQUIRE(decoded.size() == 2);
-        REQUIRE(decoded == makePayload(s));
-    }
-
-    SECTION("Leading zero samples") {
-        std::vector<uint16_t> s = {0, 0, 0, 42, 1000};
-        REQUIRE(roundTripBytes(s) == makePayload(s));
-    }
-
-    SECTION("Trailing zero samples") {
-        std::vector<uint16_t> s = {42, 1000, 0, 0, 0};
-        REQUIRE(roundTripBytes(s) == makePayload(s));
-    }
-
-    SECTION("Leading and trailing zero samples") {
-        std::vector<uint16_t> s = {0, 0, 7, 0, 65535, 0, 0};
-        REQUIRE(roundTripBytes(s) == makePayload(s));
-    }
-
-    SECTION("Maximum-valued samples") {
-        std::vector<uint16_t> s = {65535, 65535, 65535};
+    for (const auto& [name, s] : cases) {
+        INFO("Case: " << name);
         REQUIRE(roundTripBytes(s) == makePayload(s));
     }
 }
 
-TEST_CASE("Bijection: random payloads of varying length round-trip", "[bijection][roundtrip][random]") {
-    std::mt19937                            rng(20260617);
-    std::uniform_int_distribution<int>      lenDist(0, 200);
-    std::uniform_int_distribution<uint32_t> valDist(0, 65535);
+TEST_CASE("Bijection: randomized round-trips (payload bytes and base64 strings)", "[bijection][roundtrip][random]") {
+    SECTION("Random payloads of varying length round-trip through Index::encode/decode") {
+        std::mt19937                            rng(20260617);
+        std::uniform_int_distribution<int>      lenDist(0, 200);
+        std::uniform_int_distribution<uint32_t> valDist(0, 65535);
 
-    for (int trial = 0; trial < 200; ++trial) {
-        size_t                len = static_cast<size_t>(lenDist(rng));
-        std::vector<uint16_t> samples;
-        samples.reserve(len);
-        for (size_t i = 0; i < len; ++i) {
-            samples.push_back(static_cast<uint16_t>(valDist(rng)));
+        for (int trial = 0; trial < 200; ++trial) {
+            size_t                len = static_cast<size_t>(lenDist(rng));
+            std::vector<uint16_t> samples;
+            samples.reserve(len);
+            for (size_t i = 0; i < len; ++i) {
+                samples.push_back(static_cast<uint16_t>(valDist(rng)));
+            }
+
+            auto bytes   = makePayload(samples);
+            auto idx     = Index::encode(bytes);
+            auto decoded = Index::decode(idx);
+
+            INFO("trial=" << trial << " len=" << len);
+            REQUIRE(decoded == bytes);
+            REQUIRE(decoded.size() == samples.size() * 2);
         }
+    }
 
-        auto bytes   = makePayload(samples);
-        auto idx     = Index::encode(bytes);
-        auto decoded = Index::decode(idx);
+    SECTION("Random alphabet strings round-trip through indexToB64/b64ToIndex") {
+        static const std::string ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
-        INFO("trial=" << trial << " len=" << len);
-        REQUIRE(decoded == bytes);
-        REQUIRE(decoded.size() == samples.size() * 2);
+        std::mt19937                       rng(987654321);
+        std::uniform_int_distribution<int> lenDist(0, 40);
+        std::uniform_int_distribution<int> chrDist(0, 63);
+
+        for (int trial = 0; trial < 500; ++trial) {
+            int         len = lenDist(rng);
+            std::string original;
+            original.reserve(len);
+            for (int i = 0; i < len; ++i) {
+                original.push_back(ALPHA[chrDist(rng)]);
+            }
+
+            // Every alphabet-valid string decodes without throwing.
+            cpp_int     n = Utilities::b64ToIndex(original);
+            std::string s = Utilities::indexToB64(n);
+
+            INFO("trial=" << trial << " original='" << original << "'");
+            REQUIRE(s == original);
+        }
     }
 }
 

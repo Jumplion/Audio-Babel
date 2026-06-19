@@ -7,9 +7,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
@@ -244,11 +242,9 @@ auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> Audio
         ss << "Invalid WAV header fields: bit_rate=" << audioData.bit_rate << " num_channels=" << audioData.num_channels << " path=" << path;
         throw std::runtime_error(ss.str());
     }
-    if (!isBitDepthSupported(audioData.bit_rate)) {
-        std::ostringstream ss;
-        ss << "Unsupported bits per sample in WAV: " << audioData.bit_rate << " path=" << path;
-        throw std::runtime_error(ss.str());
-    }
+    // bit_rate is necessarily one of PCM_BITS_PER_SAMPLE here: the only place it's set
+    // (the "fmt " chunk branch above) already validates it via isBitDepthSupported, and
+    // a zero bit_rate (unset) was just rejected above.
     size_t bytes_per_sample = audioData.bit_rate / BITS_PER_BYTE;
     audioData.num_frames    = audioData.samples.size() / (bytes_per_sample * audioData.num_channels);
     return audioData;
@@ -449,14 +445,6 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
 
 auto AudioIndex::indexToMetadata(const boost::multiprecision::cpp_int& index) -> IndexMetadata {
     return IndexMetadata::extractMetadataFromIndex(index);
-}
-
-void AudioIndex::exportAudioDataToWav(const AudioData& audioData, const std::string& path) {
-    FileWriters::exportAudioDataToWav(audioData, path);
-}
-
-void AudioIndex::writeIndexToFile(const boost::multiprecision::cpp_int& index, const std::string& outDir, const std::string& filename) {
-    FileWriters::writeIndexToFile(index, outDir, filename);
 }
 
 } // namespace AudioBabel

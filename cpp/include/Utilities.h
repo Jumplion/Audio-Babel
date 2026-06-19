@@ -180,10 +180,10 @@ inline auto indexToB64(const boost::multiprecision::cpp_int& n) -> std::string {
 
     // len = floor(log_64(n*(64-1) + 1)).
     boost::multiprecision::cpp_int m   = (n * (BASE64_ALPHABET_SIZE - 1)) + 1;
-    size_t                        len = static_cast<size_t>(boost::multiprecision::msb(m) / BASE64_DIGIT_BITS);
+    size_t                         len = static_cast<size_t>(boost::multiprecision::msb(m) / BASE64_DIGIT_BITS);
 
     // S64 repunit: `len` digits all equal to 1.
-    std::vector<uint8_t> repunitDigits(len, 1);
+    std::vector<uint8_t>           repunitDigits(len, 1);
     boost::multiprecision::cpp_int repunit = 0;
     boost::multiprecision::import_bits(repunit, repunitDigits.begin(), repunitDigits.end(), BASE64_DIGIT_BITS, true);
 

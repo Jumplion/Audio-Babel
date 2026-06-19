@@ -351,7 +351,7 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
             repunitBytes[lo + 1] = 0x01;
         }
 
-        cpp_int value = 0;
+        cpp_int value   = 0;
         cpp_int repunit = 0;
         boost::multiprecision::import_bits(value, valueBytes.begin(), valueBytes.end(), BITS_PER_BYTE, true);
         boost::multiprecision::import_bits(repunit, repunitBytes.begin(), repunitBytes.end(), BITS_PER_BYTE, true);
@@ -430,9 +430,9 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
         // Each sample is big-endian [high, low] in `padded`; emit little-endian.
         audioData.samples.resize(L * SAMPLE_BYTES);
         for (size_t i = 0; i < L; ++i) {
-            size_t off                     = i * SAMPLE_BYTES;
-            audioData.samples[off]         = padded[off + 1]; // low byte
-            audioData.samples[off + 1]     = padded[off];     // high byte
+            size_t off                 = i * SAMPLE_BYTES;
+            audioData.samples[off]     = padded[off + 1]; // low byte
+            audioData.samples[off + 1] = padded[off];     // high byte
         }
     }
 

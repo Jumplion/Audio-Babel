@@ -305,8 +305,8 @@ class AudioIndex {
      * 
      * @see extractAudioDataFromAudioFile for the inverse operation
      */
-    [[deprecated("Use FileWriters::exportAudioDataToWav directly")]]
-    static void exportAudioDataToWav(const AudioData& audioData, const std::string& path);
+    [[deprecated("Use FileWriters::exportAudioDataToWav directly")]] static void exportAudioDataToWav(const AudioData&   audioData,
+                                                                                                      const std::string& path);
 
     /**
      * @brief Write an index to a text file in URL-safe base64 encoding.
@@ -326,10 +326,9 @@ class AudioIndex {
      * @note Compatibility alias — delegates to FileWriters::writeIndexToFile.
      *       Prefer calling FileWriters::writeIndexToFile directly in new code.
      */
-    [[deprecated("Use FileWriters::writeIndexToFile directly")]]
-    static void writeIndexToFile(const boost::multiprecision::cpp_int& index,
-                                 const std::string&                    outDir   = std::string(),
-                                 const std::string&                    filename = std::string());
+    [[deprecated("Use FileWriters::writeIndexToFile directly")]] static void writeIndexToFile(const boost::multiprecision::cpp_int& index,
+                                                                                              const std::string& outDir   = std::string(),
+                                                                                              const std::string& filename = std::string());
 
     // ---------------------
     // Metadata helpers

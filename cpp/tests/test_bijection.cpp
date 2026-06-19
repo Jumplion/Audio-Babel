@@ -67,7 +67,7 @@ TEST_CASE("Bijection: payload round-trips exactly (edge cases)", "[bijection][ro
     }
 
     SECTION("Single zero sample is preserved") {
-        std::vector<uint16_t> s = {0};
+        std::vector<uint16_t> s       = {0};
         auto                  decoded = roundTripBytes(s);
         REQUIRE(decoded.size() == 2);
         REQUIRE(decoded == makePayload(s).samples);
@@ -140,12 +140,10 @@ TEST_CASE("Bijection: trailing-zero distinctness (N vs N+1)", "[bijection][disti
 
 TEST_CASE("Bijection: integer -> string -> integer", "[bijection][string]") {
     std::vector<cpp_int> values = {
-        0, 1, 2, 63, 64, 65, 4095, 4096, 65535, 65536,
-        cpp_int("18446744073709551616"),
-        cpp_int("123456789012345678901234567890")};
+        0, 1, 2, 63, 64, 65, 4095, 4096, 65535, 65536, cpp_int("18446744073709551616"), cpp_int("123456789012345678901234567890")};
 
     for (const auto& n : values) {
-        std::string s = Utilities::indexToB64(n);
+        std::string s    = Utilities::indexToB64(n);
         cpp_int     back = Utilities::b64ToIndex(s);
         INFO("n=" << n << " s='" << s << "'");
         REQUIRE(back == n);

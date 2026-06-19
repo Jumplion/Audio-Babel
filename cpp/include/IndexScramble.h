@@ -72,7 +72,8 @@ using boost::multiprecision::cpp_int;
 /// increasing (enforced by static_assert in IndexScramble.cpp). Override at
 /// build time to experiment, e.g. -DAUDIOBABEL_SCRAMBLE_TIER_SECONDS="{2, 30}".
 #ifndef AUDIOBABEL_SCRAMBLE_TIER_SECONDS
-#    define AUDIOBABEL_SCRAMBLE_TIER_SECONDS {1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 240}
+#    define AUDIOBABEL_SCRAMBLE_TIER_SECONDS \
+        { 1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 240 }
 #endif
 
 #ifdef AUDIOBABEL_SCRAMBLE

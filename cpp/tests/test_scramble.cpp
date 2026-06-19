@@ -185,9 +185,9 @@ TEST_CASE("Scramble: a 3-sample payload is still represented and exact", "[scram
     // The bijection still has room for tiny payloads; encoding one produces a
     // valid (scattered, much larger) index that decodes back to exactly 3
     // samples. Nothing about tiering removes short audio from the codomain.
-    auto ad     = makePayload({1234, 0, 65535});
-    auto index  = AudioIndex::audioDataToIndex(ad); // scrambled / "public" index
-    auto back   = AudioIndex::indexToAudioData(index);
+    auto ad    = makePayload({1234, 0, 65535});
+    auto index = AudioIndex::audioDataToIndex(ad); // scrambled / "public" index
+    auto back  = AudioIndex::indexToAudioData(index);
     REQUIRE(back.num_frames == 3);
     REQUIRE(back.samples == ad.samples);
 }
@@ -204,8 +204,8 @@ TEST_CASE("Scramble: tiered permutation is a bijection and stays within its tier
         size_t tierHigh;
     };
     const std::vector<Case> cases = {
-        {150000, 44101, 220500},   // tier 2
-        {700000, 441001, 882000},  // tier 4
+        {150000, 44101, 220500},    // tier 2
+        {700000, 441001, 882000},   // tier 4
         {1500000, 1323001, 1984500} // tier 6
     };
 
@@ -231,7 +231,7 @@ TEST_CASE("Scramble: distinct indices in a tier never collide", "[scramble][tier
     // confirm every scrambled output is unique. With a domain of ~2^(16*44100)
     // values, any observed collision among a few thousand draws would indicate
     // a real bug, not bad luck.
-    const uint64_t seed = 0x1357246ULL;
+    const uint64_t    seed = 0x1357246ULL;
     std::set<cpp_int> outputs;
     for (uint32_t i = 0; i < 1500; ++i) {
         cpp_int n = indexInBand(10, i); // band well inside tier 1
@@ -248,9 +248,9 @@ TEST_CASE("Scramble: smallest payload lengths (0, 1, 2 samples) round-trip exact
     REQUIRE(AudioIndex::indexToAudioData(AudioIndex::audioDataToIndex(makePayload({}))).samples.empty());
 
     for (auto samples : std::vector<std::vector<uint16_t>>{{42}, {0}, {65535}, {1, 2}, {0, 0}}) {
-        auto ad     = makePayload(samples);
-        auto index  = AudioIndex::audioDataToIndex(ad);
-        auto back   = AudioIndex::indexToAudioData(index);
+        auto ad    = makePayload(samples);
+        auto index = AudioIndex::audioDataToIndex(ad);
+        auto back  = AudioIndex::indexToAudioData(index);
         REQUIRE(back.samples == ad.samples);
     }
 }

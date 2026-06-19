@@ -62,8 +62,8 @@ TEST_CASE("AudioIndex: indexToMetadata deterministic and valid", "[metadata][det
         idx |= cpp_int(static_cast<uint32_t>(b));
     }
 
-    auto        m1     = AudioIndex::indexToMetadata(idx);
-    auto        m2     = AudioIndex::indexToMetadata(idx);
+    auto m1 = AudioIndex::indexToMetadata(idx);
+    auto m2 = AudioIndex::indexToMetadata(idx);
     // Metadata is now derived from the bijective base-64 string of the integer,
     // not from the bit-packed base-64 of the raw bytes.
     std::string b64str = AudioBabel::Utilities::indexToB64(idx);

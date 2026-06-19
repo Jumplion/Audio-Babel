@@ -94,8 +94,8 @@ TEST_CASE("AudioIndex: round-trip test audio directory", "[integration][roundtri
         bool file_ok = true;
 
         // The reconstruction always carries the fixed default header.
-        if (audio_data_reconstructed.sample_rate != 44100 || audio_data_reconstructed.bit_rate != 16 ||
-            audio_data_reconstructed.num_channels != 1 || audio_data_reconstructed.audio_format != 1) {
+        if (audio_data_reconstructed.sample_rate != 44100 || audio_data_reconstructed.bit_rate != 16 || audio_data_reconstructed.num_channels != 1 ||
+            audio_data_reconstructed.audio_format != 1) {
             INFO("FAIL [" << filename << "]: default header not applied on reconstruction");
             file_ok = false;
         }

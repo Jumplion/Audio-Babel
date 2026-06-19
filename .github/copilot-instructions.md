@@ -32,7 +32,7 @@ VS Code tasks are available: "Build (PowerShell)", "Run Tests (PowerShell)".
 
 - **C++17**, `namespace AudioBabel`, utilities in `AudioBabel::Utilities`. Use fully-qualified names.
 - **Error handling:** throw `std::invalid_argument`, not optionals.
-- **Base64:** URL-safe alphabet (`A-Z a-z 0-9 - _`), no `=` padding. See `Utilities.h` for `isValidBase64Url` / `decodeBase64Url`.
+- **Base64:** URL-safe alphabet (`A-Z a-z 0-9 - _`), no `=` padding. See `Utilities.h` for `isValidBase64Url` / `b64ToIndex` / `indexToB64`.
 - **Index serialization:** `cpp_int` ↔ bytes via `export_bits`. Keep both overloads of `extractMetadataFromIndex` symmetric.
 - **Static helpers** stay file-local when they are implementation details.
 - **New CLI targets:** follow the pattern in root `CMakeLists.txt` (`EXAMPLE_SRC`, `RECON_SRC`, `EXTRACT_SRC`).

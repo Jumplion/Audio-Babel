@@ -7,8 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "IndexMetadata.h"
-
 namespace AudioBabel {
 
 /**
@@ -52,14 +50,13 @@ namespace AudioBabel {
  * FileWriters::exportAudioDataToWav(reconstructed, "output.wav");
  * 
  * // Extract metadata
- * auto metadata = AudioIndex::indexToMetadata(index);
+ * auto metadata = IndexMetadata::extractMetadataFromIndex(index);
  * std::cout << "Genre: " << metadata.genre << std::endl;
  * @endcode
- * 
+ *
  * @section thread_safety Thread Safety
- * Static methods are thread-safe except for debug info getters/setters which use
- * a shared static variable. Instance methods require external synchronization.
- * 
+ * All static methods are thread-safe.
+ *
  * @see IndexMetadata for metadata extraction from indexes
  * @see LibraryPosition for hierarchical position calculation
  */
@@ -96,53 +93,8 @@ class AudioIndex {
     // See cpp/include/IndexMetadata.h
 
     // ---------------------
-    // Construction / lifecycle
-    // ---------------------
-
-    /**
-     * @brief Copy assignment operator.
-     * @param other AudioIndex to copy from
-     * @return Reference to this object
-     */
-    auto operator=(const AudioIndex& other) -> AudioIndex&;
-
-    /**
-     * @brief Equality comparison operator.
-     * @param other AudioIndex to compare with
-     * @return true if audio data matches exactly, false otherwise
-     */
-    auto operator==(const AudioIndex& other) const -> bool;
-
-    /**
-     * @brief Inequality comparison operator.
-     * @param other AudioIndex to compare with
-     * @return true if audio data differs, false otherwise
-     */
-    auto operator!=(const AudioIndex& other) const -> bool;
-
-    // ---------------------
     // Factory helpers
     // ---------------------
-
-    /**
-     * @brief Create an AudioIndex from raw PCM samples.
-     * 
-     * This factory function deterministically computes an index fingerprint and
-     * extracts hierarchical position codes from the provided audio samples.
-     * 
-     * @param samples PCM samples as signed 32-bit integers (mono interleaved)
-     * @param sampleRate Sample rate in Hz (default: 44100)
-     * @param bitDepth Bit depth in bits (default: 16; supported: 8, 16, 32)
-     * @return AudioIndex instance with computed metadata
-     * @throws std::runtime_error if bitDepth is not supported
-     * 
-     * @par Example
-     * @code
-     * std::vector<int32_t> samples = {0, 1000, -1000, 2000};
-     * auto index = AudioIndex::fromAudioSamples(samples, 44100, 16);
-     * @endcode
-     */
-    static auto fromAudioSamples(const std::vector<int32_t>& samples, int sampleRate = 44100, int bitDepth = 16) -> AudioIndex;
 
     /**
      * @brief Read a WAV file and extract audio data.
@@ -211,7 +163,6 @@ class AudioIndex {
      * big-integer addition — not a per-sample bignum loop.
      *
      * @see indexToAudioData for the inverse operation
-     * @see getLastDebugInfo for performance diagnostics
      */
     static auto audioDataToIndex(const AudioData& audioData) -> boost::multiprecision::cpp_int;
 
@@ -236,110 +187,6 @@ class AudioIndex {
      * @see audioDataToIndex for the inverse operation
      */
     static auto indexToAudioData(const boost::multiprecision::cpp_int& index) -> AudioData;
-
-    // ---------------------
-    // Debug / diagnostics
-    // ---------------------
-
-    /**
-     * @struct DebugInfo
-     * @brief Performance and diagnostic information for index operations.
-     * 
-     * This structure captures timing and byte-count metrics from the most recent
-     * audioDataToIndex() or indexToAudioData() call. Useful for profiling and
-     * debugging serialization issues.
-     * 
-     * @note Thread-local storage; each thread maintains its own debug info.
-     */
-    struct DebugInfo {
-        size_t   import_pcm_bytes   = 0; ///< Payload bytes consumed by audioDataToIndex
-        size_t   export_pcm_bytes   = 0; ///< Payload bytes produced by indexToAudioData
-        uint64_t audioDataToIndexMs = 0; ///< Milliseconds spent in audioDataToIndex
-        uint64_t indexToAudioDataMs = 0; ///< Milliseconds spent in indexToAudioData
-    };
-
-    /**
-     * @brief Retrieve debug information from the last serialization operation.
-     * 
-     * Returns performance metrics and byte counts from the most recent call to
-     * audioDataToIndex() or indexToAudioData() in the current thread.
-     * 
-     * @return DebugInfo structure with timing and diagnostic data
-     * 
-     * @par Thread Safety
-     * This function accesses thread-local storage and is safe to call concurrently.
-     * 
-     * @see clearLastDebugInfo
-     */
-    static auto getLastDebugInfo() -> DebugInfo;
-
-    /**
-     * @brief Clear the cached debug information.
-     * 
-     * Resets the debug info structure to default values. Useful when you want to
-     * ensure fresh metrics for subsequent operations.
-     * 
-     * @see getLastDebugInfo
-     */
-    static void clearLastDebugInfo();
-
-    // ---------------------
-    // Metadata helpers
-    // ---------------------
-
-    /**
-     * @brief Extract metadata from a big integer index.
-     * 
-     * Derives hierarchical library position and generates album cover art
-     * from the index's byte representation. The metadata includes genre,
-     * artist, album, and track identifiers computed deterministically.
-     * 
-     * @param index Big integer index to extract metadata from
-     * @return IndexMetadata structure with position codes and cover art
-     * 
-     * @par Metadata Fields
-     * - genre, artist, album, track: URL-safe base64 strings of varying lengths
-     * - coverData: 256×256 SVG with color derived from index bytes
-     * 
-     * @see IndexMetadata for details on metadata structure
-     */
-    static auto indexToMetadata(const boost::multiprecision::cpp_int& index) -> IndexMetadata;
-
-    /**
-     * Get the sample rate of the audio index.
-     * @returns Sample rate in Hz
-     */
-    [[nodiscard]] auto getSampleRate() const -> int {
-        return static_cast<int>(audioData.sample_rate);
-    }
-
-    /**
-     * Get the duration of the audio index.
-     * @returns Duration in seconds
-     */
-    [[nodiscard]] auto getDuration() const -> double {
-        return (audioData.sample_rate > 0) ? (static_cast<double>(audioData.num_frames) / static_cast<double>(audioData.sample_rate)) : 0.0;
-    }
-
-    /**
-     * Get the bit depth of the audio index.
-     * @returns Bit depth in bits
-     */
-    [[nodiscard]] auto getBitDepth() const -> int {
-        return static_cast<int>(audioData.bit_rate);
-    }
-
-    /**
-     * Get the metadata computed for this index by fromAudioSamples().
-     * @returns IndexMetadata populated during construction (default-constructed if unavailable)
-     */
-    [[nodiscard]] auto getMetadata() const -> const IndexMetadata& {
-        return metadata;
-    }
-
-   private:
-    AudioData     audioData;
-    IndexMetadata metadata;
 };
 
 } // namespace AudioBabel

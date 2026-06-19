@@ -42,21 +42,6 @@ struct LibraryPosition {
     uint8_t     shelf; ///< Shelf number within wall (0-4)
     uint8_t     album; ///< Album number within shelf (0-31)
     uint8_t     track; ///< Track number within album (0-14)
-
-    /**
-     * @brief Convert position to human-readable string.
-     * 
-     * Formats the position as a comma-separated string with all hierarchy levels.
-     * 
-     * @return Formatted string: "Room [base64], Wall Y, Shelf Z, Album A, Track T"
-     * 
-     * @par Example
-     * @code
-     * LibraryPosition pos = {"ABC123", 2, 3, 10, 7};
-     * std::cout << pos.toString(); // "Room ABC123, Wall 2, Shelf 3, Album 10, Track 7"
-     * @endcode
-     */
-    auto toString() const -> std::string;
 };
 
 /**

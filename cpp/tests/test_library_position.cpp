@@ -80,8 +80,10 @@ TEST_CASE("LibraryPosition: large index roundtrip", "[library_position][roundtri
 
 TEST_CASE("LibraryPosition: IndexMetadata includes position field", "[library_position][metadata]") {
     // Create a simple base64 index
-    std::vector<uint8_t> bytes  = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
-    std::string          base64 = Utilities::encodeBase64Url(bytes);
+    std::vector<uint8_t> bytes = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
+    cpp_int              raw   = 0;
+    boost::multiprecision::import_bits(raw, bytes.begin(), bytes.end(), 8, true);
+    std::string base64 = Utilities::indexToB64(raw);
 
     auto meta = IndexMetadata::extractMetadataFromIndex(base64);
 
@@ -430,7 +432,7 @@ TEST_CASE("LibraryPosition: reconstructIndexFromPosition with out-of-range value
         pos.album = 0;
         pos.track = 0;
 
-        // Expected: decodeBase64Url should throw on invalid characters
+        // Expected: b64ToIndex should throw on invalid characters
         REQUIRE_THROWS_AS(reconstructIndexFromPosition(pos), std::invalid_argument);
     }
 }

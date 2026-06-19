@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <boost/multiprecision/cpp_int.hpp>
-#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -14,7 +13,6 @@
 
 #include "Constants.h"
 #include "FileWriters.h"
-#include "IndexMetadata.h"
 #include "IndexScramble.h"
 #include "Utilities.h"
 
@@ -37,43 +35,8 @@ auto isBitDepthSupported(uint16_t bitDepth) -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// 2) Operators
+// 2) Factory functions
 // ---------------------------------------------------------------------------
-
-auto AudioIndex::operator=(const AudioIndex& other) -> AudioIndex& {
-    if (this != &other) {
-        audioData = other.audioData;
-        metadata  = other.metadata;
-    }
-    return *this;
-}
-
-auto AudioIndex::operator==(const AudioIndex& other) const -> bool {
-    return audioData.audio_format == other.audioData.audio_format && audioData.num_channels == other.audioData.num_channels &&
-           audioData.sample_rate == other.audioData.sample_rate && audioData.bit_rate == other.audioData.bit_rate &&
-           audioData.num_frames == other.audioData.num_frames && audioData.samples == other.audioData.samples;
-}
-
-auto AudioIndex::operator!=(const AudioIndex& other) const -> bool {
-    return !(*this == other);
-}
-
-// ---------------------------------------------------------------------------
-// 3) Factory functions
-// ---------------------------------------------------------------------------
-
-auto AudioIndex::fromAudioSamples(const std::vector<int32_t>& samples, int sampleRate, int bitDepth) -> AudioIndex {
-    AudioIndex index;
-    index.audioData = AudioIndex::extractAudioDataFromSamples(samples, sampleRate, bitDepth);
-    // build index integer and derive metadata
-    try {
-        cpp_int idx    = AudioIndex::audioDataToIndex(index.audioData);
-        index.metadata = IndexMetadata::extractMetadataFromIndex(idx);
-    } catch (...) {
-        // non-fatal: leave metadata blank on error
-    }
-    return index;
-}
 
 auto AudioIndex::extractAudioDataFromAudioFile(const std::string& path) -> AudioIndex::AudioData {
     /**
@@ -277,17 +240,6 @@ auto AudioIndex::extractAudioDataFromSamples(const std::vector<int32_t>& samples
     return audioData;
 }
 
-// Debug storage for import/export statistics (thread_local to avoid data races)
-static thread_local AudioIndex::DebugInfo lastDebug;
-
-auto AudioIndex::getLastDebugInfo() -> AudioIndex::DebugInfo {
-    return lastDebug;
-}
-
-void AudioIndex::clearLastDebugInfo() {
-    lastDebug = DebugInfo();
-}
-
 // Bytes per PCM sample at the default bit depth (2 for 16-bit).
 static constexpr size_t SAMPLE_BYTES = DEFAULT_BIT_DEPTH / BITS_PER_BYTE;
 
@@ -321,8 +273,6 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
      * Because every digit is value+1, a trailing zero sample contributes a real
      * digit and is therefore preserved (k vs k+1 trailing zeros differ).
      */
-    auto t0_import = std::chrono::steady_clock::now();
-
     const auto&  bytes = audioData.samples;
     const size_t L     = (bytes.size() + (SAMPLE_BYTES - 1)) / SAMPLE_BYTES; // whole samples (ceil)
 
@@ -355,11 +305,6 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
     // round-trip when enabled. See IndexScramble.h.
     index = IndexScramble::applyScramble(index);
 
-    lastDebug.import_pcm_bytes = bytes.size();
-
-    auto t1_import               = std::chrono::steady_clock::now();
-    lastDebug.audioDataToIndexMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(t1_import - t0_import).count());
-
     return index;
 }
 
@@ -381,8 +326,6 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
      * The decoded samples are serialized little-endian and wrapped in a fixed
      * default header (PCM, 44100 Hz, 16-bit, mono) for WAV writing.
      */
-    auto t0_export = std::chrono::steady_clock::now();
-
     // Undo the optional reversible scramble (identity unless enabled) before
     // decoding. The stored index is what carries the scramble.
     const cpp_int idx = IndexScramble::applyUnscramble(index);
@@ -420,16 +363,7 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
 
     audioData.num_frames = (audioData.samples.size() / SAMPLE_BYTES) / audioData.num_channels;
 
-    lastDebug.export_pcm_bytes = audioData.samples.size();
-
-    auto t1_export               = std::chrono::steady_clock::now();
-    lastDebug.indexToAudioDataMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(t1_export - t0_export).count());
-
     return audioData;
-}
-
-auto AudioIndex::indexToMetadata(const boost::multiprecision::cpp_int& index) -> IndexMetadata {
-    return IndexMetadata::extractMetadataFromIndex(index);
 }
 
 } // namespace AudioBabel

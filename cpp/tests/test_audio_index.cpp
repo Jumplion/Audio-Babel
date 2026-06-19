@@ -13,12 +13,10 @@
 
 #include <boost/multiprecision/cpp_int.hpp>
 #include <catch2/catch_test_macros.hpp>
-#include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include "test_common.h"
 
 using namespace AudioBabel;
-using Catch::Matchers::WithinAbs;
 
 TEST_CASE("AudioIndex: extractAudioDataFromSamples", "[audio_index]") {
     std::vector<int32_t> samples;
@@ -139,56 +137,6 @@ TEST_CASE("AudioIndex: silence duration preservation bug", "[audio_index][bug_fi
     REQUIRE(reconstructed2.samples.size() == 176400);
 }
 
-TEST_CASE("AudioIndex: zero sampleRate duration is zero", "[audio_index][edge_case]") {
-    std::vector<int32_t> samples(10, 1000);
-    auto                 ai = AudioIndex::fromAudioSamples(samples, 0, 16);
-
-    REQUIRE_THAT(ai.getDuration(), WithinAbs(0.0, 1e-12));
-}
-
-TEST_CASE("AudioIndex: operator== equal objects", "[audio_index][operators]") {
-    std::vector<int32_t> samples = {100, -100, 200, -200};
-    auto                 a       = AudioIndex::fromAudioSamples(samples, 44100, 16);
-    auto                 b       = AudioIndex::fromAudioSamples(samples, 44100, 16);
-
-    REQUIRE(a == b);
-    REQUIRE_FALSE(a != b);
-}
-
-TEST_CASE("AudioIndex: operator== different samples unequal", "[audio_index][operators]") {
-    std::vector<int32_t> s1 = {0, 1, 2, 3};
-    std::vector<int32_t> s2 = {0, 1, 2, 4};
-    auto                 a  = AudioIndex::fromAudioSamples(s1, 44100, 16);
-    auto                 b  = AudioIndex::fromAudioSamples(s2, 44100, 16);
-
-    REQUIRE(a != b);
-    REQUIRE_FALSE(a == b);
-}
-
-TEST_CASE("AudioIndex: operator== different sampleRate unequal", "[audio_index][operators]") {
-    std::vector<int32_t> samples = {10, 20, 30, 40};
-    auto                 a       = AudioIndex::fromAudioSamples(samples, 44100, 16);
-    auto                 b       = AudioIndex::fromAudioSamples(samples, 22050, 16);
-
-    REQUIRE(a != b);
-    REQUIRE_FALSE(a == b);
-}
-
-TEST_CASE("AudioIndex: copy assignment copies metadata", "[audio_index][operators]") {
-    std::vector<int32_t> samplesA = {1, 2, 3, 4};
-    std::vector<int32_t> samplesB = {5, 6, 7, 8, 9, 10};
-    auto                 a        = AudioIndex::fromAudioSamples(samplesA, 44100, 16);
-    auto                 b        = AudioIndex::fromAudioSamples(samplesB, 22050, 8);
-
-    a = b;
-
-    REQUIRE(a.getMetadata().genre == b.getMetadata().genre);
-    REQUIRE(a.getMetadata().artist == b.getMetadata().artist);
-    REQUIRE(a.getMetadata().album == b.getMetadata().album);
-    REQUIRE(a.getMetadata().track == b.getMetadata().track);
-    REQUIRE(a.getMetadata().cover == b.getMetadata().cover);
-}
-
 TEST_CASE("AudioIndex: 16-bit edge values roundtrip", "[audio_index][edge_case]") {
     AudioIndex::AudioData audioData{};
     audioData.sample_rate  = 44100;
@@ -294,8 +242,6 @@ TEST_CASE("AudioIndex: low-valued samples round-trip without loss", "[audio_inde
         audioData.samples[off + 0] = static_cast<uint8_t>(v & 0xFF);
         audioData.samples[off + 1] = static_cast<uint8_t>((v >> 8) & 0xFF);
     }
-
-    AudioIndex::clearLastDebugInfo();
 
     auto idx        = AudioIndex::audioDataToIndex(audioData);
     auto audioData2 = AudioIndex::indexToAudioData(idx);

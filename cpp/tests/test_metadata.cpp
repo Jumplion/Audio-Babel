@@ -52,7 +52,7 @@ static std::string encode_b64_url(const std::vector<uint8_t>& bytes) {
     return b64str;
 }
 
-TEST_CASE("AudioIndex: indexToMetadata deterministic and valid", "[metadata][determinism]") {
+TEST_CASE("IndexMetadata: cpp_int overload deterministic and valid", "[metadata][determinism]") {
     // Build a sample byte vector (non-empty) and construct a cpp_int (MSB-first)
     std::vector<uint8_t> bytes = {0x10, 0x20, 0x30, 0x41, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA,
                                   0xBB, 0xCC, 0xDD, 0xEE, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
@@ -62,8 +62,8 @@ TEST_CASE("AudioIndex: indexToMetadata deterministic and valid", "[metadata][det
         idx |= cpp_int(static_cast<uint32_t>(b));
     }
 
-    auto m1 = AudioIndex::indexToMetadata(idx);
-    auto m2 = AudioIndex::indexToMetadata(idx);
+    auto m1 = IndexMetadata::extractMetadataFromIndex(idx);
+    auto m2 = IndexMetadata::extractMetadataFromIndex(idx);
     // Metadata is now derived from the bijective base-64 string of the integer,
     // not from the bit-packed base-64 of the raw bytes.
     std::string b64str = AudioBabel::Utilities::indexToB64(idx);
@@ -182,7 +182,7 @@ TEST_CASE("IndexMetadata: stress test with very small cpp_int values", "[metadat
 
     for (const auto& idx : small_values) {
         INFO("Testing index: " << idx.convert_to<std::string>());
-        auto meta = AudioIndex::indexToMetadata(idx);
+        auto meta = IndexMetadata::extractMetadataFromIndex(idx);
 
         // All fields should be non-empty
         REQUIRE_FALSE(meta.genre.empty());
@@ -219,7 +219,7 @@ TEST_CASE("IndexMetadata: stress test with very large cpp_int values", "[metadat
         test_num++;
         INFO("Testing large index #" << test_num);
 
-        auto meta = AudioIndex::indexToMetadata(idx);
+        auto meta = IndexMetadata::extractMetadataFromIndex(idx);
 
         // All fields should be non-empty
         REQUIRE_FALSE(meta.genre.empty());
@@ -253,9 +253,9 @@ TEST_CASE("IndexMetadata: weighted splitting logic consistency", "[metadata][det
         INFO("Testing index: " << idx.convert_to<std::string>());
 
         // Generate metadata multiple times
-        auto meta1 = AudioIndex::indexToMetadata(idx);
-        auto meta2 = AudioIndex::indexToMetadata(idx);
-        auto meta3 = AudioIndex::indexToMetadata(idx);
+        auto meta1 = IndexMetadata::extractMetadataFromIndex(idx);
+        auto meta2 = IndexMetadata::extractMetadataFromIndex(idx);
+        auto meta3 = IndexMetadata::extractMetadataFromIndex(idx);
 
         // Verify consistency
         REQUIRE(meta1.genre == meta2.genre);
@@ -296,7 +296,7 @@ TEST_CASE("IndexMetadata: weighted splitting logic consistency", "[metadata][det
 TEST_CASE("IndexMetadata: empty index edge case", "[metadata][edge_case]") {
     // Test with zero index (minimal case)
     cpp_int idx  = 0;
-    auto    meta = AudioIndex::indexToMetadata(idx);
+    auto    meta = IndexMetadata::extractMetadataFromIndex(idx);
 
     // Should produce default metadata (not crash)
     REQUIRE_FALSE(meta.genre.empty());

@@ -110,63 +110,8 @@ constexpr auto isValidBase64Url(std::string_view s) -> bool {
     return true;
 }
 
-// Decode URL-safe base64 (no padding) into bytes. Throws std::invalid_argument on invalid input.
-inline auto decodeBase64Url(const std::string& s) -> std::vector<uint8_t> {
-    static const std::array<int8_t, 256> rev = []() {
-        std::array<int8_t, 256> table{};
-        table.fill(-1);
-        const char* alpha = BASE64_URL_ALPHA;
-        for (size_t i = 0; i < 64; ++i) {
-            table[static_cast<unsigned char>(alpha[i])] = static_cast<int8_t>(i);
-        }
-        return table;
-    }();
-
-    std::vector<uint8_t> out;
-    uint32_t             acc      = 0;
-    int                  acc_bits = 0;
-    for (char ch : s) {
-        int8_t v = rev[static_cast<unsigned char>(ch)];
-        if (v < 0) {
-            throw std::invalid_argument("Invalid base64 character in input");
-        }
-        acc = (acc << 6) | static_cast<uint32_t>(v);
-        acc_bits += 6;
-        if (acc_bits >= 8) {
-            acc_bits -= 8;
-            auto b = static_cast<uint8_t>((acc >> acc_bits) & 0xFF);
-            out.push_back(b);
-        }
-    }
-    return out;
-}
-
-// Encode bytes into URL-safe base64 (no padding)
-inline auto encodeBase64Url(const std::vector<uint8_t>& bytes) -> std::string {
-    static const char* b64_alpha = BASE64_URL_ALPHA;
-    std::string        b64str;
-    b64str.reserve((bytes.size() * AudioBabel::BITS_PER_BYTE + (AudioBabel::BASE64_BITS - 1)) / AudioBabel::BASE64_BITS);
-    uint32_t acc      = 0;
-    int      acc_bits = 0;
-    for (uint8_t byte : bytes) {
-        acc = (acc << AudioBabel::BITS_PER_BYTE) | byte;
-        acc_bits += AudioBabel::BITS_PER_BYTE;
-        while (acc_bits >= AudioBabel::BASE64_BITS) {
-            acc_bits -= AudioBabel::BASE64_BITS;
-            auto idx = static_cast<uint8_t>((acc >> acc_bits) & AudioBabel::BASE64_MASK);
-            b64str.push_back(b64_alpha[idx]);
-        }
-    }
-    if (acc_bits > 0) {
-        auto idx = static_cast<uint8_t>((acc << (AudioBabel::BASE64_BITS - acc_bits)) & AudioBabel::BASE64_MASK);
-        b64str.push_back(b64_alpha[idx]);
-    }
-    return b64str;
-}
-
 // --- Bijective base-64 for the INDEX string form -----------------------------
-// Unlike encodeBase64Url/decodeBase64Url (which pack bits across byte
-// boundaries), these implement a TRUE BIJECTION between non-negative integers
+// These implement a TRUE BIJECTION between non-negative integers
 // and strings over the 64-symbol URL-safe alphabet using bijective numeration
 // (digit = value + 1). Every string of any length >= 0 maps to exactly one
 // integer and back, with the empty string <-> 0. Nothing is rejected for

@@ -49,7 +49,7 @@ namespace AudioBabel {
  * 
  * // Reconstruct audio from index
  * auto reconstructed = AudioIndex::indexToAudioData(index);
- * AudioIndex::exportAudioDataToWav(reconstructed, "output.wav");
+ * FileWriters::exportAudioDataToWav(reconstructed, "output.wav");
  * 
  * // Extract metadata
  * auto metadata = AudioIndex::indexToMetadata(index);
@@ -284,51 +284,6 @@ class AudioIndex {
      * @see getLastDebugInfo
      */
     static void clearLastDebugInfo();
-
-    // ---------------------
-    // File I/O helpers
-    // ---------------------
-
-    /**
-     * @brief Export audio data to a WAV file.
-     * 
-     * Writes a standard RIFF/WAVE PCM file with the provided audio data.
-     * The output file will be a valid WAV file that can be opened by any
-     * standard audio player or editor.
-     * 
-     * @param audioData Audio data structure to write
-     * @param path Output file path (will be created or overwritten)
-     * @throws std::runtime_error if file cannot be opened for writing
-     * 
-     * @note Compatibility alias — delegates to FileWriters::exportAudioDataToWav.
-     *       Prefer calling FileWriters::exportAudioDataToWav directly in new code.
-     * 
-     * @see extractAudioDataFromAudioFile for the inverse operation
-     */
-    [[deprecated("Use FileWriters::exportAudioDataToWav directly")]] static void exportAudioDataToWav(const AudioData&   audioData,
-                                                                                                      const std::string& path);
-
-    /**
-     * @brief Write an index to a text file in URL-safe base64 encoding.
-     * 
-     * Serializes a big integer index to a base64-encoded text file without padding.
-     * The filename is automatically generated from the index's first bytes unless
-     * explicitly provided.
-     * 
-     * @param index Big integer index to write
-     * @param outDir Output directory (default: cpp/tests/indexes/)
-     * @param filename Base filename without extension (default: auto-generated from index bytes)
-     * 
-     * @par File Format
-     * The output file contains a single line of URL-safe base64 text (alphabet: A-Za-z0-9-_)
-     * with no padding characters, followed by a newline.
-     * 
-     * @note Compatibility alias — delegates to FileWriters::writeIndexToFile.
-     *       Prefer calling FileWriters::writeIndexToFile directly in new code.
-     */
-    [[deprecated("Use FileWriters::writeIndexToFile directly")]] static void writeIndexToFile(const boost::multiprecision::cpp_int& index,
-                                                                                              const std::string& outDir   = std::string(),
-                                                                                              const std::string& filename = std::string());
 
     // ---------------------
     // Metadata helpers

@@ -23,14 +23,16 @@ auto calculateLibraryPosition(const cpp_int& index) -> LibraryPosition {
     // Room 0 naturally maps to the empty string (indexToB64(0) == "").
     pos.room = Utilities::indexToB64(roomNumber);
 
-    // Calculate hierarchical position within the room using modular arithmetic
-    pos.wall = static_cast<uint8_t>((withinRoom / ITEMS_PER_WALL) % WALLS_PER_ROOM);
+    // Calculate hierarchical position within the room using modular arithmetic.
+    // withinRoom < ITEMS_PER_ROOM = WALLS_PER_ROOM * ITEMS_PER_WALL (and so on down
+    // the chain), so each quotient below is already in range without a modulo.
+    pos.wall = static_cast<uint8_t>(withinRoom / ITEMS_PER_WALL);
 
     cpp_int remainder = withinRoom % ITEMS_PER_WALL;
-    pos.shelf         = static_cast<uint8_t>((remainder / ITEMS_PER_SHELF) % SHELVES_PER_WALL);
+    pos.shelf         = static_cast<uint8_t>(remainder / ITEMS_PER_SHELF);
 
     remainder = remainder % ITEMS_PER_SHELF;
-    pos.album = static_cast<uint8_t>((remainder / ITEMS_PER_ALBUM) % ALBUMS_PER_SHELF);
+    pos.album = static_cast<uint8_t>(remainder / ITEMS_PER_ALBUM);
 
     pos.track = static_cast<uint8_t>(remainder % TRACKS_PER_ALBUM);
 

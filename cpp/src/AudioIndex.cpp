@@ -328,10 +328,10 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
 
     cpp_int index = 0;
     if (L != 0) {
-        // Big-endian-by-sample payload bytes (V) and the repunit pattern (S_L),
-        // both laid out most-significant-sample first for import_bits(msv=true).
+        // Big-endian-by-sample payload bytes (V), most-significant-sample first
+        // for import_bits(msv=true). S_L (the repunit) comes from the shared
+        // helper in Utilities.h.
         std::vector<uint8_t> valueBytes(L * SAMPLE_BYTES, 0);
-        std::vector<uint8_t> repunitBytes(L * SAMPLE_BYTES, 0);
         for (size_t i = 0; i < L; ++i) {
             size_t   lo  = i * SAMPLE_BYTES;
             uint32_t low = bytes[lo];
@@ -342,16 +342,11 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
             // Sample value, big-endian into valueBytes (high byte first).
             valueBytes[lo]     = static_cast<uint8_t>(high);
             valueBytes[lo + 1] = static_cast<uint8_t>(low);
-
-            // Repunit digit == 1 -> 0x0001 per sample.
-            repunitBytes[lo + 1] = 0x01;
         }
 
-        cpp_int value   = 0;
-        cpp_int repunit = 0;
+        cpp_int value = 0;
         boost::multiprecision::import_bits(value, valueBytes.begin(), valueBytes.end(), BITS_PER_BYTE, true);
-        boost::multiprecision::import_bits(repunit, repunitBytes.begin(), repunitBytes.end(), BITS_PER_BYTE, true);
-        index = value + repunit;
+        index = value + repunit(L);
     }
 
     // Optional reversible scramble so similar payloads land far apart (and short
@@ -360,8 +355,7 @@ auto AudioIndex::audioDataToIndex(const AudioIndex::AudioData& audioData) -> boo
     // round-trip when enabled. See IndexScramble.h.
     index = IndexScramble::applyScramble(index);
 
-    lastDebug.import_pcm_bytes      = bytes.size();
-    lastDebug.import_expected_bytes = bytes.size();
+    lastDebug.import_pcm_bytes = bytes.size();
 
     auto t1_import               = std::chrono::steady_clock::now();
     lastDebug.audioDataToIndexMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(t1_import - t0_import).count());
@@ -400,20 +394,12 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
     audioData.bit_rate     = DEFAULT_BIT_DEPTH;
 
     if (idx > 0) {
-        // m = n*(B-1) + 1, computed without a general multiply: n*(B-1) = (n<<16) - n.
-        cpp_int m = (idx << DEFAULT_BIT_DEPTH) - idx + 1;
-        size_t  L = static_cast<size_t>(boost::multiprecision::msb(m) / DEFAULT_BIT_DEPTH);
-
-        // S_L repunit (L copies of 0x00 0x01, most-significant-sample first).
-        std::vector<uint8_t> repunitBytes(L * SAMPLE_BYTES, 0);
-        for (size_t i = 0; i < L; ++i) {
-            repunitBytes[(i * SAMPLE_BYTES) + 1] = 0x01;
-        }
-        cpp_int repunit = 0;
-        boost::multiprecision::import_bits(repunit, repunitBytes.begin(), repunitBytes.end(), BITS_PER_BYTE, true);
+        // Sample count L and the S_L repunit come from the shared helpers in
+        // Utilities.h (also used by IndexScramble for the same length math).
+        size_t L = bandIndex(idx);
 
         // V = n - S_L is the base-B value of the samples (V < B^L).
-        cpp_int              value = idx - repunit;
+        cpp_int              value = idx - repunit(L);
         std::vector<uint8_t> valueBytes;
         boost::multiprecision::export_bits(value, std::back_inserter(valueBytes), BITS_PER_BYTE, true);
 
@@ -434,8 +420,7 @@ auto AudioIndex::indexToAudioData(const boost::multiprecision::cpp_int& index) -
 
     audioData.num_frames = (audioData.samples.size() / SAMPLE_BYTES) / audioData.num_channels;
 
-    lastDebug.export_pcm_bytes      = audioData.samples.size();
-    lastDebug.export_expected_bytes = audioData.samples.size();
+    lastDebug.export_pcm_bytes = audioData.samples.size();
 
     auto t1_export               = std::chrono::steady_clock::now();
     lastDebug.indexToAudioDataMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(t1_export - t0_export).count());

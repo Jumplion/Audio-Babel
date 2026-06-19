@@ -28,16 +28,16 @@ export function cleanupResultHandler() {
 }
 
 /**
- * Truncate a string if it exceeds maxLength, showing first and last parts with ellipsis
+ * Truncate a string if it exceeds a threshold, showing the first and last
+ * `partLength` characters joined by an ellipsis.
  * @param {string} str - String to truncate
- * @param {number} maxLength - Maximum length before truncation (default: 30)
+ * @param {number} threshold - Length above which truncation kicks in (default: 30)
+ * @param {number} [partLength] - Characters to keep at each end (default: 40% of threshold)
  * @returns {string} Truncated string with ellipsis if needed
  */
-function truncateString(str, maxLength = 30) {
-  if (!str || str.length <= maxLength) return str;
+function truncateString(str, threshold = 30, partLength = Math.floor(threshold * 0.4)) {
+  if (!str || str.length <= threshold) return str;
 
-  // Show first 40% and last 40% of the string with "..." in middle
-  const partLength = Math.floor(maxLength * 0.4);
   const start = str.substring(0, partLength);
   const end = str.substring(str.length - partLength);
   return `${start}...${end}`;
@@ -116,12 +116,7 @@ function makeIndexClickable(indexDisplay, fullIndex) {
   indexDisplay.parentNode.replaceChild(newIndexDisplay, indexDisplay);
 
   // Set truncated display text
-  const maxDisplayLength = 200;
-  const truncated = fullIndex.length > maxDisplayLength
-    ? fullIndex.substring(0, 100) + '...' + fullIndex.substring(fullIndex.length - 100)
-    : fullIndex;
-
-  newIndexDisplay.textContent = truncated;
+  newIndexDisplay.textContent = truncateString(fullIndex, 200, 100);
   newIndexDisplay.classList.add('index-clickable');
   newIndexDisplay.title = 'Click to download and view full index';
 
@@ -164,13 +159,7 @@ export async function handleJsonResponse(j, originalIndexB64) {
       }
 
       // Truncate room display if it's too long
-      let roomDisplay = position.room === "" ? "0" : position.room;
-      const maxRoomLength = 20;
-      if (roomDisplay.length > maxRoomLength) {
-        const start = roomDisplay.substring(0, 8);
-        const end = roomDisplay.substring(roomDisplay.length - 8);
-        roomDisplay = `${start}...${end}`;
-      }
+      const roomDisplay = truncateString(position.room === "" ? "0" : position.room, 20, 8);
 
       positionDisplay.innerHTML = `
         <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px;">

@@ -23,7 +23,7 @@ namespace AudioBabel {
  * library system. The index is a TRUE BIJECTION over the PCM sample payload only: every index
  * decodes to exactly one payload and every payload encodes to exactly one index, with no header,
  * version, or format metadata embedded.
- *
+ * 
  * @section index_format Index Format (payload-only bijection)
  * The index encodes ONLY the PCM sample payload. The atomic unit is one PCM sample, interpreted
  * as an UNSIGNED little-endian value in 0..B-1 where B = 1u << DEFAULT_BIT_DEPTH (65536 at the
@@ -163,9 +163,9 @@ class AudioIndex {
      * - Any channel count
      * 
      * @note The returned AudioData.samples contains little-endian byte-order samples
-     *       ready for direct use with exportAudioDataToWav().
-     * 
-     * @see exportAudioDataToWav
+     *       ready for direct use with FileWriters::exportAudioDataToWav().
+     *
+     * @see FileWriters::exportAudioDataToWav
      */
     static auto extractAudioDataFromAudioFile(const std::string& path) -> AudioData;
 
@@ -252,12 +252,10 @@ class AudioIndex {
      * @note Thread-local storage; each thread maintains its own debug info.
      */
     struct DebugInfo {
-        size_t   import_pcm_bytes      = 0; ///< Payload bytes consumed by audioDataToIndex
-        size_t   import_expected_bytes = 0; ///< Expected payload byte count for encode
-        size_t   export_pcm_bytes      = 0; ///< Payload bytes produced by indexToAudioData
-        size_t   export_expected_bytes = 0; ///< Expected payload byte count for decode
-        uint64_t audioDataToIndexMs    = 0; ///< Milliseconds spent in audioDataToIndex
-        uint64_t indexToAudioDataMs    = 0; ///< Milliseconds spent in indexToAudioData
+        size_t   import_pcm_bytes   = 0; ///< Payload bytes consumed by audioDataToIndex
+        size_t   export_pcm_bytes   = 0; ///< Payload bytes produced by indexToAudioData
+        uint64_t audioDataToIndexMs = 0; ///< Milliseconds spent in audioDataToIndex
+        uint64_t indexToAudioDataMs = 0; ///< Milliseconds spent in indexToAudioData
     };
 
     /**

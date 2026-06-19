@@ -10,18 +10,18 @@
  *   // Use wasm instance...
  */
 
-import AudioIndexWASM from './audioIndexWasm.js';
+import IndexWasm from './indexWasm.js';
 
 let wasmInstance = null;
 
 /**
  * Get the shared WASM module instance (lazy-loaded singleton)
  * Initializes on first call, returns cached instance on subsequent calls
- * @returns {Promise<AudioIndexWASM>} Initialized WASM module instance
+ * @returns {Promise<IndexWasm>} Initialized WASM module instance
  */
 export async function getWasmModule() {
     if (!wasmInstance) {
-        wasmInstance = new AudioIndexWASM();
+        wasmInstance = new IndexWasm();
         await wasmInstance.initialize();
     }
     return wasmInstance;

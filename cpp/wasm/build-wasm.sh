@@ -71,24 +71,24 @@ echo ""
 echo "Copying files to output directory..."
 
 # Copy WASM and JS files
-if [ -f "audio-index.wasm" ]; then
-    cp audio-index.wasm "$OUTPUT_DIR/"
-    echo "✓ Copied audio-index.wasm"
+if [ -f "index.wasm" ]; then
+    cp index.wasm "$OUTPUT_DIR/"
+    echo "✓ Copied index.wasm"
 else
     echo "❌ WASM file not found!"
     exit 1
 fi
 
-if [ -f "audio-index.js" ]; then
-    cp audio-index.js "$OUTPUT_DIR/"
-    echo "✓ Copied audio-index.js"
+if [ -f "index.js" ]; then
+    cp index.js "$OUTPUT_DIR/"
+    echo "✓ Copied index.js"
 else
     echo "❌ JS file not found!"
     exit 1
 fi
 
 # Show file sizes
-WASM_SIZE=$(du -h "audio-index.wasm" | cut -f1)
+WASM_SIZE=$(du -h "index.wasm" | cut -f1)
 echo ""
 echo "WASM module size: $WASM_SIZE"
 

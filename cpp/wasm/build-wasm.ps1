@@ -70,12 +70,12 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "`nCopying files to output directory..." -ForegroundColor Cyan
 
 # Copy WASM and JS files
-$wasmFile = Join-Path $buildDir "audio-index.wasm"
-$jsFile = Join-Path $buildDir "audio-index.js"
+$wasmFile = Join-Path $buildDir "index.wasm"
+$jsFile = Join-Path $buildDir "index.js"
 
 if (Test-Path $wasmFile) {
     Copy-Item $wasmFile $outputDir -Force
-    Write-Host "✓ Copied audio-index.wasm" -ForegroundColor Green
+    Write-Host "✓ Copied index.wasm" -ForegroundColor Green
 }
 else {
     Write-Host "❌ WASM file not found!" -ForegroundColor Red
@@ -83,7 +83,7 @@ else {
 
 if (Test-Path $jsFile) {
     Copy-Item $jsFile $outputDir -Force
-    Write-Host "✓ Copied audio-index.js" -ForegroundColor Green
+    Write-Host "✓ Copied index.js" -ForegroundColor Green
 }
 else {
     Write-Host "❌ JS file not found!" -ForegroundColor Red

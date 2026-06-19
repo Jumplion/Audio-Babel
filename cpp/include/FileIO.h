@@ -1,0 +1,111 @@
+#ifndef FILE_IO_H
+#define FILE_IO_H
+
+#include <boost/multiprecision/cpp_int.hpp>
+#include <cstdint>
+#include <string>
+#include <vector>
+
+namespace AudioBabel {
+
+/**
+ * @class FileIO
+ * @brief Reads and writes PCM audio data to/from WAV files.
+ *
+ * FileIO owns the WAV file format: the AudioData struct (header fields + PCM payload),
+ * parsing a RIFF/WAVE file into it, and serializing it back out. It is the only place
+ * sample rate, bit depth, and channel count are meaningful — Index works with raw PCM
+ * payload bytes only and knows nothing about files or headers.
+ *
+ * @see Index for the PCM payload <-> big integer bijection
+ */
+class FileIO {
+   public:
+    /**
+     * @struct AudioData
+     * @brief Container for a WAV file's header fields and PCM sample payload.
+     *
+     * Fields are intentionally simple PODs (Plain Old Data) so tests and callers
+     * can construct or inspect them directly without accessor methods.
+     *
+     * @note All multi-byte values in the samples vector are stored in little-endian
+     *       byte order, matching WAV file format conventions.
+     */
+    struct AudioData {
+        uint32_t             sample_rate;  ///< Sample rate in Hz (e.g., 44100)
+        uint16_t             bit_rate;     ///< Bits per sample (8, 16, or 32 supported)
+        uint16_t             num_channels; ///< Number of audio channels (1 = mono, 2 = stereo)
+        uint16_t             audio_format; ///< Audio format code (1 = PCM)
+        size_t               num_frames;   ///< Number of audio frames (samples per channel)
+        std::vector<uint8_t> samples;      ///< PCM sample bytes (little-endian per-sample)
+    };
+
+    /**
+     * @brief Read a WAV file and extract its header fields and PCM payload.
+     *
+     * Parses a standard RIFF/WAVE PCM file and populates an AudioData structure.
+     * The function expects a well-formed WAV file with a 'fmt ' chunk followed by
+     * a 'data' chunk. Unknown chunks are skipped according to RIFF padding rules.
+     *
+     * @param path File path to the .wav file
+     * @return AudioData structure with parsed header fields and audio samples
+     * @throws std::runtime_error if file cannot be opened, format is invalid,
+     *         bit depth is unsupported, or file is truncated
+     *
+     * @par Supported Formats
+     * - PCM format only (audio_format = 1)
+     * - Bit depths: 8, 16, or 32 bits per sample
+     * - Any sample rate
+     * - Any channel count
+     */
+    static auto readWav(const std::string& path) -> AudioData;
+
+    /**
+     * @brief Write a fully-specified AudioData structure to a WAV file.
+     * @param audioData Header fields and PCM payload to write
+     * @param path Output file path
+     */
+    static void writeWav(const AudioData& audioData, const std::string& path);
+
+    /**
+     * @brief Write a raw PCM payload to a WAV file using the fixed default header
+     *        (PCM, 44100 Hz, 16-bit, mono).
+     * @param samples PCM sample payload bytes (little-endian per-sample)
+     * @param path Output file path
+     */
+    static void writeWav(const std::vector<uint8_t>& samples, const std::string& path);
+
+    /**
+     * @brief Build an AudioData structure from signed integer samples.
+     *
+     * Converts a vector of host-order int32 values into an AudioData structure
+     * with packed little-endian bytes per sample according to the specified bit depth.
+     *
+     * @param samples PCM samples as signed 32-bit integers (mono interleaved)
+     * @param sampleRate Sample rate in Hz (default: 44100)
+     * @param bitDepth Bit depth in bits (default: 16; supported: 8, 16, 32)
+     * @return AudioData structure ready for index encoding
+     *
+     * @par Sample Packing
+     * - 8-bit: Each int32 is packed as 1 byte (LSB only)
+     * - 16-bit: Each int32 is packed as 2 bytes (little-endian)
+     * - 32-bit: Each int32 is packed as 4 bytes (little-endian)
+     *
+     * @note Assumes mono input (num_channels = 1)
+     */
+    static auto fromSamples(const std::vector<int32_t>& samples, int sampleRate = 44100, int bitDepth = 16) -> AudioData;
+
+    /**
+     * @brief Write a bijective base-64 index string to a text file.
+     * @param index Big integer index to serialize
+     * @param outDir Output directory (defaults to cpp/tests/indexes)
+     * @param filename Output file stem, without extension (defaults to a stem derived from the index)
+     */
+    static void writeIndexToFile(const boost::multiprecision::cpp_int& index,
+                                  const std::string&                    outDir   = std::string(),
+                                  const std::string&                    filename = std::string());
+};
+
+} // namespace AudioBabel
+
+#endif // FILE_IO_H

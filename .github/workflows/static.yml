@@ -38,17 +38,17 @@ jobs:
       - name: Verify WASM files exist
         run: |
           echo "Checking for required WASM files..."
-          if [ ! -f "docs/wasm/audio-index.wasm" ]; then
-            echo "ERROR: docs/wasm/audio-index.wasm not found!"
+          if [ ! -f "docs/wasm/index.wasm" ]; then
+            echo "ERROR: docs/wasm/index.wasm not found!"
             exit 1
           fi
-          if [ ! -f "docs/wasm/audio-index.js" ]; then
-            echo "ERROR: docs/wasm/audio-index.js not found!"
+          if [ ! -f "docs/wasm/index.js" ]; then
+            echo "ERROR: docs/wasm/index.js not found!"
             exit 1
           fi
           echo "✓ WASM files found"
-          echo "  audio-index.wasm: $(stat -c%s docs/wasm/audio-index.wasm) bytes"
-          echo "  audio-index.js: $(stat -c%s docs/wasm/audio-index.js) bytes"
+          echo "  index.wasm: $(stat -c%s docs/wasm/index.wasm) bytes"
+          echo "  index.js: $(stat -c%s docs/wasm/index.js) bytes"
       
       - name: Verify .nojekyll exists
         run: |
@@ -89,5 +89,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Deployed Files" >> $GITHUB_STEP_SUMMARY
           echo "- Static site from \`docs/\` directory" >> $GITHUB_STEP_SUMMARY
-          echo "- WASM module: \`audio-index.wasm\`" >> $GITHUB_STEP_SUMMARY
-          echo "- WASM glue code: \`audio-index.js\`" >> $GITHUB_STEP_SUMMARY
+          echo "- WASM module: \`index.wasm\`" >> $GITHUB_STEP_SUMMARY
+          echo "- WASM glue code: \`index.js\`" >> $GITHUB_STEP_SUMMARY

@@ -221,8 +221,8 @@ The build compiles `wasm_bindings.cpp` (Emscripten embind) and outputs to `docs/
 
 | Output | Description |
 | -------- | ------------- |
-| `docs/wasm/audio-index.js` | ES6 module loader |
-| `docs/wasm/audio-index.wasm` | Compiled WebAssembly binary |
+| `docs/wasm/index.js` | ES6 module loader |
+| `docs/wasm/index.wasm` | Compiled WebAssembly binary |
 
 These files are committed to the repo so the GitHub Pages site works without a build step.
 

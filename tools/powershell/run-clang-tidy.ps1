@@ -5,7 +5,7 @@ Usage:
     .\tools\powershell\run-clang-tidy.ps1
 
     # analyze specific files
-    .\tools\powershell\run-clang-tidy.ps1 -Files "cpp\\src\\AudioIndex.cpp"
+    .\tools\powershell\run-clang-tidy.ps1 -Files "cpp\\src\\Index.cpp"
 
     # apply compile error fixes
     .\tools\powershell\run-clang-tidy.ps1 -FixErrors

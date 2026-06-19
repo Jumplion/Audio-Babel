@@ -7,7 +7,7 @@
  * from the unscrambled index when enabled, core untouched when disabled).
  */
 
-#include <AudioIndex.h>
+#include <Index.h>
 #include <IndexScramble.h>
 
 #include <boost/multiprecision/cpp_int.hpp>
@@ -83,38 +83,38 @@ TEST_CASE("Scramble: different seeds give different placements", "[scramble][see
 
 TEST_CASE("Scramble: disabled config leaves the index untouched", "[scramble][toggle]") {
     std::vector<uint16_t> samples = {1, 2, 3, 0, 0, 65535, 4};
-    auto                  ad      = makePayload(samples);
+    auto                  bytes   = makePayload(samples);
 
     ScrambleGuard guard(false, 42); // explicitly disabled
-    auto          rawIndex = AudioIndex::audioDataToIndex(ad);
+    auto          rawIndex = Index::encode(bytes);
 
     // With scramble off, the index is the plain payload value (no permutation).
     REQUIRE(IndexScramble::applyScramble(rawIndex) == rawIndex);
-    auto decoded = AudioIndex::indexToAudioData(rawIndex);
-    REQUIRE(decoded.samples == ad.samples);
+    auto decoded = Index::decode(rawIndex);
+    REQUIRE(decoded == bytes);
 }
 
 TEST_CASE("Scramble: enabled pipeline still round-trips exactly", "[scramble][toggle][roundtrip]") {
     const uint64_t seed = 0xABCDEF42ULL;
 
     // Capture the unscrambled index first for comparison.
-    AudioIndex::AudioData ad = makePayload({10, 20, 0, 0, 30, 65535, 0});
-    cpp_int               rawIndex;
+    auto    bytes = makePayload({10, 20, 0, 0, 30, 65535, 0});
+    cpp_int rawIndex;
     {
         ScrambleGuard off(false, seed);
-        rawIndex = AudioIndex::audioDataToIndex(ad);
+        rawIndex = Index::encode(bytes);
     }
 
     ScrambleGuard on(true, seed);
-    cpp_int       scrambledIndex = AudioIndex::audioDataToIndex(ad);
+    cpp_int       scrambledIndex = Index::encode(bytes);
 
     // Enabling the scramble must change the stored index...
     REQUIRE(scrambledIndex != rawIndex);
 
     // ...but the full round-trip must still reproduce the payload exactly.
-    auto decoded = AudioIndex::indexToAudioData(scrambledIndex);
-    REQUIRE(decoded.samples == ad.samples);
-    REQUIRE(decoded.num_frames == ad.samples.size() / 2);
+    auto decoded = Index::decode(scrambledIndex);
+    REQUIRE(decoded == bytes);
+    REQUIRE(decoded.size() == bytes.size());
 }
 
 namespace {
@@ -130,7 +130,7 @@ auto bandOf(const cpp_int& n) -> size_t {
 }
 
 // S_L = (B^L - 1)/(B - 1), the exact start of sample-band L (mirrors the
-// repunit used internally by IndexScramble and AudioIndex).
+// repunit used internally by IndexScramble and Index).
 auto repunitOf(size_t band) -> cpp_int {
     if (band == 0) {
         return cpp_int(0);
@@ -156,10 +156,11 @@ TEST_CASE("Scramble: short indices spread into a much longer length tier", "[scr
     // so each one should land near that cap rather than at a few samples.
     ScrambleGuard on(true, seed);
     for (cpp_int small : {cpp_int(1), cpp_int(7), cpp_int(12345), cpp_int("99999999")}) {
-        auto decoded = AudioIndex::indexToAudioData(small);
-        INFO("short index = " << small << " -> frames = " << decoded.num_frames);
-        REQUIRE(decoded.num_frames >= 40000); // within the tier-1 (1s) cap
-        REQUIRE(decoded.num_frames <= 44100);
+        auto decoded = Index::decode(small);
+        size_t frames = decoded.size() / 2;
+        INFO("short index = " << small << " -> frames = " << frames);
+        REQUIRE(frames >= 40000); // within the tier-1 (1s) cap
+        REQUIRE(frames <= 44100);
     }
 }
 
@@ -170,11 +171,11 @@ TEST_CASE("Scramble: a 3-sample payload is still represented and exact", "[scram
     // The bijection still has room for tiny payloads; encoding one produces a
     // valid (scattered, much larger) index that decodes back to exactly 3
     // samples. Nothing about tiering removes short audio from the codomain.
-    auto ad    = makePayload({1234, 0, 65535});
-    auto index = AudioIndex::audioDataToIndex(ad); // scrambled / "public" index
-    auto back  = AudioIndex::indexToAudioData(index);
-    REQUIRE(back.num_frames == 3);
-    REQUIRE(back.samples == ad.samples);
+    auto bytes = makePayload({1234, 0, 65535});
+    auto index = Index::encode(bytes); // scrambled / "public" index
+    auto back  = Index::decode(index);
+    REQUIRE(back.size() == 6);
+    REQUIRE(back == bytes);
 }
 
 TEST_CASE("Scramble: tiered permutation is a bijection and stays within its tier", "[scramble][tier][bijection]") {
@@ -230,13 +231,13 @@ TEST_CASE("Scramble: smallest payload lengths (0, 1, 2 samples) round-trip exact
     const uint64_t seed = 0xFEED5EEDULL;
     ScrambleGuard  on(true, seed);
 
-    REQUIRE(AudioIndex::indexToAudioData(AudioIndex::audioDataToIndex(makePayload({}))).samples.empty());
+    REQUIRE(Index::decode(Index::encode(makePayload({}))).empty());
 
     for (auto samples : std::vector<std::vector<uint16_t>>{{42}, {0}, {65535}, {1, 2}, {0, 0}}) {
-        auto ad    = makePayload(samples);
-        auto index = AudioIndex::audioDataToIndex(ad);
-        auto back  = AudioIndex::indexToAudioData(index);
-        REQUIRE(back.samples == ad.samples);
+        auto bytes = makePayload(samples);
+        auto index = Index::encode(bytes);
+        auto back  = Index::decode(index);
+        REQUIRE(back == bytes);
     }
 }
 
@@ -259,15 +260,15 @@ TEST_CASE("Scramble: invariants hold with scramble enabled", "[scramble][bijecti
     ScrambleGuard  on(true, seed);
 
     SECTION("Empty payload still maps to the empty index and back") {
-        AudioIndex::AudioData empty{};
-        auto                  idx = AudioIndex::audioDataToIndex(empty);
+        std::vector<uint8_t> empty{};
+        auto                 idx = Index::encode(empty);
         REQUIRE(idx == 0);
-        REQUIRE(AudioIndex::indexToAudioData(idx).samples.empty());
+        REQUIRE(Index::decode(idx).empty());
     }
 
     SECTION("Trailing-zero distinctness survives scrambling") {
-        auto k0 = AudioIndex::audioDataToIndex(makePayload({5, 7, 0}));
-        auto k1 = AudioIndex::audioDataToIndex(makePayload({5, 7, 0, 0}));
+        auto k0 = Index::encode(makePayload({5, 7, 0}));
+        auto k1 = Index::encode(makePayload({5, 7, 0, 0}));
         REQUIRE(k0 != k1);
     }
 
@@ -280,9 +281,9 @@ TEST_CASE("Scramble: invariants hold with scramble enabled", "[scramble][bijecti
             for (auto& v : samples) {
                 v = static_cast<uint16_t>(valDist(rng));
             }
-            auto ad      = makePayload(samples);
-            auto decoded = AudioIndex::indexToAudioData(AudioIndex::audioDataToIndex(ad));
-            REQUIRE(decoded.samples == ad.samples);
+            auto bytes   = makePayload(samples);
+            auto decoded = Index::decode(Index::encode(bytes));
+            REQUIRE(decoded == bytes);
         }
     }
 }

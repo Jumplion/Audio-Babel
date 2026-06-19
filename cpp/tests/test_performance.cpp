@@ -14,6 +14,8 @@
  * Results are written to: build/performance_results.txt
  */
 
+#include <Index.h>
+
 #include <chrono>
 #include <cmath>
 #include <fstream>
@@ -62,7 +64,7 @@ class BenchmarkRunner {
     /**
      * @brief Run a benchmark multiple times and record median/min/max times.
      * @param name Benchmark name
-     * @param category Category (e.g., "AudioIndex Operations")
+     * @param category Category (e.g., "Index Operations")
      * @param iterations Number of times to run the benchmark
      * @param fn Function to benchmark
      * @param throughputCalc Optional throughput calculation function
@@ -196,8 +198,20 @@ std::vector<uint8_t> generateRandomBytes(size_t numBytes) {
     return data;
 }
 
-void runAudioIndexBenchmarks(BenchmarkRunner& runner) {
-    const std::string category = "AudioIndex Operations";
+// Helper: Pack int32 samples into 16-bit little-endian PCM bytes, without
+// building a full FileIO::AudioData (Index::encode only needs the bytes).
+std::vector<uint8_t> packSamples16(const std::vector<int32_t>& samples) {
+    std::vector<uint8_t> bytes(samples.size() * 2);
+    for (size_t i = 0; i < samples.size(); ++i) {
+        auto v          = static_cast<int16_t>(samples[i]);
+        bytes[i * 2]     = static_cast<uint8_t>(v & 0xFF);
+        bytes[i * 2 + 1] = static_cast<uint8_t>((v >> 8) & 0xFF);
+    }
+    return bytes;
+}
+
+void runIndexBenchmarks(BenchmarkRunner& runner) {
+    const std::string category = "Index Operations";
 
     // 1.1: Small audio (1 second)
     {
@@ -209,8 +223,8 @@ void runAudioIndexBenchmarks(BenchmarkRunner& runner) {
             category,
             1000,
             [&samples]() {
-                auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
-                auto index     = AudioIndex::audioDataToIndex(audioData);
+                auto bytes = packSamples16(samples);
+                auto index = Index::encode(bytes);
             },
             [numSamples](double ms) -> std::pair<double, std::string> {
                 double samplesPerSec = (numSamples / (ms / 1000.0));
@@ -228,8 +242,8 @@ void runAudioIndexBenchmarks(BenchmarkRunner& runner) {
             category,
             100,
             [&samples]() {
-                auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
-                auto index     = AudioIndex::audioDataToIndex(audioData);
+                auto bytes = packSamples16(samples);
+                auto index = Index::encode(bytes);
             },
             [numSamples](double ms) -> std::pair<double, std::string> {
                 double samplesPerSec = (numSamples / (ms / 1000.0));
@@ -247,8 +261,8 @@ void runAudioIndexBenchmarks(BenchmarkRunner& runner) {
             category,
             10,
             [&samples]() {
-                auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
-                auto index     = AudioIndex::audioDataToIndex(audioData);
+                auto bytes = packSamples16(samples);
+                auto index = Index::encode(bytes);
             },
             [numSamples](double ms) -> std::pair<double, std::string> {
                 double samplesPerSec = (numSamples / (ms / 1000.0));
@@ -266,8 +280,8 @@ void runAudioIndexBenchmarks(BenchmarkRunner& runner) {
             category,
             5,
             [&samples]() {
-                auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
-                auto index     = AudioIndex::audioDataToIndex(audioData);
+                auto bytes = packSamples16(samples);
+                auto index = Index::encode(bytes);
             },
             [numSamples](double ms) -> std::pair<double, std::string> {
                 double samplesPerSec = (numSamples / (ms / 1000.0));
@@ -285,8 +299,8 @@ void runAudioIndexBenchmarks(BenchmarkRunner& runner) {
             category,
             2,
             [&samples]() {
-                auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
-                auto index     = AudioIndex::audioDataToIndex(audioData);
+                auto bytes = packSamples16(samples);
+                auto index = Index::encode(bytes);
             },
             [numSamples](double ms) -> std::pair<double, std::string> {
                 double samplesPerSec = (numSamples / (ms / 1000.0));
@@ -304,8 +318,8 @@ void runAudioIndexBenchmarks(BenchmarkRunner& runner) {
             category,
             1,
             [&samples]() {
-                auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
-                auto index     = AudioIndex::audioDataToIndex(audioData);
+                auto bytes = packSamples16(samples);
+                auto index = Index::encode(bytes);
             },
             [numSamples](double ms) -> std::pair<double, std::string> {
                 double samplesPerSec = (numSamples / (ms / 1000.0));
@@ -315,9 +329,9 @@ void runAudioIndexBenchmarks(BenchmarkRunner& runner) {
 
     // 1.4: Index Serialization
     {
-        auto samples   = generateSyntheticAudio(44100 * 30, 16);
-        auto audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
-        auto index     = AudioIndex::audioDataToIndex(audioData);
+        auto samples = generateSyntheticAudio(44100 * 30, 16);
+        auto bytes   = packSamples16(samples);
+        auto index   = Index::encode(bytes);
 
         runner.runBenchmark(
             "Index Serialization",
@@ -412,9 +426,8 @@ void runIndexMetadataBenchmarks(BenchmarkRunner& runner) {
 
     // 5.1: Metadata extraction (small index)
     {
-        auto                 samples   = generateSyntheticAudio(44100, 16); // 1 second
-        auto                 audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
-        auto index = AudioIndex::audioDataToIndex(audioData);
+        auto        samples     = generateSyntheticAudio(44100, 16); // 1 second
+        auto        index       = Index::encode(packSamples16(samples));
         std::string base64Index = Utilities::indexToB64(index);
 
         runner.runBenchmark(
@@ -430,9 +443,8 @@ void runIndexMetadataBenchmarks(BenchmarkRunner& runner) {
 
     // 5.2: Metadata extraction (large index)
     {
-        auto                 samples   = generateSyntheticAudio(44100 * 120, 16); // 120 seconds (max)
-        auto                 audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
-        auto index = AudioIndex::audioDataToIndex(audioData);
+        auto        samples     = generateSyntheticAudio(44100 * 120, 16); // 120 seconds (max)
+        auto        index       = Index::encode(packSamples16(samples));
         std::string base64Index = Utilities::indexToB64(index);
 
         runner.runBenchmark(
@@ -448,9 +460,8 @@ void runIndexMetadataBenchmarks(BenchmarkRunner& runner) {
 
     // 5.3: SVG cover generation
     {
-        auto                 samples   = generateSyntheticAudio(44100, 16);
-        auto                 audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
-        auto index = AudioIndex::audioDataToIndex(audioData);
+        auto        samples     = generateSyntheticAudio(44100, 16);
+        auto        index       = Index::encode(packSamples16(samples));
         std::string base64Index = Utilities::indexToB64(index);
 
         runner.runBenchmark(
@@ -507,8 +518,8 @@ int main() {
     BenchmarkRunner runner("build/performance_results.txt");
 
     // Run all benchmark categories
-    std::cout << "\n[1/4] Running AudioIndex benchmarks...\n";
-    runAudioIndexBenchmarks(runner);
+    std::cout << "\n[1/4] Running Index benchmarks...\n";
+    runIndexBenchmarks(runner);
 
     std::cout << "\n[2/4] Running LibraryPosition benchmarks...\n";
     runLibraryPositionBenchmarks(runner);

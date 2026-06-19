@@ -1,8 +1,5 @@
 #include "../include/LibraryPosition.h"
 
-#include <iomanip>
-#include <sstream>
-
 #include "../include/Utilities.h"
 
 namespace AudioBabel {
@@ -69,13 +66,6 @@ auto reconstructIndexFromPosition(const LibraryPosition& pos) -> cpp_int {
     index += cpp_int(pos.track);
 
     return index;
-}
-
-auto LibraryPosition::toString() const -> std::string {
-    std::ostringstream oss;
-    oss << "Room " << room << ", Wall " << static_cast<int>(wall) << ", Shelf " << static_cast<int>(shelf) << ", Album " << static_cast<int>(album)
-        << ", Track " << static_cast<int>(track);
-    return oss.str();
 }
 
 } // namespace AudioBabel

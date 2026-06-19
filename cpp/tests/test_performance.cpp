@@ -335,256 +335,6 @@ void runAudioIndexBenchmarks(BenchmarkRunner& runner) {
     }
 }
 
-void runBase64Benchmarks(BenchmarkRunner& runner) {
-    const std::string category = "Base64 Encoding/Decoding";
-
-    // 2.1: Small encode (1KB)
-    {
-        auto data = generateRandomBytes(1024);
-
-        runner.runBenchmark(
-            "Encode (1KB)",
-            category,
-            10,
-            [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
-            [](double ms) -> std::pair<double, std::string> {
-                double kbPerSec = (1.0 / (ms / 1000.0));
-                return {kbPerSec, "KB/sec"};
-            });
-    }
-
-    // 2.2: Large encode (1MB - reduced from 10MB for faster benchmarking)
-    {
-        auto data = generateRandomBytes(1024 * 1024);
-
-        runner.runBenchmark(
-            "Encode (1MB)",
-            category,
-            10,
-            [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (1.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-
-    // 2.2b: 2MB encode
-    {
-        auto data = generateRandomBytes(2 * 1024 * 1024);
-
-        runner.runBenchmark(
-            "Encode (2MB)",
-            category,
-            10,
-            [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (2.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-
-    // 2.2c: 5MB encode
-    {
-        auto data = generateRandomBytes(5 * 1024 * 1024);
-
-        runner.runBenchmark(
-            "Encode (5MB)",
-            category,
-            10,
-            [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (5.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-
-    // 2.2d: 10MB encode
-    {
-        auto data = generateRandomBytes(10 * 1024 * 1024);
-
-        runner.runBenchmark(
-            "Encode (10MB)",
-            category,
-            10,
-            [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (10.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-
-    // 2.2e: 50MB encode (stress test)
-    {
-        auto data = generateRandomBytes(50 * 1024 * 1024);
-
-        runner.runBenchmark(
-            "Encode (50MB)",
-            category,
-            2,
-            [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (50.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-
-    // 2.2f: 100MB encode (maximum stress test)
-    {
-        auto data = generateRandomBytes(100 * 1024 * 1024);
-
-        runner.runBenchmark(
-            "Encode (100MB)",
-            category,
-            1,
-            [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (100.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-    // 2.2g 1024MB encode (extreme stress test)
-    {
-        auto data = generateRandomBytes(1024 * 1024 * 1024);
-
-        runner.runBenchmark(
-            "Encode (1024MB)",
-            category,
-            1,
-            [&data]() { std::string encoded = Utilities::encodeBase64Url(data); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (1024.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-
-    // 2.3: Small decode (1KB)
-    {
-        auto        data    = generateRandomBytes(1024);
-        std::string encoded = Utilities::encodeBase64Url(data);
-
-        runner.runBenchmark(
-            "Decode (1KB)",
-            category,
-            1000,
-            [&encoded]() { auto decoded = Utilities::decodeBase64Url(encoded); },
-            [](double ms) -> std::pair<double, std::string> {
-                double kbPerSec = (1.0 / (ms / 1000.0));
-                return {kbPerSec, "KB/sec"};
-            });
-    }
-
-    // 2.4: Large decode (1MB)
-    {
-        auto        data    = generateRandomBytes(1024 * 1024);
-        std::string encoded = Utilities::encodeBase64Url(data);
-
-        runner.runBenchmark(
-            "Decode (1MB)",
-            category,
-            500,
-            [&encoded]() { auto decoded = Utilities::decodeBase64Url(encoded); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (1.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-
-    // 2.4b: 2MB decode
-    {
-        auto        data    = generateRandomBytes(2 * 1024 * 1024);
-        std::string encoded = Utilities::encodeBase64Url(data);
-
-        runner.runBenchmark(
-            "Decode (2MB)",
-            category,
-            100,
-            [&encoded]() { auto decoded = Utilities::decodeBase64Url(encoded); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (2.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-
-    // 2.4c: 5MB decode
-    {
-        auto        data    = generateRandomBytes(5 * 1024 * 1024);
-        std::string encoded = Utilities::encodeBase64Url(data);
-
-        runner.runBenchmark(
-            "Decode (5MB)",
-            category,
-            75,
-            [&encoded]() { auto decoded = Utilities::decodeBase64Url(encoded); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (5.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-
-    // 2.4d: 10MB decode
-    {
-        auto        data    = generateRandomBytes(10 * 1024 * 1024);
-        std::string encoded = Utilities::encodeBase64Url(data);
-
-        runner.runBenchmark(
-            "Decode (10MB)",
-            category,
-            50,
-            [&encoded]() { auto decoded = Utilities::decodeBase64Url(encoded); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (10.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-
-    // 2.4e: 50MB decode (stress test)
-    {
-        auto        data    = generateRandomBytes(50 * 1024 * 1024);
-        std::string encoded = Utilities::encodeBase64Url(data);
-
-        runner.runBenchmark(
-            "Decode (50MB)",
-            category,
-            10,
-            [&encoded]() { auto decoded = Utilities::decodeBase64Url(encoded); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (50.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-
-    // 2.4f: 100MB decode (maximum stress test)
-    {
-        auto        data    = generateRandomBytes(100 * 1024 * 1024);
-        std::string encoded = Utilities::encodeBase64Url(data);
-
-        runner.runBenchmark(
-            "Decode (100MB)",
-            category,
-            2,
-            [&encoded]() { auto decoded = Utilities::decodeBase64Url(encoded); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (100.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-    // 2.4g: 1024MB decode (extreme stress test)
-    {
-        auto        data    = generateRandomBytes(1024 * 1024 * 1024);
-        std::string encoded = Utilities::encodeBase64Url(data);
-
-        runner.runBenchmark(
-            "Decode (1024MB)",
-            category,
-            1,
-            [&encoded]() { auto decoded = Utilities::decodeBase64Url(encoded); },
-            [](double ms) -> std::pair<double, std::string> {
-                double mbPerSec = (1024.0 / (ms / 1000.0));
-                return {mbPerSec, "MB/sec"};
-            });
-    }
-}
-
 void runLibraryPositionBenchmarks(BenchmarkRunner& runner) {
     const std::string category = "LibraryPosition Operations";
 
@@ -664,10 +414,8 @@ void runIndexMetadataBenchmarks(BenchmarkRunner& runner) {
     {
         auto                 samples   = generateSyntheticAudio(44100, 16); // 1 second
         auto                 audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
-        auto                 index     = AudioIndex::audioDataToIndex(audioData);
-        std::vector<uint8_t> bytes;
-        boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8);
-        std::string base64Index = Utilities::encodeBase64Url(bytes);
+        auto index = AudioIndex::audioDataToIndex(audioData);
+        std::string base64Index = Utilities::indexToB64(index);
 
         runner.runBenchmark(
             "Metadata Extraction (small)",
@@ -684,10 +432,8 @@ void runIndexMetadataBenchmarks(BenchmarkRunner& runner) {
     {
         auto                 samples   = generateSyntheticAudio(44100 * 120, 16); // 120 seconds (max)
         auto                 audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
-        auto                 index     = AudioIndex::audioDataToIndex(audioData);
-        std::vector<uint8_t> bytes;
-        boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8);
-        std::string base64Index = Utilities::encodeBase64Url(bytes);
+        auto index = AudioIndex::audioDataToIndex(audioData);
+        std::string base64Index = Utilities::indexToB64(index);
 
         runner.runBenchmark(
             "Metadata Extraction (large)",
@@ -704,10 +450,8 @@ void runIndexMetadataBenchmarks(BenchmarkRunner& runner) {
     {
         auto                 samples   = generateSyntheticAudio(44100, 16);
         auto                 audioData = AudioIndex::extractAudioDataFromSamples(samples, 44100, 16);
-        auto                 index     = AudioIndex::audioDataToIndex(audioData);
-        std::vector<uint8_t> bytes;
-        boost::multiprecision::export_bits(index, std::back_inserter(bytes), 8);
-        std::string base64Index = Utilities::encodeBase64Url(bytes);
+        auto index = AudioIndex::audioDataToIndex(audioData);
+        std::string base64Index = Utilities::indexToB64(index);
 
         runner.runBenchmark(
             "SVG Cover Generation",
@@ -763,19 +507,16 @@ int main() {
     BenchmarkRunner runner("build/performance_results.txt");
 
     // Run all benchmark categories
-    std::cout << "\n[1/5] Running AudioIndex benchmarks...\n";
+    std::cout << "\n[1/4] Running AudioIndex benchmarks...\n";
     runAudioIndexBenchmarks(runner);
 
-    std::cout << "\n[2/5] Running Base64 benchmarks...\n";
-    runBase64Benchmarks(runner);
-
-    std::cout << "\n[3/5] Running LibraryPosition benchmarks...\n";
+    std::cout << "\n[2/4] Running LibraryPosition benchmarks...\n";
     runLibraryPositionBenchmarks(runner);
 
-    std::cout << "\n[4/5] Running IndexMetadata benchmarks...\n";
+    std::cout << "\n[3/4] Running IndexMetadata benchmarks...\n";
     runIndexMetadataBenchmarks(runner);
 
-    std::cout << "\n[5/5] Running Integration benchmarks...\n";
+    std::cout << "\n[4/4] Running Integration benchmarks...\n";
     runIntegrationBenchmarks(runner);
 
     // Generate report

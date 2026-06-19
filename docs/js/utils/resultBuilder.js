@@ -13,7 +13,7 @@ export { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS };
 /**
  * Reconstruct audio and metadata for an index string and build the result object
  * consumed by handleJsonResponse.
- * @param {Object} wasm - Initialized AudioIndexWASM instance
+ * @param {Object} wasm - Initialized IndexWasm instance
  * @param {string} indexBase64 - Bijective base64 index (no header)
  * @returns {Promise<Object>} Result object with indexBase64, metadata, and wavBase64
  */

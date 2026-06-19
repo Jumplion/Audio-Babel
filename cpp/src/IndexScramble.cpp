@@ -32,7 +32,7 @@ namespace {
     }
 
     // bandIndex() and repunit() (length recovery and the base-B repunit) are
-    // shared with AudioIndex's payload bijection — see Utilities.h.
+    // shared with Index's payload bijection — see Utilities.h.
     using AudioBabel::Utilities::bandIndex;
     using AudioBabel::Utilities::repunit;
 

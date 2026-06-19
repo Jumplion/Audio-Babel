@@ -46,7 +46,7 @@ VS Code tasks are available: "Build (PowerShell)", "Run Tests (PowerShell)".
 ### Web app conventions
 
 - ES6 modules throughout `docs/js/`. camelCase functions, `_prefixed` for private methods.
-- WASM loaded via `docs/js/core/audioIndexWasm.js` (singleton pattern with lazy init).
+- WASM loaded via `docs/js/core/indexWasm.js` (singleton pattern with lazy init).
 - Audio constraints: WAV, 44.1 kHz, 16-bit mono, max 2 minutes.
 
 ### After making changes

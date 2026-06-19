@@ -67,7 +67,7 @@ while n > 0:
 
 ### Properties
 
-- `indexToAudioData(audioDataToIndex(x))` reproduces `x`'s samples exactly,
+- `Index::decode(Index::encode(x))` reproduces `x`'s samples exactly,
   including any leading **and** trailing zero (silence) samples and the exact
   sample count.
 - A payload with `k` trailing zero samples and one with `k+1` produce
@@ -231,15 +231,14 @@ override available for testing. See `cpp/include/IndexScramble.h`.
 
 ## Reference Implementation
 
-- **Payload ↔ integer:** `cpp/src/AudioIndex.cpp` —
-  `audioDataToIndex()` / `indexToAudioData()`
+- **Payload ↔ integer:** `cpp/src/Index.cpp` —
+  `Index::encode()` / `Index::decode()`
 - **Integer ↔ index string:** `cpp/include/Utilities.h` —
   `indexToB64()` / `b64ToIndex()`
 - **Constants:** `cpp/include/Constants.h` —
   `DEFAULT_BIT_DEPTH`, `DEFAULT_SAMPLE_RATE`, `SAMPLE_ALPHABET_SIZE`,
   `BASE64_ALPHABET_SIZE`
-- **WAV parsing / writing:** `cpp/src/AudioIndex.cpp`
-  (`extractAudioDataFromAudioFile`) and `cpp/src/FileWriters.cpp`
-  (`exportAudioDataToWav`)
+- **WAV parsing / writing:** `cpp/src/FileIO.cpp` —
+  `FileIO::readWav()` / `FileIO::writeWav()`
 - **Optional scrambling:** `cpp/include/IndexScramble.h` /
   `cpp/src/IndexScramble.cpp` — `scramble()` / `unscramble()`

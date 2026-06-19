@@ -1,9 +1,9 @@
 /**
- * @file test_integration_new.cpp
- * @brief Integration tests for AudioIndex round-trip processing (Catch2 version).
+ * @file test_integration.cpp
+ * @brief Integration tests for Index/FileIO round-trip processing (Catch2 version).
  *
- * Tests the full pipeline of extracting audio data from WAV files,
- * converting to index, and reconstructing the audio data.
+ * Tests the full pipeline of reading audio data from WAV files, converting to
+ * an index, and reconstructing a WAV from that index.
  */
 
 #include <catch2/catch_test_macros.hpp>
@@ -13,7 +13,8 @@
 #include <string>
 #include <vector>
 
-#include "AudioIndex.h"
+#include "FileIO.h"
+#include "Index.h"
 #include "test_common.h"
 
 using namespace AudioBabel;
@@ -42,7 +43,7 @@ std::filesystem::path find_test_audio_dir() {
 
 } // anonymous namespace
 
-TEST_CASE("AudioIndex: round-trip test audio directory", "[integration][roundtrip][directory]") {
+TEST_CASE("Index/FileIO: round-trip test audio directory", "[integration][roundtrip][directory]") {
     // Find the test audio directory
     auto test_audio_dir = find_test_audio_dir();
     REQUIRE_FALSE(test_audio_dir.empty());
@@ -50,12 +51,12 @@ TEST_CASE("AudioIndex: round-trip test audio directory", "[integration][roundtri
 
     INFO("Testing audio files in directory: " << test_audio_dir.string());
 
-    // The payload-only bijection is O(N) (see AudioIndex.cpp), so full multi-MB
-    // files round-trip in milliseconds. For each file we extract the PCM payload,
-    // index it, reconstruct it, and require the sample bytes to be reproduced
-    // exactly. The reconstruction always carries the fixed default header
-    // (PCM, 44100 Hz, 16-bit, mono); the original sample format is intentionally
-    // not preserved by the payload-only index.
+    // The payload-only bijection is O(N) (see Index.cpp), so full multi-MB
+    // files round-trip in milliseconds. For each file we read the PCM payload,
+    // index it, decode it, write it back out as a WAV, and require the sample
+    // bytes to be reproduced exactly. The reconstructed WAV always carries the
+    // fixed default header (PCM, 44100 Hz, 16-bit, mono); the original sample
+    // format is intentionally not preserved by the payload-only index.
     int files_processed = 0;
     int files_failed    = 0;
 
@@ -70,8 +71,8 @@ TEST_CASE("AudioIndex: round-trip test audio directory", "[integration][roundtri
 
         INFO("Processing file: " << filename);
 
-        // 1. Extract audio data from the WAV file.
-        auto audio_data_orig = AudioIndex::extractAudioDataFromAudioFile(wav_path);
+        // 1. Read the WAV file's PCM payload.
+        auto audio_data_orig = FileIO::readWav(wav_path);
 
         // Skip empty files
         if (audio_data_orig.samples.empty()) {
@@ -87,13 +88,16 @@ TEST_CASE("AudioIndex: round-trip test audio directory", "[integration][roundtri
 
         files_processed++;
 
-        // 2. Full round-trip through the index.
-        auto index                    = AudioIndex::audioDataToIndex(audio_data_orig);
-        auto audio_data_reconstructed = AudioIndex::indexToAudioData(index);
+        // 2. Full round-trip through the index, then back out to a WAV.
+        auto     index   = Index::encode(audio_data_orig.samples);
+        auto     decoded = Index::decode(index);
+        TempFile reconstructedWav(make_temp_path("integration_reconstructed.wav"));
+        FileIO::writeWav(decoded, reconstructedWav.path());
+        auto audio_data_reconstructed = FileIO::readWav(reconstructedWav.path());
 
         bool file_ok = true;
 
-        // The reconstruction always carries the fixed default header.
+        // The reconstructed WAV always carries the fixed default header.
         if (audio_data_reconstructed.sample_rate != 44100 || audio_data_reconstructed.bit_rate != 16 || audio_data_reconstructed.num_channels != 1 ||
             audio_data_reconstructed.audio_format != 1) {
             INFO("FAIL [" << filename << "]: default header not applied on reconstruction");

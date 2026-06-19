@@ -52,7 +52,7 @@ endif()
 
 # Catch2 test executable with all unit tests
 set(CATCH2_TEST_SOURCES
-    "${CPP_ROOT}/tests/test_audio_index.cpp"
+    "${CPP_ROOT}/tests/test_index.cpp"
     "${CPP_ROOT}/tests/test_base64.cpp"
     "${CPP_ROOT}/tests/test_bijection.cpp"
     "${CPP_ROOT}/tests/test_scramble.cpp"

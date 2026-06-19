@@ -33,12 +33,12 @@ jobs:
 
       - name: Verify WASM output
         run: |
-          ls -lh docs/wasm/audio-index.wasm docs/wasm/audio-index.js
+          ls -lh docs/wasm/index.wasm docs/wasm/index.js
 
       - name: Upload WASM artifacts
         uses: actions/upload-artifact@v4
         with:
           name: wasm-build
           path: |
-            docs/wasm/audio-index.wasm
-            docs/wasm/audio-index.js
+            docs/wasm/index.wasm
+            docs/wasm/index.js

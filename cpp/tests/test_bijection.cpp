@@ -4,14 +4,15 @@
  *        big-integer indices, and bijective base-64 index strings.
  *
  * Invariants covered:
- *  - indexToAudioData(audioDataToIndex(x)) reproduces x's samples exactly,
- *    including leading AND trailing zero (silence) samples and the exact count.
+ *  - Index::decode(Index::encode(x)) reproduces x exactly, including leading
+ *    AND trailing zero (silence) samples and the exact count.
  *  - b64ToIndex(indexToB64(n)) == n for all n, and indexToB64(b64ToIndex(s)) == s.
  *  - k vs k+1 trailing zero samples yield different indices.
  *  - WAV (default format) -> index -> WAV reproduces the data chunk bytes exactly.
  */
 
-#include <AudioIndex.h>
+#include <FileIO.h>
+#include <Index.h>
 
 #include <boost/multiprecision/cpp_int.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -26,55 +27,54 @@ namespace {
 
 /// Round-trip a 16-bit sample payload through the index and return the decoded bytes.
 std::vector<uint8_t> roundTripBytes(const std::vector<uint16_t>& samples) {
-    auto ad  = makePayload(samples);
-    auto idx = AudioIndex::audioDataToIndex(ad);
-    return AudioIndex::indexToAudioData(idx).samples;
+    auto bytes = makePayload(samples);
+    auto idx   = Index::encode(bytes);
+    return Index::decode(idx);
 }
 
 } // namespace
 
 TEST_CASE("Bijection: payload round-trips exactly (edge cases)", "[bijection][roundtrip]") {
     SECTION("Empty payload <-> integer 0 <-> empty string") {
-        AudioIndex::AudioData empty{};
-        auto                  idx = AudioIndex::audioDataToIndex(empty);
+        std::vector<uint8_t> empty{};
+        auto                 idx = Index::encode(empty);
         REQUIRE(idx == 0);
         REQUIRE(Utilities::indexToB64(idx).empty());
 
-        auto decoded = AudioIndex::indexToAudioData(idx);
-        REQUIRE(decoded.samples.empty());
-        REQUIRE(decoded.num_frames == 0);
+        auto decoded = Index::decode(idx);
+        REQUIRE(decoded.empty());
     }
 
     SECTION("Single sample") {
         std::vector<uint16_t> s = {0x1234};
-        REQUIRE(roundTripBytes(s) == makePayload(s).samples);
+        REQUIRE(roundTripBytes(s) == makePayload(s));
     }
 
     SECTION("Single zero sample is preserved") {
         std::vector<uint16_t> s       = {0};
         auto                  decoded = roundTripBytes(s);
         REQUIRE(decoded.size() == 2);
-        REQUIRE(decoded == makePayload(s).samples);
+        REQUIRE(decoded == makePayload(s));
     }
 
     SECTION("Leading zero samples") {
         std::vector<uint16_t> s = {0, 0, 0, 42, 1000};
-        REQUIRE(roundTripBytes(s) == makePayload(s).samples);
+        REQUIRE(roundTripBytes(s) == makePayload(s));
     }
 
     SECTION("Trailing zero samples") {
         std::vector<uint16_t> s = {42, 1000, 0, 0, 0};
-        REQUIRE(roundTripBytes(s) == makePayload(s).samples);
+        REQUIRE(roundTripBytes(s) == makePayload(s));
     }
 
     SECTION("Leading and trailing zero samples") {
         std::vector<uint16_t> s = {0, 0, 7, 0, 65535, 0, 0};
-        REQUIRE(roundTripBytes(s) == makePayload(s).samples);
+        REQUIRE(roundTripBytes(s) == makePayload(s));
     }
 
     SECTION("Maximum-valued samples") {
         std::vector<uint16_t> s = {65535, 65535, 65535};
-        REQUIRE(roundTripBytes(s) == makePayload(s).samples);
+        REQUIRE(roundTripBytes(s) == makePayload(s));
     }
 }
 
@@ -91,13 +91,13 @@ TEST_CASE("Bijection: random payloads of varying length round-trip", "[bijection
             samples.push_back(static_cast<uint16_t>(valDist(rng)));
         }
 
-        auto ad      = makePayload(samples);
-        auto idx     = AudioIndex::audioDataToIndex(ad);
-        auto decoded = AudioIndex::indexToAudioData(idx);
+        auto bytes   = makePayload(samples);
+        auto idx     = Index::encode(bytes);
+        auto decoded = Index::decode(idx);
 
         INFO("trial=" << trial << " len=" << len);
-        REQUIRE(decoded.samples == ad.samples);
-        REQUIRE(decoded.num_frames == samples.size());
+        REQUIRE(decoded == bytes);
+        REQUIRE(decoded.size() == samples.size() * 2);
     }
 }
 
@@ -109,16 +109,16 @@ TEST_CASE("Bijection: trailing-zero distinctness (N vs N+1)", "[bijection][disti
         std::vector<uint16_t> withKplus1(base);
         withKplus1.insert(withKplus1.end(), k + 1, 0);
 
-        auto idxK     = AudioIndex::audioDataToIndex(makePayload(withK));
-        auto idxKplus = AudioIndex::audioDataToIndex(makePayload(withKplus1));
+        auto idxK     = Index::encode(makePayload(withK));
+        auto idxKplus = Index::encode(makePayload(withKplus1));
 
         INFO("k=" << k);
         REQUIRE(idxK != idxKplus);
     }
 
     // Pure silence of different lengths must differ too.
-    auto silence1 = AudioIndex::audioDataToIndex(makePayload(std::vector<uint16_t>(1, 0)));
-    auto silence2 = AudioIndex::audioDataToIndex(makePayload(std::vector<uint16_t>(2, 0)));
+    auto silence1 = Index::encode(makePayload(std::vector<uint16_t>(1, 0)));
+    auto silence2 = Index::encode(makePayload(std::vector<uint16_t>(2, 0)));
     REQUIRE(silence1 != silence2);
 }
 
@@ -172,12 +172,12 @@ TEST_CASE("Bijection: large payload round-trips exactly (O(N) path)", "[bijectio
     }
     samples[N / 2] = 65535;
 
-    auto ad      = makePayload(samples);
-    auto idx     = AudioIndex::audioDataToIndex(ad);
-    auto decoded = AudioIndex::indexToAudioData(idx);
+    auto bytes   = makePayload(samples);
+    auto idx     = Index::encode(bytes);
+    auto decoded = Index::decode(idx);
 
-    REQUIRE(decoded.samples == ad.samples);
-    REQUIRE(decoded.num_frames == N);
+    REQUIRE(decoded == bytes);
+    REQUIRE(decoded.size() == N * 2);
 
     // The index string is itself a bijection and round-trips exactly.
     std::string s = Utilities::indexToB64(idx);
@@ -188,22 +188,22 @@ TEST_CASE("Bijection: WAV default-format data chunk round-trips exactly", "[bije
     // Build a default-format payload, write a WAV, extract it, index it, decode,
     // and write a second WAV; the data-chunk bytes must match exactly.
     std::vector<uint16_t> samples = {0, 1, 2, 0, 0, 40000, 65535, 12345, 0};
-    auto                  ad      = makePayload(samples);
+    auto                   bytes   = makePayload(samples);
 
     TempFile srcWav(make_temp_path("bijection_src.wav"));
-    FileWriters::exportAudioDataToWav(ad, srcWav.path());
+    FileIO::writeWav(bytes, srcWav.path());
 
-    auto extracted = AudioIndex::extractAudioDataFromAudioFile(srcWav.path());
-    REQUIRE(extracted.samples == ad.samples);
+    auto extracted = FileIO::readWav(srcWav.path());
+    REQUIRE(extracted.samples == bytes);
 
-    auto idx     = AudioIndex::audioDataToIndex(extracted);
-    auto decoded = AudioIndex::indexToAudioData(idx);
+    auto idx     = Index::encode(extracted.samples);
+    auto decoded = Index::decode(idx);
 
     TempFile dstWav(make_temp_path("bijection_dst.wav"));
-    FileWriters::exportAudioDataToWav(decoded, dstWav.path());
+    FileIO::writeWav(decoded, dstWav.path());
 
-    auto reExtracted = AudioIndex::extractAudioDataFromAudioFile(dstWav.path());
-    REQUIRE(reExtracted.samples == ad.samples);
+    auto reExtracted = FileIO::readWav(dstWav.path());
+    REQUIRE(reExtracted.samples == bytes);
     REQUIRE(reExtracted.sample_rate == DEFAULT_SAMPLE_RATE);
     REQUIRE(reExtracted.bit_rate == DEFAULT_BIT_DEPTH);
     REQUIRE(reExtracted.num_channels == DEFAULT_NUM_CHANNELS);

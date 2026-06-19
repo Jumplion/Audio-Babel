@@ -58,7 +58,7 @@ static inline void push_le(std::vector<uint8_t>& out, T val) {
 }
 
 // --- Sample-domain repunit / band-index helpers --------------------------
-// Shared by AudioIndex's payload bijection and IndexScramble's per-band
+// Shared by Index's payload bijection and IndexScramble's per-band
 // keying, both of which work over base-B numbers with B = SAMPLE_ALPHABET_SIZE
 // (the 16-bit sample alphabet) and need the same two primitives:
 //   - the base-B repunit S_L = (B^L - 1)/(B - 1) for an L-sample band, and
@@ -97,7 +97,7 @@ inline auto bandIndex(const boost::multiprecision::cpp_int& n) -> size_t {
 constexpr char BASE64_URL_ALPHA[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 // NOTE (R7): isValidBase64Url is intentionally implemented in both C++ (this
-// character-loop version) and JavaScript (regex in docs/js/utils/audioIndex.js).
+// character-loop version) and JavaScript (regex in docs/js/utils/base64.js).
 // The dual implementations provide defence-in-depth: JS validates at the UI
 // boundary while C++ validates at the library boundary, and each uses an
 // idiomatic approach for its runtime.
@@ -144,7 +144,7 @@ constexpr unsigned BASE64_DIGIT_BITS = 6; // 1 << 6 == 64
 //
 // Conceptually: while n > 0 { n -= 1; emit ALPHA[n mod 64]; n /= 64 } reversed.
 // That per-digit loop is O(len^2). We use the exact identity instead (see the
-// AudioIndex.cpp comments for the analogous base-B derivation):
+// Index.cpp comments for the analogous base-B derivation):
 //   n = V64 + S64,  V64 = base-64 value of the digit string (digits 0..63),
 //                   S64 = (64^len - 1)/63 = base-64 repunit (all digits == 1).
 // The digit count is len = msb(n*63 + 1) / 6, recovered without bignum division.

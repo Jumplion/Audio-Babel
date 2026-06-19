@@ -96,7 +96,7 @@ inline void write_junk_chunk(std::ofstream& out, uint32_t junk_size, bool add_pa
 
 TEST_CASE("WAV export: header correctness", "[wav][export][header]") {
     // Create test audio data
-    AudioIndex::AudioData audioData{};
+    FileIO::AudioData audioData{};
     audioData.sample_rate  = 22050;
     audioData.bit_rate     = 16;
     audioData.num_channels = 1;
@@ -109,7 +109,7 @@ TEST_CASE("WAV export: header correctness", "[wav][export][header]") {
     }
 
     TempFile tmp(make_temp_path("temp_export_header_test.wav"));
-    FileWriters::exportAudioDataToWav(audioData, tmp.path());
+    FileIO::writeWav(audioData, tmp.path());
 
     // Read the header back
     std::ifstream in(tmp.path(), std::ios::binary);
@@ -214,7 +214,7 @@ TEST_CASE("WAV parsing: fmt chunk with extra bytes", "[wav][parsing][fmt][tolera
     out.close();
 
     // Parser should tolerate extra bytes and successfully extract audio data
-    auto ad = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
+    auto ad = FileIO::readWav(tmp.path());
 
     SECTION("Sample rate matches") {
         REQUIRE(ad.sample_rate == sample_rate);
@@ -252,7 +252,7 @@ TEST_CASE("WAV parsing: fmt chunk variants", "[wav][parsing][fmt][tolerance]") {
         write_data_chunk(out, data);
         out.close();
 
-        auto ad = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
+        auto ad = FileIO::readWav(tmp.path());
         REQUIRE(ad.sample_rate == sample_rate);
         REQUIRE(ad.bit_rate == bits_per_sample);
         REQUIRE(ad.num_channels == num_channels);
@@ -285,7 +285,7 @@ TEST_CASE("WAV parsing: fmt chunk variants", "[wav][parsing][fmt][tolerance]") {
         write_data_chunk(out, data);
         out.close();
 
-        auto ad = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
+        auto ad = FileIO::readWav(tmp.path());
         REQUIRE(ad.sample_rate == sample_rate);
         REQUIRE(ad.bit_rate == bits_per_sample);
         REQUIRE(ad.num_channels == num_channels);
@@ -312,7 +312,7 @@ TEST_CASE("WAV parsing: fmt chunk variants", "[wav][parsing][fmt][tolerance]") {
         write_data_chunk(out, data);
         out.close();
 
-        auto ad = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
+        auto ad = FileIO::readWav(tmp.path());
         REQUIRE(ad.sample_rate == sample_rate);
         REQUIRE(ad.bit_rate == bits_per_sample);
         REQUIRE(ad.num_channels == num_channels);
@@ -344,7 +344,7 @@ TEST_CASE("WAV parsing: odd-sized JUNK chunk with padding after fmt", "[wav][par
     out.close();
 
     // Parser should skip JUNK chunk with padding and find data chunk
-    auto ad = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
+    auto ad = FileIO::readWav(tmp.path());
     REQUIRE(ad.sample_rate == sample_rate);
     REQUIRE(ad.bit_rate == bits_per_sample);
     REQUIRE(ad.num_channels == num_channels);
@@ -375,7 +375,7 @@ TEST_CASE("WAV parsing: JUNK chunk before fmt chunk", "[wav][parsing][junk][chun
     out.close();
 
     // Parser should skip JUNK chunk and successfully find fmt and data chunks
-    auto ad = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
+    auto ad = FileIO::readWav(tmp.path());
     REQUIRE(ad.sample_rate == sample_rate);
     REQUIRE(ad.bit_rate == bits_per_sample);
     REQUIRE(ad.num_channels == num_channels);
@@ -411,7 +411,7 @@ TEST_CASE("WAV parsing: odd-sized JUNK chunk before fmt chunk with padding", "[w
     out.close();
 
     // Parser should skip odd-sized JUNK chunk (with padding) and successfully find fmt and data chunks
-    auto ad = AudioIndex::extractAudioDataFromAudioFile(tmp.path());
+    auto ad = FileIO::readWav(tmp.path());
     REQUIRE(ad.sample_rate == sample_rate);
     REQUIRE(ad.bit_rate == bits_per_sample);
     REQUIRE(ad.num_channels == num_channels);
@@ -435,7 +435,7 @@ TEST_CASE("WAV parsing: truncated file throws", "[wav][parsing][error][truncated
     out.close();
 
     // Parser should throw when encountering truncated file
-    REQUIRE_THROWS(AudioIndex::extractAudioDataFromAudioFile(tmp.path()));
+    REQUIRE_THROWS(FileIO::readWav(tmp.path()));
 }
 
 TEST_CASE("WAV parsing: unsupported bitsPerSample throws", "[wav][parsing][error][validation]") {
@@ -455,7 +455,7 @@ TEST_CASE("WAV parsing: unsupported bitsPerSample throws", "[wav][parsing][error
     out.close();
 
     // Parser should throw on unsupported bit depth
-    REQUIRE_THROWS(AudioIndex::extractAudioDataFromAudioFile(tmp.path()));
+    REQUIRE_THROWS(FileIO::readWav(tmp.path()));
 }
 
 TEST_CASE("WAV parsing: malformed headers throw", "[wav][parsing][error][validation]") {
@@ -473,7 +473,7 @@ TEST_CASE("WAV parsing: malformed headers throw", "[wav][parsing][error][validat
         write_data_chunk(out, data);
         out.close();
 
-        REQUIRE_THROWS(AudioIndex::extractAudioDataFromAudioFile(tmp.path()));
+        REQUIRE_THROWS(FileIO::readWav(tmp.path()));
     }
 
     SECTION("num_channels == 0 throws") {
@@ -490,7 +490,7 @@ TEST_CASE("WAV parsing: malformed headers throw", "[wav][parsing][error][validat
         write_data_chunk(out, data);
         out.close();
 
-        REQUIRE_THROWS(AudioIndex::extractAudioDataFromAudioFile(tmp.path()));
+        REQUIRE_THROWS(FileIO::readWav(tmp.path()));
     }
 
     SECTION("Missing fmt chunk throws") {
@@ -505,7 +505,7 @@ TEST_CASE("WAV parsing: malformed headers throw", "[wav][parsing][error][validat
         write_data_chunk(out, data); // No fmt chunk!
         out.close();
 
-        REQUIRE_THROWS(AudioIndex::extractAudioDataFromAudioFile(tmp.path()));
+        REQUIRE_THROWS(FileIO::readWav(tmp.path()));
     }
 }
 
@@ -526,7 +526,7 @@ TEST_CASE("WAV parsing: fmt chunk too small throws", "[wav][parsing][error][vali
     out.close();
 
     // Parser should throw because fmt chunk is too small (and data chunk missing)
-    REQUIRE_THROWS(AudioIndex::extractAudioDataFromAudioFile(tmp.path()));
+    REQUIRE_THROWS(FileIO::readWav(tmp.path()));
 }
 
 TEST_CASE("WAV parsing: data chunk declared larger than actual throws", "[wav][parsing][error][validation]") {
@@ -544,5 +544,5 @@ TEST_CASE("WAV parsing: data chunk declared larger than actual throws", "[wav][p
     out.close();
 
     // Parser should throw when data chunk size doesn't match actual file content
-    REQUIRE_THROWS(AudioIndex::extractAudioDataFromAudioFile(tmp.path()));
+    REQUIRE_THROWS(FileIO::readWav(tmp.path()));
 }

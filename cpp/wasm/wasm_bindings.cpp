@@ -15,7 +15,7 @@
  * - calculateSize: Get the size of audio data for a given duration
  * - getLibraryConstants: Return library hierarchy constants as JSON
  * 
- * @see docs/js/audioIndexWasm.js for JavaScript integration wrapper
+ * @see docs/js/core/indexWasm.js for JavaScript integration wrapper
  */
 
 #include <emscripten/bind.h>
@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-#include "../include/AudioIndex.h"
+#include "../include/Index.h"
 #include "../include/IndexMetadata.h"
 #include "../include/LibraryPosition.h"
 #include "../include/Utilities.h"
@@ -126,9 +126,9 @@ static emscripten::val reconstructAudioWrapper(const std::string& base64Index) {
     try {
         cpp_int index = AudioBabel::Utilities::b64ToIndex(base64Index);
 
-        AudioIndex::AudioData audioData = AudioIndex::indexToAudioData(index);
+        std::vector<uint8_t> samples = Index::decode(index);
 
-        emscripten::val view = emscripten::val(emscripten::typed_memory_view(audioData.samples.size(), audioData.samples.data()));
+        emscripten::val view = emscripten::val(emscripten::typed_memory_view(samples.size(), samples.data()));
         return emscripten::val::global("Uint8Array").new_(view);
 
     } catch (const std::exception& e) {
@@ -197,18 +197,15 @@ static int calculatePcmByteSize(int durationSeconds, int sampleRate, int bitDept
  * No header is embedded — the index is a pure bijection over the PCM payload.
  */
 static std::string encodeIndexWrapper(const emscripten::val& pcmBytes, int sampleRate, int bitDepth, int numChannels) {
+    // sampleRate/bitDepth/numChannels are accepted for API compatibility with callers,
+    // but the bijection is payload-only and never uses them.
+    (void)sampleRate;
+    (void)bitDepth;
+    (void)numChannels;
     try {
         std::vector<uint8_t> samples = emscripten::vecFromJSArray<uint8_t>(pcmBytes);
 
-        AudioIndex::AudioData audioData;
-        audioData.sample_rate  = static_cast<uint32_t>(sampleRate);
-        audioData.bit_rate     = static_cast<uint16_t>(bitDepth);
-        audioData.num_channels = static_cast<uint16_t>(numChannels);
-        audioData.audio_format = 1;
-        audioData.num_frames   = samples.size() / (bitDepth / 8) / numChannels;
-        audioData.samples      = std::move(samples);
-
-        cpp_int index = AudioIndex::audioDataToIndex(audioData);
+        cpp_int index = Index::encode(samples);
         return AudioBabel::Utilities::indexToB64(index);
 
     } catch (const std::exception& e) {

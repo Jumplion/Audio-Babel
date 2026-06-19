@@ -3,8 +3,8 @@
 #include <iostream>
 #include <string>
 
-#include "AudioIndex.h"
-#include "FileWriters.h"
+#include "FileIO.h"
+#include "Index.h"
 #include "Utilities.h"
 
 using namespace AudioBabel;
@@ -12,7 +12,7 @@ using namespace AudioBabel;
 // Simple CLI:
 // Usage: reconstruct_cli <index.txt> <output.wav>
 // Reads a bijective URL-safe base-64 index string from index.txt, converts it
-// to a cpp_int via b64ToIndex, then calls indexToAudioData and writes a WAV
+// to a cpp_int via b64ToIndex, then calls Index::decode and writes a WAV
 // (default header: PCM, 44100 Hz, 16-bit, mono) to output.wav.
 
 auto main(int argc, char** argv) -> int {
@@ -41,9 +41,9 @@ auto main(int argc, char** argv) -> int {
     }
 
     try {
-        boost::multiprecision::cpp_int idx = Utilities::b64ToIndex(indexStr);
-        AudioIndex::AudioData          ad  = AudioIndex::indexToAudioData(idx);
-        FileWriters::exportAudioDataToWav(ad, outPath);
+        boost::multiprecision::cpp_int idx     = Utilities::b64ToIndex(indexStr);
+        std::vector<uint8_t>           samples = Index::decode(idx);
+        FileIO::writeWav(samples, outPath);
     } catch (const std::exception& e) {
         std::cerr << "Reconstruction failed: " << e.what() << "\n";
         return 5;

@@ -1,6 +1,6 @@
-# WebAssembly build configuration for Audio Index library
+# WebAssembly build configuration for Index library
 cmake_minimum_required(VERSION 3.10)
-project(AudioIndexWASM)
+project(IndexWasm)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -13,7 +13,7 @@ if(EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,getValue,setValue,UTF8ToString,allocateUTF8,HEAPU8")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sMODULARIZE=1")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sEXPORT_ES6=1")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sEXPORT_NAME=AudioIndexModule")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sEXPORT_NAME=IndexModule")
 
     # Memory settings for large audio indexes
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sINITIAL_MEMORY=67108864") # 64MB
@@ -44,10 +44,10 @@ else()
 endif()
 
 # Source files
-set(AUDIO_INDEX_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/AudioIndex.cpp
+set(INDEX_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/Index.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/IndexMetadata.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/FileWriters.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/FileIO.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/LibraryPosition.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/IndexScramble.cpp
 )
@@ -58,11 +58,11 @@ set(WASM_BINDINGS
 )
 
 # Create WASM library
-add_executable(audio-index ${AUDIO_INDEX_SOURCES} ${WASM_BINDINGS})
+add_executable(index ${INDEX_SOURCES} ${WASM_BINDINGS})
 
 # Link with embind
 if(EMSCRIPTEN)
-    set_target_properties(audio-index PROPERTIES
+    set_target_properties(index PROPERTIES
         LINK_FLAGS "--bind"
     )
 endif()
@@ -70,9 +70,9 @@ endif()
 # No additional target includes needed - already set globally above
 
 # Build to local directory first (avoid path issues)
-set_target_properties(audio-index PROPERTIES
+set_target_properties(index PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    OUTPUT_NAME "audio-index"
+    OUTPUT_NAME "index"
 )
 
 # Define output directory for copying
@@ -84,13 +84,13 @@ if(EMSCRIPTEN)
     file(MAKE_DIRECTORY "${DOCS_WASM_OUTPUT_DIR}")
 
     # Copy files to docs folder after build
-    add_custom_command(TARGET audio-index POST_BUILD
+    add_custom_command(TARGET index POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_BINARY_DIR}/audio-index.wasm"
-        "${DOCS_WASM_OUTPUT_DIR}/audio-index.wasm"
+        "${CMAKE_CURRENT_BINARY_DIR}/index.wasm"
+        "${DOCS_WASM_OUTPUT_DIR}/index.wasm"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_BINARY_DIR}/audio-index.js"
-        "${DOCS_WASM_OUTPUT_DIR}/audio-index.js"
+        "${CMAKE_CURRENT_BINARY_DIR}/index.js"
+        "${DOCS_WASM_OUTPUT_DIR}/index.js"
         COMMENT "Copying WASM files to ${DOCS_WASM_OUTPUT_DIR}"
         VERBATIM
     )

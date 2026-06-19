@@ -43,11 +43,11 @@ Reference these when auditing — they represent verified categories of findings
 
 | Area | Known pattern | Files |
 |------|--------------|-------|
-| Silent corruption | PCM truncation/padding warnings instead of exceptions | [AudioIndex.cpp](../../cpp/src/AudioIndex.cpp) |
-| Silent failure | `writeIndexToFile` returns silently on open error | [FileWriters.cpp](../../cpp/src/FileWriters.cpp) |
+| Silent corruption | PCM truncation/padding warnings instead of exceptions | [FileIO.cpp](../../cpp/src/FileIO.cpp) |
+| Silent failure | `writeIndexToFile` returns silently on open error | [FileIO.cpp](../../cpp/src/FileIO.cpp) |
 | Stub exposed | `generateIndexFromSamples()` returns hardcoded placeholder | [wasm_bindings.cpp](../../cpp/wasm/wasm_bindings.cpp) |
 | Unsafe JSON | Manual string concatenation without escaping | [wasm_bindings.cpp](../../cpp/wasm/wasm_bindings.cpp) |
-| Duplicate WAV gen | `samplesToWav()` vs `createWavFile()` | [audioIndexWasm.js](../../docs/js/core/audioIndexWasm.js), [wavUtils.js](../../docs/js/utils/wavUtils.js) |
+| Duplicate WAV gen | `samplesToWav()` vs `createWavFile()` | [indexWasm.js](../../docs/js/core/indexWasm.js), [wavUtils.js](../../docs/js/utils/wavUtils.js) |
 | Result boilerplate | Same result-object shape built 5×  | [fileUpload.js](../../docs/js/pages/fileUpload.js), [randomIndex.js](../../docs/js/pages/randomIndex.js), [recorder.js](../../docs/js/pages/recorder.js), [search.js](../../docs/js/pages/search.js), [browse.js](../../docs/js/pages/browse.js) |
 | Hardcoded formats | 44100/16/1 scattered across JS modules | Multiple JS page files |
 | Complex lens logic | Redistribute+trim loops in metadata splitting | [IndexMetadata.cpp](../../cpp/src/IndexMetadata.cpp) |

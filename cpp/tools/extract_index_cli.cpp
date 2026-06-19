@@ -1,4 +1,4 @@
-// Simple CLI to extract an index from an audio file using AudioIndex
+// Simple CLI to extract an index from an audio file using Index
 // Usage: extract_index_cli <input_wav> <out_index.txt>
 //
 // Writes the canonical payload-only index as a bijective URL-safe base-64
@@ -9,7 +9,8 @@
 #include <iostream>
 #include <string>
 
-#include "../include/AudioIndex.h"
+#include "../include/FileIO.h"
+#include "../include/Index.h"
 #include "../include/Utilities.h"
 
 using namespace std;
@@ -24,8 +25,8 @@ auto main(int argc, char** argv) -> int {
     string inPath  = argv[1];
     string outPath = argv[2];
     try {
-        auto    audioData = AudioIndex::extractAudioDataFromAudioFile(inPath);
-        cpp_int idx       = AudioIndex::audioDataToIndex(audioData);
+        auto    audioData = FileIO::readWav(inPath);
+        cpp_int idx       = Index::encode(audioData.samples);
 
         ofstream out(outPath);
         if (!out) {

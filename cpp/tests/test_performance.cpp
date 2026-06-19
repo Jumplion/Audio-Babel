@@ -213,110 +213,24 @@ std::vector<uint8_t> packSamples16(const std::vector<int32_t>& samples) {
 void runIndexBenchmarks(BenchmarkRunner& runner) {
     const std::string category = "Index Operations";
 
-    // 1.1: Small audio (1 second)
-    {
-        const size_t numSamples = 44100;
+    // 1.1-1.3d: Index generation across representative audio durations
+    // (1s through the 600s/10-minute maximum duration).
+    struct DurationCase {
+        int durationSeconds;
+        int iterations;
+    };
+    std::vector<DurationCase> durationCases = {
+        {1, 1000}, {30, 100}, {120, 10}, {240, 5}, {480, 2}, {600, 1},
+    };
+
+    for (const auto& dc : durationCases) {
+        const size_t numSamples = 44100 * static_cast<size_t>(dc.durationSeconds);
         auto         samples    = generateSyntheticAudio(numSamples, 16);
 
         runner.runBenchmark(
-            "Index Generation (1s audio)",
+            "Index Generation (" + std::to_string(dc.durationSeconds) + "s audio)",
             category,
-            1000,
-            [&samples]() {
-                auto bytes = packSamples16(samples);
-                auto index = Index::encode(bytes);
-            },
-            [numSamples](double ms) -> std::pair<double, std::string> {
-                double samplesPerSec = (numSamples / (ms / 1000.0));
-                return {samplesPerSec, "samples/sec"};
-            });
-    }
-
-    // 1.2: Medium audio (30 seconds)
-    {
-        const size_t numSamples = 44100 * 30;
-        auto         samples    = generateSyntheticAudio(numSamples, 16);
-
-        runner.runBenchmark(
-            "Index Generation (30s audio)",
-            category,
-            100,
-            [&samples]() {
-                auto bytes = packSamples16(samples);
-                auto index = Index::encode(bytes);
-            },
-            [numSamples](double ms) -> std::pair<double, std::string> {
-                double samplesPerSec = (numSamples / (ms / 1000.0));
-                return {samplesPerSec, "samples/sec"};
-            });
-    }
-
-    // 1.3: Large audio (120 seconds = 2 minutes, max duration)
-    {
-        const size_t numSamples = 44100 * 120;
-        auto         samples    = generateSyntheticAudio(numSamples, 16);
-
-        runner.runBenchmark(
-            "Index Generation (120s audio)",
-            category,
-            10,
-            [&samples]() {
-                auto bytes = packSamples16(samples);
-                auto index = Index::encode(bytes);
-            },
-            [numSamples](double ms) -> std::pair<double, std::string> {
-                double samplesPerSec = (numSamples / (ms / 1000.0));
-                return {samplesPerSec, "samples/sec"};
-            });
-    }
-
-    // 1.3b: Very Large audio (240 seconds = 4 minutes)
-    {
-        const size_t numSamples = 44100 * 240;
-        auto         samples    = generateSyntheticAudio(numSamples, 16);
-
-        runner.runBenchmark(
-            "Index Generation (240s audio)",
-            category,
-            5,
-            [&samples]() {
-                auto bytes = packSamples16(samples);
-                auto index = Index::encode(bytes);
-            },
-            [numSamples](double ms) -> std::pair<double, std::string> {
-                double samplesPerSec = (numSamples / (ms / 1000.0));
-                return {samplesPerSec, "samples/sec"};
-            });
-    }
-
-    // 1.3c: Extra Large audio (480 seconds = 8 minutes)
-    {
-        const size_t numSamples = 44100 * 480;
-        auto         samples    = generateSyntheticAudio(numSamples, 16);
-
-        runner.runBenchmark(
-            "Index Generation (480s audio)",
-            category,
-            2,
-            [&samples]() {
-                auto bytes = packSamples16(samples);
-                auto index = Index::encode(bytes);
-            },
-            [numSamples](double ms) -> std::pair<double, std::string> {
-                double samplesPerSec = (numSamples / (ms / 1000.0));
-                return {samplesPerSec, "samples/sec"};
-            });
-    }
-
-    // 1.3d: Maximum audio (600 seconds = 10 minutes)
-    {
-        const size_t numSamples = 44100 * 600;
-        auto         samples    = generateSyntheticAudio(numSamples, 16);
-
-        runner.runBenchmark(
-            "Index Generation (600s audio)",
-            category,
-            1,
+            dc.iterations,
             [&samples]() {
                 auto bytes = packSamples16(samples);
                 auto index = Index::encode(bytes);

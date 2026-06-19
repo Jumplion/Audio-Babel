@@ -134,8 +134,6 @@ This creates the `build/` directory and compiles:
 | `build/audiolib.lib` or `build/libaudiolib.a` (toolchain-dependent) | Static library |
 | `build/tests_catch2.exe` (Windows) / `build/tests_catch2` (Linux) | Unit tests |
 | `build/example_main.exe` (Windows) / `build/example_main` (Linux) | Example CLI |
-| `build/extract_index_cli.exe` (Windows) / `build/extract_index_cli` (Linux) | Extract an index from a WAV file |
-| `build/reconstruct_cli.exe` (Windows) / `build/reconstruct_cli` (Linux) | Reconstruct a WAV file from an index |
 
 ### Running Tests
 

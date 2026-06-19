@@ -25,70 +25,45 @@ TEST_CASE("Base64Url: validation behavior", "[base64][validation]") {
         REQUIRE(isValidBase64Url("Ab0-_"));
     }
 
-    SECTION("Invalid characters should be rejected") {
-        REQUIRE_FALSE(isValidBase64Url("A="));   // Padding '=' invalid
-        REQUIRE_FALSE(isValidBase64Url("!"));    // '!' invalid
-        REQUIRE_FALSE(isValidBase64Url("A B"));  // Space invalid
-        REQUIRE_FALSE(isValidBase64Url("A\tB")); // Tab invalid
-        REQUIRE_FALSE(isValidBase64Url("A\nB")); // Newline invalid
-        REQUIRE_FALSE(isValidBase64Url("A\rB")); // Carriage return invalid
-
-        // Test invalid high-bit character (construct string to avoid literal warnings)
+    SECTION("Invalid characters are rejected by both isValidBase64Url and extractMetadataFromIndex") {
+        // Construct the high-bit-byte and mid-string '=' cases (avoid raw literal warnings).
         std::string invalid_byte = "A";
         invalid_byte += static_cast<char>(0x80);
         invalid_byte += "B";
-        REQUIRE_FALSE(isValidBase64Url(invalid_byte));
 
-        REQUIRE_FALSE(isValidBase64Url("A=B"));  // '=' in middle invalid
-        REQUIRE_FALSE(isValidBase64Url("A/B"));  // '/' invalid
-        REQUIRE_FALSE(isValidBase64Url("A+B"));  // '+' invalid
-        REQUIRE_FALSE(isValidBase64Url("A@B"));  // '@' invalid
-        REQUIRE_FALSE(isValidBase64Url("A,B"));  // ',' invalid
-        REQUIRE_FALSE(isValidBase64Url("A;B"));  // ';' invalid
-        REQUIRE_FALSE(isValidBase64Url("A:B"));  // ':' invalid
-        REQUIRE_FALSE(isValidBase64Url("A[B]")); // '[' invalid
-        REQUIRE_FALSE(isValidBase64Url("A]B"));  // ']' invalid
-        REQUIRE_FALSE(isValidBase64Url("A{B}")); // '{' invalid
-        REQUIRE_FALSE(isValidBase64Url("A}B"));  // '}' invalid
-        REQUIRE_FALSE(isValidBase64Url("A|B"));  // '|' invalid
-        REQUIRE_FALSE(isValidBase64Url("A\\B")); // '\' invalid
-        REQUIRE_FALSE(isValidBase64Url("A\"B")); // '\"' invalid
-        REQUIRE_FALSE(isValidBase64Url("A'B"));  // '\'' invalid
-        REQUIRE_FALSE(isValidBase64Url("A<B>")); // '<' invalid
-        REQUIRE_FALSE(isValidBase64Url("A>B"));  // '>' invalid
-        REQUIRE_FALSE(isValidBase64Url("A?B"));  // '?' invalid
-    }
+        std::vector<std::string> invalid = {
+            "A=",   // Padding '=' invalid
+            "!",    // '!' invalid
+            "A B",  // Space invalid
+            "A\tB", // Tab invalid
+            "A\nB", // Newline invalid
+            "A\rB", // Carriage return invalid
+            invalid_byte,
+            "A=B",  // '=' in middle invalid
+            "A/B",  // '/' invalid
+            "A+B",  // '+' invalid
+            "A@B",  // '@' invalid
+            "A,B",  // ',' invalid
+            "A;B",  // ';' invalid
+            "A:B",  // ':' invalid
+            "A[B]", // '[' invalid
+            "A]B",  // ']' invalid
+            "A{B}", // '{' invalid
+            "A}B",  // '}' invalid
+            "A|B",  // '|' invalid
+            "A\\B", // '\' invalid
+            "A\"B", // '\"' invalid
+            "A'B",  // '\'' invalid
+            "A<B>", // '<' invalid
+            "A>B",  // '>' invalid
+            "A?B",  // '?' invalid
+        };
 
-    SECTION("extractMetadataFromIndex throws on invalid base64") {
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A=")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("!")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A B")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A\tB")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A\nB")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A\rB")));
-
-        // Test invalid high-bit character
-        std::string invalid_byte_str = "A";
-        invalid_byte_str += static_cast<char>(0x80);
-        invalid_byte_str += "B";
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(invalid_byte_str));
-
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A/B")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A+B")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A@B")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A,B")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A;B")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A:B")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A[B]")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A]B")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A{B}")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A}B")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A|B")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A\\B")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A\"B")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A'B")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A<B>")));
-        REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(std::string("A>B")));
+        for (const auto& s : invalid) {
+            INFO("Invalid input: '" << s << "'");
+            REQUIRE_FALSE(isValidBase64Url(s));
+            REQUIRE_THROWS(IndexMetadata::extractMetadataFromIndex(s));
+        }
     }
 }
 

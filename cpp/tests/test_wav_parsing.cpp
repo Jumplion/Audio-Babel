@@ -188,136 +188,78 @@ TEST_CASE("WAV export: header correctness", "[wav][export][header]") {
     }
 }
 
-TEST_CASE("WAV parsing: fmt chunk with extra bytes", "[wav][parsing][fmt][tolerance]") {
-    TempFile tmp(make_temp_path("temp_fmt_extra.wav"));
+TEST_CASE("WAV parsing: fmt chunk size variants are tolerated", "[wav][parsing][fmt][tolerance]") {
+    // Parser should tolerate fmt chunks larger than the canonical 16 bytes,
+    // including odd sizes, as long as the declared chunk size is honored.
+    struct Case {
+        uint32_t             fmtSize;
+        std::vector<uint8_t> extraBytes;
+        uint16_t             numChannels;
+        uint32_t             sampleRate;
+        uint16_t             bitsPerSample;
+        std::vector<uint8_t> data;
+    };
 
-    uint16_t             audio_format    = 1;
-    uint16_t             num_channels    = 1;
-    uint32_t             sample_rate     = 44100;
-    uint16_t             bits_per_sample = 16;
-    std::vector<uint8_t> data            = {0x11, 0x22, 0x33, 0x44};
+    std::vector<Case> cases = {
+        {18, {0x55, 0x66}, 1, 44100, 16, {0x11, 0x22, 0x33, 0x44}}, // 2 extra bytes
+        {17, {0x7F}, 1, 44100, 16, {0x11, 0x22}},                  // odd size, 1 extra byte
+        {19, {0x01, 0x02, 0x03}, 2, 48000, 16, {0xAA, 0xBB, 0xCC, 0xDD}}, // odd size, 3 extra bytes
+    };
 
-    uint32_t fmt_size  = 18; // 2 extra bytes beyond canonical 16
-    uint32_t riff_size = 4 + (8 + fmt_size) + (8 + static_cast<uint32_t>(data.size()));
+    for (const auto& c : cases) {
+        INFO("fmt_size=" << c.fmtSize);
+        TempFile      tmp(make_temp_path("temp_fmt_variant.wav"));
+        std::ofstream out(tmp.path(), std::ios::binary);
+        REQUIRE(out);
 
+        uint32_t riff_size = 4 + (8 + c.fmtSize) + (8 + static_cast<uint32_t>(c.data.size()));
+        write_riff_header(out, riff_size);
+        write_fmt_chunk(out, c.fmtSize, 1, c.numChannels, c.sampleRate, c.bitsPerSample);
+        for (uint8_t b : c.extraBytes) {
+            out.put(static_cast<char>(b));
+        }
+        write_data_chunk(out, c.data);
+        out.close();
+
+        auto ad = FileIO::readWav(tmp.path());
+        REQUIRE(ad.sample_rate == c.sampleRate);
+        REQUIRE(ad.bit_rate == c.bitsPerSample);
+        REQUIRE(ad.num_channels == c.numChannels);
+        REQUIRE(ad.samples.size() == c.data.size());
+    }
+}
+
+TEST_CASE("WAV parsing: invalid byte_rate (zero) should not crash parser", "[wav][parsing][fmt][tolerance]") {
+    TempFile      tmp(make_temp_path("temp_fmt_byte_rate0.wav"));
     std::ofstream out(tmp.path(), std::ios::binary);
     REQUIRE(out);
 
-    write_riff_header(out, riff_size);
-    write_fmt_chunk(out, fmt_size, audio_format, num_channels, sample_rate, bits_per_sample);
+    uint16_t             num_channels    = 1;
+    uint32_t             sample_rate     = 22050;
+    uint16_t             bits_per_sample = 16;
+    std::vector<uint8_t> data            = {0x55, 0x66, 0x77};
 
-    // extra two bytes (should be tolerated by parser)
-    out.put(static_cast<char>(0x55));
-    out.put(static_cast<char>(0x66));
+    uint32_t riff_size = 4 + (8 + 16) + (8 + static_cast<uint32_t>(data.size()));
+    write_riff_header(out, riff_size);
+
+    // Write fmt chunk manually with invalid byte_rate
+    write_u32_le(out, 0x20746d66); // "fmt "
+    write_u32_le(out, 16);         // chunk size
+    write_u16_le(out, 1);          // audio format
+    write_u16_le(out, num_channels);
+    write_u32_le(out, sample_rate);
+    write_u32_le(out, 0);                                                           // byte_rate = 0 (invalid)
+    write_u16_le(out, static_cast<uint16_t>(num_channels * (bits_per_sample / 8))); // block align
+    write_u16_le(out, bits_per_sample);
 
     write_data_chunk(out, data);
     out.close();
 
-    // Parser should tolerate extra bytes and successfully extract audio data
     auto ad = FileIO::readWav(tmp.path());
-
-    SECTION("Sample rate matches") {
-        REQUIRE(ad.sample_rate == sample_rate);
-    }
-
-    SECTION("Bit depth matches") {
-        REQUIRE(ad.bit_rate == bits_per_sample);
-    }
-
-    SECTION("Number of channels matches") {
-        REQUIRE(ad.num_channels == num_channels);
-    }
-
-    SECTION("Data size matches") {
-        REQUIRE(ad.samples.size() == data.size());
-    }
-}
-
-TEST_CASE("WAV parsing: fmt chunk variants", "[wav][parsing][fmt][tolerance]") {
-    SECTION("Odd-sized fmt chunk (17 bytes) with one extra byte") {
-        TempFile      tmp(make_temp_path("temp_fmt_odd17.wav"));
-        std::ofstream out(tmp.path(), std::ios::binary);
-        REQUIRE(out);
-
-        uint16_t             num_channels    = 1;
-        uint32_t             sample_rate     = 44100;
-        uint16_t             bits_per_sample = 16;
-        std::vector<uint8_t> data            = {0x11, 0x22};
-        uint32_t             fmt_size        = 17; // odd
-
-        uint32_t riff_size = 4 + (8 + fmt_size) + (8 + static_cast<uint32_t>(data.size()));
-        write_riff_header(out, riff_size);
-        write_fmt_chunk(out, fmt_size, 1, num_channels, sample_rate, bits_per_sample);
-        out.put(static_cast<char>(0x7F)); // one extra byte
-        write_data_chunk(out, data);
-        out.close();
-
-        auto ad = FileIO::readWav(tmp.path());
-        REQUIRE(ad.sample_rate == sample_rate);
-        REQUIRE(ad.bit_rate == bits_per_sample);
-        REQUIRE(ad.num_channels == num_channels);
-        REQUIRE(ad.samples.size() == data.size());
-    }
-
-    SECTION("Invalid byte_rate (zero) should not crash parser") {
-        TempFile      tmp(make_temp_path("temp_fmt_byte_rate0.wav"));
-        std::ofstream out(tmp.path(), std::ios::binary);
-        REQUIRE(out);
-
-        uint16_t             num_channels    = 1;
-        uint32_t             sample_rate     = 22050;
-        uint16_t             bits_per_sample = 16;
-        std::vector<uint8_t> data            = {0x55, 0x66, 0x77};
-
-        uint32_t riff_size = 4 + (8 + 16) + (8 + static_cast<uint32_t>(data.size()));
-        write_riff_header(out, riff_size);
-
-        // Write fmt chunk manually with invalid byte_rate
-        write_u32_le(out, 0x20746d66); // "fmt "
-        write_u32_le(out, 16);         // chunk size
-        write_u16_le(out, 1);          // audio format
-        write_u16_le(out, num_channels);
-        write_u32_le(out, sample_rate);
-        write_u32_le(out, 0);                                                           // byte_rate = 0 (invalid)
-        write_u16_le(out, static_cast<uint16_t>(num_channels * (bits_per_sample / 8))); // block align
-        write_u16_le(out, bits_per_sample);
-
-        write_data_chunk(out, data);
-        out.close();
-
-        auto ad = FileIO::readWav(tmp.path());
-        REQUIRE(ad.sample_rate == sample_rate);
-        REQUIRE(ad.bit_rate == bits_per_sample);
-        REQUIRE(ad.num_channels == num_channels);
-        REQUIRE(ad.samples.size() == data.size());
-    }
-
-    SECTION("Odd-sized fmt chunk (19 bytes) with multiple extra bytes") {
-        TempFile      tmp(make_temp_path("temp_fmt_odd19.wav"));
-        std::ofstream out(tmp.path(), std::ios::binary);
-        REQUIRE(out);
-
-        uint16_t             num_channels    = 2;
-        uint32_t             sample_rate     = 48000;
-        uint16_t             bits_per_sample = 16;
-        std::vector<uint8_t> data            = {0xAA, 0xBB, 0xCC, 0xDD};
-        uint32_t             fmt_size        = 19; // odd with multiple extra bytes
-
-        uint32_t riff_size = 4 + (8 + fmt_size) + (8 + static_cast<uint32_t>(data.size()));
-        write_riff_header(out, riff_size);
-        write_fmt_chunk(out, fmt_size, 1, num_channels, sample_rate, bits_per_sample);
-        out.put(static_cast<char>(0x01)); // three extra bytes
-        out.put(static_cast<char>(0x02));
-        out.put(static_cast<char>(0x03));
-        write_data_chunk(out, data);
-        out.close();
-
-        auto ad = FileIO::readWav(tmp.path());
-        REQUIRE(ad.sample_rate == sample_rate);
-        REQUIRE(ad.bit_rate == bits_per_sample);
-        REQUIRE(ad.num_channels == num_channels);
-        REQUIRE(ad.samples.size() == data.size());
-    }
+    REQUIRE(ad.sample_rate == sample_rate);
+    REQUIRE(ad.bit_rate == bits_per_sample);
+    REQUIRE(ad.num_channels == num_channels);
+    REQUIRE(ad.samples.size() == data.size());
 }
 
 TEST_CASE("WAV parsing: odd-sized JUNK chunk with padding after fmt", "[wav][parsing][junk][padding]") {

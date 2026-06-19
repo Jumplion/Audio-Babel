@@ -55,25 +55,21 @@ TEST_CASE("FileIO: writeWav(samples, path) applies the fixed default header", "[
     REQUIRE(readBack.samples == audioData.samples);
 }
 
-TEST_CASE("Index: payload bytes round-trip exactly", "[index][roundtrip]") {
-    // A 16-bit payload (10 bytes / 5 samples) is reproduced byte-for-byte.
-    std::vector<int32_t> samples   = {0, 12345, 54321, 30000, 5};
-    auto                 audioData = FileIO::fromSamples(samples, 44100, 16);
+TEST_CASE("Index: encode -> decode roundtrip for representative sample sets", "[index][roundtrip]") {
+    // Both positive-only and mixed-sign 16-bit payloads are reproduced byte-for-byte.
+    std::vector<std::vector<int32_t>> sampleSets = {
+        {0, 12345, 54321, 30000, 5},
+        {0, 12345, -12345, 30000, -30000},
+    };
 
-    auto idx     = Index::encode(audioData.samples);
-    auto decoded = Index::decode(idx);
+    for (const auto& samples : sampleSets) {
+        auto audioData = FileIO::fromSamples(samples, 44100, 16);
+        auto idx        = Index::encode(audioData.samples);
+        auto decoded    = Index::decode(idx);
 
-    REQUIRE(decoded == audioData.samples);
-}
-
-TEST_CASE("Index: encode -> decode roundtrip", "[index][roundtrip]") {
-    std::vector<int32_t> samples   = {0, 12345, -12345, 30000, -30000};
-    auto                 audioData = FileIO::fromSamples(samples, 44100, 16);
-    auto                 idx       = Index::encode(audioData.samples);
-    auto                 decoded   = Index::decode(idx);
-
-    REQUIRE(decoded.size() > 0);
-    REQUIRE(decoded == audioData.samples);
+        REQUIRE(decoded.size() > 0);
+        REQUIRE(decoded == audioData.samples);
+    }
 }
 
 TEST_CASE("FileIO: writeWav and readWav round trip", "[file_io][wav]") {

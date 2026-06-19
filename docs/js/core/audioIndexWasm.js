@@ -6,6 +6,7 @@
 
 import { createWavFile } from '../utils/wavUtils.js';
 import { bytesToBase64Chunked } from '../utils/base64.js';
+import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from '../utils/audioConstants.js';
 
 class AudioIndexWASM {
     constructor() {
@@ -115,7 +116,7 @@ class AudioIndexWASM {
      * @param {number} channels - Channel count
      * @returns {Blob} WAV file blob
      */
-    samplesToWav(samples, sampleRate = 44100, bitDepth = 16, channels = 1) {
+    samplesToWav(samples, sampleRate = DEFAULT_SAMPLE_RATE, bitDepth = DEFAULT_BIT_DEPTH, channels = DEFAULT_NUM_CHANNELS) {
         return createWavFile(samples, sampleRate, bitDepth, channels);
     }
 
@@ -127,7 +128,7 @@ class AudioIndexWASM {
      * @param {number} channels - Channel count
      * @returns {Promise<string>} Base64-encoded WAV file
      */
-    async samplesToWavBase64(samples, sampleRate = 44100, bitDepth = 16, channels = 1) {
+    async samplesToWavBase64(samples, sampleRate = DEFAULT_SAMPLE_RATE, bitDepth = DEFAULT_BIT_DEPTH, channels = DEFAULT_NUM_CHANNELS) {
         const wavBlob = this.samplesToWav(samples, sampleRate, bitDepth, channels);
         const wavBytes = new Uint8Array(await wavBlob.arrayBuffer());
         return bytesToBase64Chunked(wavBytes);

@@ -5,16 +5,13 @@
 #include <vector>
 
 #include "Constants.h"
+#include "Utilities.h"
 
 namespace AudioBabel::IndexScramble {
 
 namespace mp = boost::multiprecision;
 
 namespace {
-
-    constexpr uint32_t SAMPLE_BASE  = SAMPLE_ALPHABET_SIZE;              // B = 65536
-    constexpr unsigned SAMPLE_BITS  = DEFAULT_BIT_DEPTH;                 // 16
-    constexpr size_t   SAMPLE_BYTES = DEFAULT_BIT_DEPTH / BITS_PER_BYTE; // 2
 
     // Number of Feistel rounds. Four rounds give full avalanche across the band.
     constexpr int FEISTEL_ROUNDS = 4;
@@ -34,29 +31,10 @@ namespace {
         return z ^ (z >> 31);
     }
 
-    // Band index L (== sample count) for a stored index value. Mirrors the
-    // magnitude-based length recovery used by indexToAudioData.
-    auto bandIndex(const cpp_int& n) -> size_t {
-        if (n == 0) {
-            return 0;
-        }
-        cpp_int m = (n * (SAMPLE_BASE - 1)) + 1;
-        return static_cast<size_t>(mp::msb(m) / SAMPLE_BITS);
-    }
-
-    // Base-B repunit S_L = (B^L - 1)/(B - 1): byte pattern 0x00 0x01 repeated L times.
-    auto repunit(size_t L) -> cpp_int {
-        if (L == 0) {
-            return cpp_int(0);
-        }
-        std::vector<uint8_t> bytes(L * SAMPLE_BYTES, 0);
-        for (size_t i = 0; i < L; ++i) {
-            bytes[(i * SAMPLE_BYTES) + 1] = 0x01;
-        }
-        cpp_int s = 0;
-        mp::import_bits(s, bytes.begin(), bytes.end(), BITS_PER_BYTE, true);
-        return s;
-    }
+    // bandIndex() and repunit() (length recovery and the base-B repunit) are
+    // shared with AudioIndex's payload bijection — see Utilities.h.
+    using AudioBabel::Utilities::bandIndex;
+    using AudioBabel::Utilities::repunit;
 
     // Per-round key derived from the seed, band and round index.
     auto roundKey(uint64_t seed, size_t L, int round) -> uint64_t {

@@ -33,21 +33,6 @@ struct ScrambleGuard {
     }
 };
 
-/// Build an AudioData payload from unsigned 16-bit samples (little-endian).
-AudioIndex::AudioData makePayload(const std::vector<uint16_t>& samples) {
-    AudioIndex::AudioData ad{};
-    ad.audio_format = 1;
-    ad.sample_rate  = DEFAULT_SAMPLE_RATE;
-    ad.bit_rate     = DEFAULT_BIT_DEPTH;
-    ad.num_channels = DEFAULT_NUM_CHANNELS;
-    ad.num_frames   = samples.size();
-    for (uint16_t v : samples) {
-        ad.samples.push_back(static_cast<uint8_t>(v & 0xFF));
-        ad.samples.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
-    }
-    return ad;
-}
-
 } // namespace
 
 TEST_CASE("Scramble: pure transform is an exact bijection", "[scramble][bijection]") {

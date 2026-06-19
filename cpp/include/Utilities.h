@@ -57,6 +57,40 @@ static inline void push_le(std::vector<uint8_t>& out, T val) {
     }
 }
 
+// --- Sample-domain repunit / band-index helpers --------------------------
+// Shared by AudioIndex's payload bijection and IndexScramble's per-band
+// keying, both of which work over base-B numbers with B = SAMPLE_ALPHABET_SIZE
+// (the 16-bit sample alphabet) and need the same two primitives:
+//   - the base-B repunit S_L = (B^L - 1)/(B - 1) for an L-sample band, and
+//   - recovering L (the sample count) from a stored index magnitude.
+
+// Base-B repunit S_L: byte pattern 0x00 0x01 repeated L times (every digit ==
+// 1), most-significant-sample first. Built in one linear pass.
+inline auto repunit(size_t L) -> boost::multiprecision::cpp_int {
+    if (L == 0) {
+        return boost::multiprecision::cpp_int(0);
+    }
+    constexpr size_t      sampleBytes = DEFAULT_BIT_DEPTH / BITS_PER_BYTE;
+    std::vector<uint8_t>  bytes(L * sampleBytes, 0);
+    for (size_t i = 0; i < L; ++i) {
+        bytes[(i * sampleBytes) + 1] = 0x01;
+    }
+    boost::multiprecision::cpp_int s = 0;
+    boost::multiprecision::import_bits(s, bytes.begin(), bytes.end(), BITS_PER_BYTE, true);
+    return s;
+}
+
+// Band index L (== sample count) for a stored index value n: for an L-sample
+// payload, n lies in [S_L, S_{L+1}-1], and with m = n*(B-1) + 1,
+// L = floor(log_B(m)) = msb(m) / 16, recovered without bignum division.
+inline auto bandIndex(const boost::multiprecision::cpp_int& n) -> size_t {
+    if (n == 0) {
+        return 0;
+    }
+    boost::multiprecision::cpp_int m = (n * (SAMPLE_ALPHABET_SIZE - 1)) + 1;
+    return static_cast<size_t>(boost::multiprecision::msb(m) / DEFAULT_BIT_DEPTH);
+}
+
 // --- Base64 URL-safe utilities (alphabet A-Z a-z 0-9 - _, no padding) ---------
 // Accepts string-like inputs via std::string_view.
 // URL-safe base64 alphabet used by encoder/decoder (no padding)

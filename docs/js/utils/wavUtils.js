@@ -5,6 +5,8 @@
  * Eliminates code duplication across pages that read or build WAV files.
  */
 
+import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from './audioConstants.js';
+
 /**
  * Write a string to a DataView
  * @param {DataView} view - The DataView to write to
@@ -51,9 +53,9 @@ export function parseWavFile(arrayBuffer) {
     // Parse chunks
     let offset = 12; // Skip RIFF/WAVE header
     let pcmData = null;
-    let sampleRate = 44100;
-    let numChannels = 1;
-    let bitDepth = 16;
+    let sampleRate = DEFAULT_SAMPLE_RATE;
+    let numChannels = DEFAULT_NUM_CHANNELS;
+    let bitDepth = DEFAULT_BIT_DEPTH;
     
     while (offset < view.byteLength - 8) {
         const chunkId = String.fromCharCode(
@@ -100,12 +102,12 @@ export function parseWavFile(arrayBuffer) {
 /**
  * Create a WAV file from PCM sample data
  * @param {Uint8Array} pcmData - Raw PCM sample data
- * @param {number} sampleRate - Sample rate (default: 44100)
- * @param {number} bitDepth - Bit depth (default: 16)
- * @param {number} numChannels - Number of channels (default: 1)
+ * @param {number} sampleRate - Sample rate (default: DEFAULT_SAMPLE_RATE)
+ * @param {number} bitDepth - Bit depth (default: DEFAULT_BIT_DEPTH)
+ * @param {number} numChannels - Number of channels (default: DEFAULT_NUM_CHANNELS)
  * @returns {Blob} WAV file as a Blob
  */
-export function createWavFile(pcmData, sampleRate = 44100, bitDepth = 16, numChannels = 1) {
+export function createWavFile(pcmData, sampleRate = DEFAULT_SAMPLE_RATE, bitDepth = DEFAULT_BIT_DEPTH, numChannels = DEFAULT_NUM_CHANNELS) {
     const bytesPerSample = bitDepth / 8;
     const blockAlign = numChannels * bytesPerSample;
     const byteRate = sampleRate * blockAlign;

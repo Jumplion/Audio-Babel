@@ -76,33 +76,13 @@ class FileIO {
     static void writeWav(const std::vector<uint8_t>& samples, const std::string& path);
 
     /**
-     * @brief Build an AudioData structure from signed integer samples.
-     *
-     * Converts a vector of host-order int32 values into an AudioData structure
-     * with packed little-endian bytes per sample according to the specified bit depth.
-     *
-     * @param samples PCM samples as signed 32-bit integers (mono interleaved)
-     * @param sampleRate Sample rate in Hz (default: 44100)
-     * @param bitDepth Bit depth in bits (default: 16; supported: 8, 16, 32)
-     * @return AudioData structure ready for index encoding
-     *
-     * @par Sample Packing
-     * - 8-bit: Each int32 is packed as 1 byte (LSB only)
-     * - 16-bit: Each int32 is packed as 2 bytes (little-endian)
-     * - 32-bit: Each int32 is packed as 4 bytes (little-endian)
-     *
-     * @note Assumes mono input (num_channels = 1)
-     */
-    static auto fromSamples(const std::vector<int32_t>& samples, int sampleRate = 44100, int bitDepth = 16) -> AudioData;
-
-    /**
      * @brief Write a bijective base-64 index string to a text file.
      * @param index Big integer index to serialize
-     * @param outDir Output directory (defaults to cpp/tests/indexes)
+     * @param outDir Output directory; must be specified by the caller
      * @param filename Output file stem, without extension (defaults to a stem derived from the index)
      */
     static void writeIndexToFile(const boost::multiprecision::cpp_int& index,
-                                  const std::string&                    outDir   = std::string(),
+                                  const std::string&                    outDir,
                                   const std::string&                    filename = std::string());
 };
 

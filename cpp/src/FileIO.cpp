@@ -187,36 +187,8 @@ void FileIO::writeWav(const std::vector<uint8_t>& samples, const std::string& pa
     writeWav(audioData, path);
 }
 
-auto FileIO::fromSamples(const std::vector<int32_t>& samples, int sampleRate, int bitDepth) -> FileIO::AudioData {
-    AudioData audioData{};
-    audioData.sample_rate  = static_cast<uint32_t>(sampleRate);
-    audioData.bit_rate     = static_cast<uint16_t>(bitDepth);
-    audioData.num_channels = DEFAULT_NUM_CHANNELS; // assuming mono input
-    audioData.audio_format = PCM_FORMAT_CODE;      // PCM format
-
-    size_t bytes_per_sample = bitDepth / BITS_PER_BYTE;
-    audioData.samples.resize(samples.size() * bytes_per_sample);
-
-    for (size_t sampleIndex = 0; sampleIndex < samples.size(); ++sampleIndex) {
-        int32_t sample = samples[sampleIndex];
-        for (size_t byteIndex = 0; byteIndex < bytes_per_sample; ++byteIndex) {
-            audioData.samples[(sampleIndex * bytes_per_sample) + byteIndex] =
-                static_cast<uint8_t>((sample >> (byteIndex * BITS_PER_BYTE)) & BYTE_MASK);
-        }
-    }
-
-    audioData.num_frames = samples.size() / audioData.num_channels;
-    return audioData;
-}
-
 void FileIO::writeIndexToFile(const boost::multiprecision::cpp_int& index, const std::string& outDir, const std::string& filename) {
-    // Determine directory to write into.
-    fs::path dir;
-    if (outDir.empty()) {
-        dir = fs::path("cpp") / "tests" / "indexes";
-    } else {
-        dir = fs::path(outDir);
-    }
+    fs::path dir(outDir);
 
     try {
         fs::create_directories(dir);

@@ -71,7 +71,10 @@ auto Index::encode(const std::vector<uint8_t>& samples) -> boost::multiprecision
     // indices reach a wider range of lengths). It is a bijection within each
     // length-tier, so it is identity-safe when disabled and never breaks the
     // round-trip when enabled. See IndexScramble.h.
-    index = IndexScramble::applyScramble(index);
+    const IndexScramble::Config& scrambleCfg = IndexScramble::config();
+    if (scrambleCfg.enabled) {
+        index = IndexScramble::scramble(index, scrambleCfg.seed);
+    }
 
     return index;
 }
@@ -95,7 +98,8 @@ auto Index::decode(const boost::multiprecision::cpp_int& index) -> std::vector<u
      */
     // Undo the optional reversible scramble (identity unless enabled) before
     // decoding. The stored index is what carries the scramble.
-    const cpp_int idx = IndexScramble::applyUnscramble(index);
+    const IndexScramble::Config& scrambleCfg = IndexScramble::config();
+    const cpp_int idx = scrambleCfg.enabled ? IndexScramble::unscramble(index, scrambleCfg.seed) : index;
 
     std::vector<uint8_t> samples;
 

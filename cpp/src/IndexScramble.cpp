@@ -304,14 +304,4 @@ auto config() -> Config& {
     return cfg;
 }
 
-auto applyScramble(const cpp_int& index) -> cpp_int {
-    const Config& cfg = config();
-    return cfg.enabled ? scramble(index, cfg.seed) : index;
-}
-
-auto applyUnscramble(const cpp_int& index) -> cpp_int {
-    const Config& cfg = config();
-    return cfg.enabled ? unscramble(index, cfg.seed) : index;
-}
-
 } // namespace AudioBabel::IndexScramble

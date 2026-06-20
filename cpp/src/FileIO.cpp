@@ -2,16 +2,12 @@
 
 #include <algorithm>
 #include <array>
-#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
 
 #include "Constants.h"
 #include "Utilities.h"
-
-using boost::multiprecision::cpp_int;
-namespace fs = std::filesystem;
 
 namespace AudioBabel {
 
@@ -185,63 +181,6 @@ void FileIO::writeWav(const std::vector<uint8_t>& samples, const std::string& pa
     audioData.num_frames   = (samples.size() / (DEFAULT_BIT_DEPTH / BITS_PER_BYTE)) / DEFAULT_NUM_CHANNELS;
 
     writeWav(audioData, path);
-}
-
-auto FileIO::fromSamples(const std::vector<int32_t>& samples, int sampleRate, int bitDepth) -> FileIO::AudioData {
-    AudioData audioData{};
-    audioData.sample_rate  = static_cast<uint32_t>(sampleRate);
-    audioData.bit_rate     = static_cast<uint16_t>(bitDepth);
-    audioData.num_channels = DEFAULT_NUM_CHANNELS; // assuming mono input
-    audioData.audio_format = PCM_FORMAT_CODE;      // PCM format
-
-    size_t bytes_per_sample = bitDepth / BITS_PER_BYTE;
-    audioData.samples.resize(samples.size() * bytes_per_sample);
-
-    for (size_t sampleIndex = 0; sampleIndex < samples.size(); ++sampleIndex) {
-        int32_t sample = samples[sampleIndex];
-        for (size_t byteIndex = 0; byteIndex < bytes_per_sample; ++byteIndex) {
-            audioData.samples[(sampleIndex * bytes_per_sample) + byteIndex] =
-                static_cast<uint8_t>((sample >> (byteIndex * BITS_PER_BYTE)) & BYTE_MASK);
-        }
-    }
-
-    audioData.num_frames = samples.size() / audioData.num_channels;
-    return audioData;
-}
-
-void FileIO::writeIndexToFile(const boost::multiprecision::cpp_int& index, const std::string& outDir, const std::string& filename) {
-    // Determine directory to write into.
-    fs::path dir;
-    if (outDir.empty()) {
-        dir = fs::path("cpp") / "tests" / "indexes";
-    } else {
-        dir = fs::path(outDir);
-    }
-
-    try {
-        fs::create_directories(dir);
-    } catch (...) {
-        // best-effort
-    }
-
-    // Serialize the index through the bijective base-64 encoding (single string
-    // encoding shared across the whole system).
-    std::string base64Str = Utilities::indexToB64(index);
-
-    // Make a short stable stem from the leading characters of the index string.
-    // The empty index (integer 0) yields an empty string, so fall back to "0".
-    std::string stem = base64Str.empty() ? std::string("0") : base64Str.substr(0, std::min<size_t>(base64Str.size(), 12));
-
-    // choose base name: provided filename or generated stem
-    std::string name = filename.empty() ? stem : filename;
-
-    std::ofstream out((dir / (name + ".txt")).string());
-    if (!out) {
-        throw std::runtime_error("Failed to open output file: " + (dir / (name + ".txt")).string());
-    }
-
-    out << base64Str << '\n';
-    out.close();
 }
 
 } // namespace AudioBabel

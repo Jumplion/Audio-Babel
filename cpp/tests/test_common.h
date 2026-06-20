@@ -110,4 +110,33 @@ inline auto makePayload(const std::vector<uint16_t>& samples) -> std::vector<uin
     return bytes;
 }
 
+/**
+ * @brief Build a FileIO::AudioData from signed integer samples (mono, test-only helper).
+ *
+ * Packs each int32 sample into bitDepth/8 little-endian bytes. Production code has
+ * no need for this conversion; it exists purely so tests can build an AudioData
+ * (with header fields and packed payload bytes) from plain integer sample lists.
+ */
+inline auto fromSamples(const std::vector<int32_t>& samples, int sampleRate = 44100, int bitDepth = 16) -> FileIO::AudioData {
+    FileIO::AudioData audioData{};
+    audioData.sample_rate  = static_cast<uint32_t>(sampleRate);
+    audioData.bit_rate     = static_cast<uint16_t>(bitDepth);
+    audioData.num_channels = 1; // mono
+    audioData.audio_format = 1; // PCM
+
+    size_t bytes_per_sample = static_cast<size_t>(bitDepth) / 8;
+    audioData.samples.resize(samples.size() * bytes_per_sample);
+
+    for (size_t sampleIndex = 0; sampleIndex < samples.size(); ++sampleIndex) {
+        int32_t sample = samples[sampleIndex];
+        for (size_t byteIndex = 0; byteIndex < bytes_per_sample; ++byteIndex) {
+            audioData.samples[(sampleIndex * bytes_per_sample) + byteIndex] =
+                static_cast<uint8_t>((sample >> (byteIndex * 8)) & 0xFF);
+        }
+    }
+
+    audioData.num_frames = samples.size() / audioData.num_channels;
+    return audioData;
+}
+
 #endif // TEST_COMMON_H

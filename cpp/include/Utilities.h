@@ -49,14 +49,6 @@ static inline auto tagEquals(const std::array<char, 4>& tagBuf, const char expec
     return true;
 }
 
-template <typename T>
-static inline void push_le(std::vector<uint8_t>& out, T val) {
-    auto uv = static_cast<uint64_t>(val);
-    for (size_t i = 0; i < sizeof(T); ++i) {
-        out.push_back(static_cast<uint8_t>((uv >> (i * 8)) & 0xFFU));
-    }
-}
-
 // --- Sample-domain repunit / band-index helpers --------------------------
 // Shared by Index's payload bijection and IndexScramble's per-band
 // keying, both of which work over base-B numbers with B = SAMPLE_ALPHABET_SIZE

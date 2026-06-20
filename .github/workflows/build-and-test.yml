@@ -1,4 +1,4 @@
-name: Lint
+name: Build and Test
 
 on:
   push:
@@ -43,3 +43,28 @@ jobs:
 
       - name: Run clang-tidy
         run: find cpp/src -name '*.cpp' -print0 | xargs -0 clang-tidy -p build
+
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Boost headers
+        run: sudo apt-get update && sudo apt-get install -y libboost-dev
+
+      - name: Cache CMake FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: ${{ runner.os }}-cmake-deps-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build unit tests
+        run: cmake --build build -j$(nproc) --target tests_catch2
+
+      - name: Run unit tests
+        working-directory: build
+        run: ctest --output-on-failure

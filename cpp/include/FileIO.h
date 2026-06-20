@@ -1,7 +1,6 @@
 #ifndef FILE_IO_H
 #define FILE_IO_H
 
-#include <boost/multiprecision/cpp_int.hpp>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -74,16 +73,6 @@ class FileIO {
      * @param path Output file path
      */
     static void writeWav(const std::vector<uint8_t>& samples, const std::string& path);
-
-    /**
-     * @brief Write a bijective base-64 index string to a text file.
-     * @param index Big integer index to serialize
-     * @param outDir Output directory; must be specified by the caller
-     * @param filename Output file stem, without extension (defaults to a stem derived from the index)
-     */
-    static void writeIndexToFile(const boost::multiprecision::cpp_int& index,
-                                  const std::string&                    outDir,
-                                  const std::string&                    filename = std::string());
 };
 
 } // namespace AudioBabel

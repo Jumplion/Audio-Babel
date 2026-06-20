@@ -52,82 +52,66 @@ static std::string encode_b64_url(const std::vector<uint8_t>& bytes) {
     return b64str;
 }
 
-TEST_CASE("IndexMetadata: cpp_int overload deterministic and valid", "[metadata][determinism]") {
-    // Build a sample byte vector (non-empty) and construct a cpp_int (MSB-first)
-    std::vector<uint8_t> bytes = {0x10, 0x20, 0x30, 0x41, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA,
-                                  0xBB, 0xCC, 0xDD, 0xEE, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
-    cpp_int              idx   = 0;
-    for (uint8_t b : bytes) {
-        idx <<= 8;
-        idx |= cpp_int(static_cast<uint32_t>(b));
-    }
+TEST_CASE("IndexMetadata: deterministic and valid across both extraction overloads", "[metadata][determinism][base64]") {
+    SECTION("cpp_int overload") {
+        // Build a sample byte vector (non-empty) and construct a cpp_int (MSB-first)
+        std::vector<uint8_t> bytes = {0x10, 0x20, 0x30, 0x41, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA,
+                                      0xBB, 0xCC, 0xDD, 0xEE, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
+        cpp_int              idx   = 0;
+        for (uint8_t b : bytes) {
+            idx <<= 8;
+            idx |= cpp_int(static_cast<uint32_t>(b));
+        }
 
-    auto m1 = IndexMetadata::extractMetadataFromIndex(idx);
-    auto m2 = IndexMetadata::extractMetadataFromIndex(idx);
-    // Metadata is now derived from the bijective base-64 string of the integer,
-    // not from the bit-packed base-64 of the raw bytes.
-    std::string b64str = AudioBabel::Utilities::indexToB64(idx);
+        auto m1 = IndexMetadata::extractMetadataFromIndex(idx);
+        auto m2 = IndexMetadata::extractMetadataFromIndex(idx);
+        // Metadata is now derived from the bijective base-64 string of the integer,
+        // not from the bit-packed base-64 of the raw bytes.
+        std::string b64str = AudioBabel::Utilities::indexToB64(idx);
 
-    SECTION("Metadata extraction is deterministic") {
         REQUIRE(m1.genre == m2.genre);
         REQUIRE(m1.artist == m2.artist);
         REQUIRE(m1.album == m2.album);
         REQUIRE(m1.track == m2.track);
-    }
 
-    SECTION("All metadata fields are non-empty") {
         REQUIRE_FALSE(m1.genre.empty());
         REQUIRE_FALSE(m1.artist.empty());
         REQUIRE_FALSE(m1.album.empty());
         REQUIRE_FALSE(m1.track.empty());
-    }
 
-    SECTION("All metadata fields contain valid base64 URL-safe characters") {
         REQUIRE(valid_b64_chars(m1.genre));
         REQUIRE(valid_b64_chars(m1.artist));
         REQUIRE(valid_b64_chars(m1.album));
         REQUIRE(valid_b64_chars(m1.track));
-    }
 
-    SECTION("Concatenation recreates base64 index") {
         std::string recombined = m1.genre + m1.artist + m1.album + m1.track;
         REQUIRE(recombined == b64str);
-    }
 
-    SECTION("Cover contains SVG markup") {
         REQUIRE_FALSE(m1.cover.empty());
         std::string cover_str(m1.cover.begin(), m1.cover.end());
         REQUIRE(cover_str.find("<svg") != std::string::npos);
     }
-}
 
-TEST_CASE("IndexMetadata: string-overload deterministic and recomposition", "[metadata][base64]") {
-    // Build a deterministic byte array and a base64 string (URL-safe, no padding)
-    std::vector<uint8_t> bytes  = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB};
-    std::string          b64str = encode_b64_url(bytes);
+    SECTION("string overload") {
+        // Build a deterministic byte array and a base64 string (URL-safe, no padding)
+        std::vector<uint8_t> bytes  = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB};
+        std::string          b64str = encode_b64_url(bytes);
 
-    auto meta = IndexMetadata::extractMetadataFromIndex(b64str);
+        auto meta = IndexMetadata::extractMetadataFromIndex(b64str);
 
-    SECTION("All fields are non-empty") {
         REQUIRE_FALSE(meta.genre.empty());
         REQUIRE_FALSE(meta.artist.empty());
         REQUIRE_FALSE(meta.album.empty());
         REQUIRE_FALSE(meta.track.empty());
-    }
 
-    SECTION("All fields contain valid base64 characters") {
         REQUIRE(valid_b64_chars(meta.genre));
         REQUIRE(valid_b64_chars(meta.artist));
         REQUIRE(valid_b64_chars(meta.album));
         REQUIRE(valid_b64_chars(meta.track));
-    }
 
-    SECTION("Concatenation recreates base64 index") {
         std::string recombined = meta.genre + meta.artist + meta.album + meta.track;
         REQUIRE(recombined == b64str);
-    }
 
-    SECTION("Cover contains SVG markup") {
         REQUIRE_FALSE(meta.cover.empty());
         REQUIRE(meta.cover.find("<svg") != std::string::npos);
     }
@@ -167,9 +151,9 @@ TEST_CASE("IndexMetadata: generateSvgCover contains track text", "[metadata][svg
     REQUIRE(svg.find(track) != std::string::npos);
 }
 
-TEST_CASE("IndexMetadata: stress test with very small cpp_int values", "[metadata][edge_case]") {
-    // Test edge cases with minimal indexes
-    std::vector<cpp_int> small_values = {
+TEST_CASE("IndexMetadata: stress test across small and large cpp_int values", "[metadata][edge_case]") {
+    // Edge cases with minimal indexes, plus progressively larger indexes.
+    std::vector<cpp_int> values = {
         cpp_int(0),     // Zero
         cpp_int(1),     // One
         cpp_int(2),     // Two
@@ -177,10 +161,14 @@ TEST_CASE("IndexMetadata: stress test with very small cpp_int values", "[metadat
         cpp_int(255),   // Single byte max
         cpp_int(256),   // Just over single byte
         cpp_int(65535), // Two bytes max (uint16_t max)
-        cpp_int(65536)  // Just over two bytes
+        cpp_int(65536), // Just over two bytes
+        cpp_int("4294967295"),                                                                    // 32-bit max
+        cpp_int("18446744073709551615"),                                                          // 64-bit max
+        cpp_int("340282366920938463463374607431768211455"),                                       // 128-bit value
+        cpp_int("115792089237316195423570985008687907853269984665640564039457584007913129639935") // 256-bit value
     };
 
-    for (const auto& idx : small_values) {
+    for (const auto& idx : values) {
         INFO("Testing index: " << idx.convert_to<std::string>());
         auto meta = IndexMetadata::extractMetadataFromIndex(idx);
 
@@ -192,52 +180,13 @@ TEST_CASE("IndexMetadata: stress test with very small cpp_int values", "[metadat
 
         // Concatenation should recreate valid base64
         std::string recombined = meta.genre + meta.artist + meta.album + meta.track;
-
-        // Verify all characters are valid base64 URL-safe
-        for (char c : recombined) {
-            bool valid = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_';
-            REQUIRE(valid);
-        }
-
-        // Cover should be valid SVG
-        REQUIRE_FALSE(meta.cover.empty());
-        REQUIRE(meta.cover.find("<svg") != std::string::npos);
-    }
-}
-
-TEST_CASE("IndexMetadata: stress test with very large cpp_int values", "[metadata][edge_case]") {
-    // Test with progressively larger indexes
-    std::vector<cpp_int> large_values = {
-        cpp_int("4294967295"),                                                                    // 32-bit max
-        cpp_int("18446744073709551615"),                                                          // 64-bit max
-        cpp_int("340282366920938463463374607431768211455"),                                       // 128-bit value
-        cpp_int("115792089237316195423570985008687907853269984665640564039457584007913129639935") // 256-bit value
-    };
-
-    size_t test_num = 0;
-    for (const auto& idx : large_values) {
-        test_num++;
-        INFO("Testing large index #" << test_num);
-
-        auto meta = IndexMetadata::extractMetadataFromIndex(idx);
-
-        // All fields should be non-empty
-        REQUIRE_FALSE(meta.genre.empty());
-        REQUIRE_FALSE(meta.artist.empty());
-        REQUIRE_FALSE(meta.album.empty());
-        REQUIRE_FALSE(meta.track.empty());
-
-        // Concatenation should recreate valid base64
-        std::string recombined = meta.genre + meta.artist + meta.album + meta.track;
-
-        // Verify all characters are valid base64 URL-safe
-        for (char c : recombined) {
-            bool valid = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_';
-            REQUIRE(valid);
-        }
-
-        // Verify the base64 string length is reasonable
         REQUIRE(recombined.length() > 0);
+
+        // Verify all characters are valid base64 URL-safe
+        for (char c : recombined) {
+            bool valid = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_';
+            REQUIRE(valid);
+        }
 
         // Cover should be valid SVG
         REQUIRE_FALSE(meta.cover.empty());

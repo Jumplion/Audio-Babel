@@ -22,60 +22,41 @@
 using boost::multiprecision::cpp_int;
 using namespace LibraryConstants;
 
-TEST_CASE("LibraryPosition: calculateLibraryPosition with small index", "[library_position][calculation]") {
-    cpp_int index = 42;
-    auto    pos   = calculateLibraryPosition(index);
+TEST_CASE("LibraryPosition: calculateLibraryPosition and roundtrip for representative indexes", "[library_position][calculation][roundtrip]") {
+    // Table-driven replacement for what used to be four near-identical
+    // single-index tests (42, 12345, 9600, 50000 [50000 now covered by the
+    // comprehensive roundtrip list below]).
+    struct Case {
+        cpp_int index;
+        bool    roomEmpty;
+        uint8_t wall;
+        uint8_t shelf;
+        uint8_t album;
+        uint8_t track;
+    };
 
-    // index 42 should be in room 0 (since 42 < 9600)
-    // Room 0 should encode as "A" (single zero byte)
-    // wall = (42 / 2400) % 4 = 0
-    // shelf = (42 / 480) % 5 = 0
-    // album = (42 / 15) % 32 = 2
-    // track = 42 % 15 = 12
-    REQUIRE(pos.room == "");
-    REQUIRE(pos.wall == 0);
-    REQUIRE(pos.shelf == 0);
-    REQUIRE(pos.album == 2);
-    REQUIRE(pos.track == 12);
-}
+    std::vector<Case> cases = {
+        // index 42: room 0 ("" ), wall=(42/2400)%4=0, shelf=(42/480)%5=0, album=(42/15)%32=2, track=42%15=12
+        {42, true, 0, 0, 2, 12},
+        // index 12345: room 1 (non-empty), wall=1, shelf=0, album=23, track=0
+        {12345, false, 1, 0, 23, 0},
+        // index 9600: first index in room 1
+        {9600, false, 0, 0, 0, 0},
+    };
 
-TEST_CASE("LibraryPosition: reconstructIndexFromPosition roundtrip", "[library_position][roundtrip]") {
-    cpp_int original_index = 12345;
-    auto    pos            = calculateLibraryPosition(original_index);
-    cpp_int reconstructed  = reconstructIndexFromPosition(pos);
+    for (const auto& c : cases) {
+        INFO("Testing index: " << c.index);
+        auto pos = calculateLibraryPosition(c.index);
 
-    REQUIRE(original_index == reconstructed);
+        REQUIRE(pos.room.empty() == c.roomEmpty);
+        REQUIRE(pos.wall == c.wall);
+        REQUIRE(pos.shelf == c.shelf);
+        REQUIRE(pos.album == c.album);
+        REQUIRE(pos.track == c.track);
 
-    // Room 1 should be base64-encoded representation of 1
-    REQUIRE(!pos.room.empty());
-    REQUIRE(pos.wall == 1);
-    REQUIRE(pos.shelf == 0);
-    REQUIRE(pos.album == 23);
-    REQUIRE(pos.track == 0);
-}
-
-TEST_CASE("LibraryPosition: position at room boundary", "[library_position][boundary]") {
-    cpp_int index = 9600; // First index in room 1
-    auto    pos   = calculateLibraryPosition(index);
-
-    REQUIRE(!pos.room.empty());
-    REQUIRE(pos.wall == 0);
-    REQUIRE(pos.shelf == 0);
-    REQUIRE(pos.album == 0);
-    REQUIRE(pos.track == 0);
-
-    // Verify roundtrip
-    cpp_int reconstructed = reconstructIndexFromPosition(pos);
-    REQUIRE(index == reconstructed);
-}
-
-TEST_CASE("LibraryPosition: large index roundtrip", "[library_position][roundtrip]") {
-    cpp_int index         = 50000;
-    auto    pos           = calculateLibraryPosition(index);
-    cpp_int reconstructed = reconstructIndexFromPosition(pos);
-
-    REQUIRE(index == reconstructed);
-    REQUIRE(!pos.room.empty());
+        cpp_int reconstructed = reconstructIndexFromPosition(pos);
+        REQUIRE(c.index == reconstructed);
+    }
 }
 
 TEST_CASE("LibraryPosition: IndexMetadata includes position field", "[library_position][metadata]") {
@@ -95,34 +76,29 @@ TEST_CASE("LibraryPosition: IndexMetadata includes position field", "[library_po
     REQUIRE(!meta.position.room.empty());
 }
 
-TEST_CASE("LibraryPosition: cpp_int overload includes position", "[library_position][metadata]") {
-    cpp_int index = 123456789;
-
-    auto meta       = IndexMetadata::extractMetadataFromIndex(index);
-    auto pos_direct = calculateLibraryPosition(index);
-
-    // Check that both methods produce the same position
-    REQUIRE(meta.position.room == pos_direct.room);
-    REQUIRE(meta.position.wall == pos_direct.wall);
-    REQUIRE(meta.position.shelf == pos_direct.shelf);
-    REQUIRE(meta.position.album == pos_direct.album);
-    REQUIRE(meta.position.track == pos_direct.track);
-}
-
-TEST_CASE("LibraryPosition: cross-module consistency with IndexMetadata", "[library_position][metadata][comprehensive]") {
-    // Test comprehensive list of indexes covering various edge cases
+TEST_CASE("LibraryPosition: cross-module consistency with IndexMetadata and full roundtrip", "[library_position][metadata][comprehensive][roundtrip]") {
+    // Comprehensive list of indexes covering edge cases, boundaries, and large
+    // values. This subsumes what used to be two separate near-duplicate tests
+    // ("cpp_int overload includes position", "complete roundtrip for various
+    // patterns") plus the standalone "large index roundtrip" (50000) case.
     std::vector<cpp_int> test_indexes = {
         0,                         // Origin
         1,                         // First track
         14,                        // Last track in first album
         15,                        // First track in second album
+        16,                        // Album boundary
         479,                       // Last track in first shelf
         480,                       // First track in second shelf
+        481,                       // Shelf boundary
         2399,                      // Last track in first wall
         2400,                      // First track in second wall
+        2401,                      // Wall boundary
         9599,                      // Last track in first room
         9600,                      // First track in second room
+        9601,                      // Room boundary
         12345,                     // Arbitrary value
+        50000,                     // Arbitrary value
+        67890,                     // Arbitrary value
         123456789,                 // Large value
         cpp_int("999999999999999") // Very large value
     };
@@ -234,108 +210,33 @@ TEST_CASE("LibraryPosition: perfect bijection - all positions in range are reach
 }
 
 TEST_CASE("LibraryPosition: boundary values produce correct positions", "[library_position][boundary]") {
-    SECTION("Last track of first album (index 14)") {
-        cpp_int index = 14;
-        auto    pos   = calculateLibraryPosition(index);
-
-        REQUIRE(pos.room == "");
-        REQUIRE(pos.album == 0);
-        REQUIRE(pos.track == 14);
-    }
-
-    SECTION("First track of second album (index 15)") {
-        cpp_int index = 15;
-        auto    pos   = calculateLibraryPosition(index);
-
-        REQUIRE(pos.room == "");
-        REQUIRE(pos.album == 1);
-        REQUIRE(pos.track == 0);
-    }
-
-    SECTION("Last track of first shelf (index 479)") {
-        cpp_int index = 479;
-        auto    pos   = calculateLibraryPosition(index);
-
-        REQUIRE(pos.room == "");
-        REQUIRE(pos.shelf == 0);
-        REQUIRE(pos.album == 31);
-        REQUIRE(pos.track == 14);
-    }
-
-    SECTION("First track of second shelf (index 480)") {
-        cpp_int index = 480;
-        auto    pos   = calculateLibraryPosition(index);
-
-        REQUIRE(pos.room == "");
-        REQUIRE(pos.shelf == 1);
-        REQUIRE(pos.album == 0);
-        REQUIRE(pos.track == 0);
-    }
-
-    SECTION("Last track of first wall (index 2399)") {
-        cpp_int index = 2399;
-        auto    pos   = calculateLibraryPosition(index);
-
-        REQUIRE(pos.room == "");
-        REQUIRE(pos.wall == 0);
-        REQUIRE(pos.shelf == 4);
-        REQUIRE(pos.album == 31);
-        REQUIRE(pos.track == 14);
-    }
-
-    SECTION("First track of second wall (index 2400)") {
-        cpp_int index = 2400;
-        auto    pos   = calculateLibraryPosition(index);
-
-        REQUIRE(pos.room == "");
-        REQUIRE(pos.wall == 1);
-        REQUIRE(pos.shelf == 0);
-        REQUIRE(pos.album == 0);
-        REQUIRE(pos.track == 0);
-    }
-
-    SECTION("Last track of first room (index 9599)") {
-        cpp_int index = 9599;
-        auto    pos   = calculateLibraryPosition(index);
-
-        REQUIRE(pos.room == "");
-        REQUIRE(pos.wall == 3);
-        REQUIRE(pos.shelf == 4);
-        REQUIRE(pos.album == 31);
-        REQUIRE(pos.track == 14);
-    }
-}
-
-TEST_CASE("LibraryPosition: complete roundtrip for various patterns", "[library_position][roundtrip][comprehensive]") {
-    // Test various interesting indexes
-    std::vector<cpp_int> test_indexes = {
-        0,
-        1,
-        14,
-        15,
-        16, // Album boundaries
-        479,
-        480,
-        481, // Shelf boundaries
-        2399,
-        2400,
-        2401, // Wall boundaries
-        9599,
-        9600,
-        9601, // Room boundaries
-        12345,
-        67890,                     // Random values
-        123456789,                 // Large value
-        cpp_int("999999999999999") // Very large value
+    struct Case {
+        cpp_int index;
+        uint8_t wall;
+        uint8_t shelf;
+        uint8_t album;
+        uint8_t track;
     };
 
-    for (const auto& original : test_indexes) {
-        INFO("Testing roundtrip for index: " << original);
+    std::vector<Case> cases = {
+        {14, 0, 0, 0, 14},    // Last track of first album
+        {15, 0, 0, 1, 0},     // First track of second album
+        {479, 0, 0, 31, 14},  // Last track of first shelf
+        {480, 0, 1, 0, 0},    // First track of second shelf
+        {2399, 0, 4, 31, 14}, // Last track of first wall
+        {2400, 1, 0, 0, 0},   // First track of second wall
+        {9599, 3, 4, 31, 14}, // Last track of first room
+    };
 
-        auto    pos           = calculateLibraryPosition(original);
-        cpp_int reconstructed = reconstructIndexFromPosition(pos);
+    for (const auto& c : cases) {
+        INFO("Testing boundary index: " << c.index);
+        auto pos = calculateLibraryPosition(c.index);
 
-        REQUIRE(original == reconstructed);
+        REQUIRE(pos.room == "");
+        REQUIRE(pos.wall == c.wall);
+        REQUIRE(pos.shelf == c.shelf);
+        REQUIRE(pos.album == c.album);
+        REQUIRE(pos.track == c.track);
     }
 }
 

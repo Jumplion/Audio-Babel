@@ -82,20 +82,4 @@ if(EXISTS ${PERF_SRC})
     endif()
 endif()
 
-# Small reconstruction CLI used by the web server
-set(RECON_SRC "${CPP_ROOT}/tools/reconstruct_cli.cpp")
-if(EXISTS ${RECON_SRC})
-    add_executable(reconstruct_cli ${RECON_SRC})
-    target_link_libraries(reconstruct_cli PRIVATE audiolib)
-    target_include_directories(reconstruct_cli PRIVATE ${CPP_ROOT}/include)
-endif()
-
-# Small extract CLI used by the web server (WAV -> index)
-set(EXTRACT_SRC "${CPP_ROOT}/tools/extract_index_cli.cpp")
-if(EXISTS ${EXTRACT_SRC})
-    add_executable(extract_index_cli ${EXTRACT_SRC})
-    target_link_libraries(extract_index_cli PRIVATE audiolib)
-    target_include_directories(extract_index_cli PRIVATE ${CPP_ROOT}/include)
-endif()
-
 message(STATUS "Project configured: ${PROJECT_NAME}")

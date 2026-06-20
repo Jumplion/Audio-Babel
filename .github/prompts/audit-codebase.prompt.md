@@ -44,7 +44,6 @@ Reference these when auditing — they represent verified categories of findings
 | Area | Known pattern | Files |
 |------|--------------|-------|
 | Silent corruption | PCM truncation/padding warnings instead of exceptions | [FileIO.cpp](../../cpp/src/FileIO.cpp) |
-| Silent failure | `writeIndexToFile` returns silently on open error | [FileIO.cpp](../../cpp/src/FileIO.cpp) |
 | Stub exposed | `generateIndexFromSamples()` returns hardcoded placeholder | [wasm_bindings.cpp](../../cpp/wasm/wasm_bindings.cpp) |
 | Unsafe JSON | Manual string concatenation without escaping | [wasm_bindings.cpp](../../cpp/wasm/wasm_bindings.cpp) |
 | Duplicate WAV gen | `samplesToWav()` vs `createWavFile()` | [indexWasm.js](../../docs/js/core/indexWasm.js), [wavUtils.js](../../docs/js/utils/wavUtils.js) |

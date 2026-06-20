@@ -53,9 +53,10 @@
  * The pure scramble()/unscramble() functions are always available. Whether the
  * core encode/decode actually applies them is controlled by config() (a runtime
  * switch used for testing) whose default comes from the compile-time flag
- * AUDIOBABEL_SCRAMBLE. Define AUDIOBABEL_SCRAMBLE (optionally with
- * AUDIOBABEL_SCRAMBLE_SEED) to bake it in for a final build; the runtime setter
- * can then be dropped.
+ * AUDIOBABEL_SCRAMBLE. Index::encode/decode check config().enabled directly
+ * before calling scramble()/unscramble(). Define AUDIOBABEL_SCRAMBLE
+ * (optionally with AUDIOBABEL_SCRAMBLE_SEED) to bake the toggle in for a final
+ * build.
  */
 
 namespace AudioBabel::IndexScramble {
@@ -108,12 +109,6 @@ struct Config {
 
 /// Mutable process-wide config, initialised from the compile-time defaults.
 auto config() -> Config&;
-
-/// Apply scramble() if enabled, otherwise return the index unchanged.
-auto applyScramble(const cpp_int& index) -> cpp_int;
-
-/// Apply unscramble() if enabled, otherwise return the index unchanged.
-auto applyUnscramble(const cpp_int& index) -> cpp_int;
 
 } // namespace AudioBabel::IndexScramble
 

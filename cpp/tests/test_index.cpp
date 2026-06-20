@@ -18,13 +18,13 @@
 
 using namespace AudioBabel;
 
-TEST_CASE("FileIO: fromSamples", "[file_io]") {
+TEST_CASE("Test helper: fromSamples packs samples into AudioData", "[file_io]") {
     std::vector<int32_t> samples;
     samples.reserve(10);
     for (int i = 0; i < 10; ++i) {
         samples.push_back((i % 2 == 0) ? 1000 : -1000);
     }
-    auto audioData = FileIO::fromSamples(samples, 8000, 16);
+    auto audioData = fromSamples(samples, 8000, 16);
 
     REQUIRE(audioData.sample_rate == 8000);
     REQUIRE(audioData.bit_rate == 16);
@@ -38,7 +38,7 @@ TEST_CASE("FileIO: writeWav(samples, path) applies the fixed default header", "[
     // always applies the locked default format (PCM, 44100 Hz, 16-bit, mono)
     // regardless of the source format. The 16-bit payload bytes round-trip exactly.
     std::vector<int32_t> samples   = {0, 127, 200, 64, 192};
-    auto                 audioData = FileIO::fromSamples(samples, 8000, 16);
+    auto                 audioData = fromSamples(samples, 8000, 16);
 
     auto idx     = Index::encode(audioData.samples);
     auto decoded = Index::decode(idx);
@@ -63,7 +63,7 @@ TEST_CASE("Index: encode -> decode roundtrip for representative sample sets", "[
     };
 
     for (const auto& samples : sampleSets) {
-        auto audioData = FileIO::fromSamples(samples, 44100, 16);
+        auto audioData = fromSamples(samples, 44100, 16);
         auto idx        = Index::encode(audioData.samples);
         auto decoded    = Index::decode(idx);
 
@@ -74,7 +74,7 @@ TEST_CASE("Index: encode -> decode roundtrip for representative sample sets", "[
 
 TEST_CASE("FileIO: writeWav and readWav round trip", "[file_io][wav]") {
     std::vector<int32_t> samples   = {0, 1000, -1000, 2000, -2000};
-    auto                 audioData = FileIO::fromSamples(samples, 22050, 16);
+    auto                 audioData = fromSamples(samples, 22050, 16);
     TempFile              tmp(make_temp_path("temp_test.wav"));
 
     FileIO::writeWav(audioData, tmp.path());
@@ -90,7 +90,7 @@ TEST_CASE("FileIO: writeWav and readWav round trip", "[file_io][wav]") {
 TEST_CASE("Index: encode never rejects a payload", "[index][bijection]") {
     // The payload-only bijection has no validation that can reject an index;
     // any sample payload encodes successfully.
-    auto audioData = FileIO::fromSamples({0, 1, 2, 65535, 12345}, 44100, 16);
+    auto audioData = fromSamples({0, 1, 2, 65535, 12345}, 44100, 16);
     REQUIRE_NOTHROW(Index::encode(audioData.samples));
 
     std::vector<uint8_t> empty{};
@@ -99,7 +99,7 @@ TEST_CASE("Index: encode never rejects a payload", "[index][bijection]") {
 
 TEST_CASE("Index: empty samples roundtrip", "[index][edge_case]") {
     std::vector<int32_t> samples; // empty
-    auto                 audioData = FileIO::fromSamples(samples, 48000, 16);
+    auto                 audioData = fromSamples(samples, 48000, 16);
 
     REQUIRE(audioData.num_frames == 0);
 
@@ -111,11 +111,11 @@ TEST_CASE("Index: empty samples roundtrip", "[index][edge_case]") {
 
 TEST_CASE("Index: silence duration preservation bug", "[index][bug_fix]") {
     std::vector<int32_t> silence_1sec(44100, 0);
-    auto                 ad1  = FileIO::fromSamples(silence_1sec, 44100, 16);
+    auto                 ad1  = fromSamples(silence_1sec, 44100, 16);
     auto                 idx1 = Index::encode(ad1.samples);
 
     std::vector<int32_t> silence_2sec(88200, 0);
-    auto                 ad2  = FileIO::fromSamples(silence_2sec, 44100, 16);
+    auto                 ad2  = fromSamples(silence_2sec, 44100, 16);
     auto                 idx2 = Index::encode(ad2.samples);
 
     bool indexes_equal  = (idx1 == idx2);
@@ -166,10 +166,10 @@ TEST_CASE("Index: 32-bit-sourced payload round-trips its raw bytes", "[index][ed
     REQUIRE(decoded == samples);
 }
 
-TEST_CASE("FileIO: fromSamples byte-order", "[file_io][encoding]") {
+TEST_CASE("Test helper: fromSamples byte-order", "[file_io][encoding]") {
     SECTION("16-bit little-endian byte order") {
         std::vector<int32_t> s16  = {0x1234};
-        auto                 ad16 = FileIO::fromSamples(s16, 44100, 16);
+        auto                 ad16 = fromSamples(s16, 44100, 16);
 
         REQUIRE(ad16.samples.size() == 2);
         REQUIRE(ad16.samples[0] == static_cast<uint8_t>(0x34));
@@ -178,7 +178,7 @@ TEST_CASE("FileIO: fromSamples byte-order", "[file_io][encoding]") {
 
     SECTION("32-bit little-endian byte order") {
         std::vector<int32_t> s32  = {0x0A0B0C0D};
-        auto                 ad32 = FileIO::fromSamples(s32, 48000, 32);
+        auto                 ad32 = fromSamples(s32, 48000, 32);
 
         REQUIRE(ad32.samples.size() == 4);
         REQUIRE(ad32.samples[0] == static_cast<uint8_t>(0x0D));
@@ -190,7 +190,7 @@ TEST_CASE("FileIO: fromSamples byte-order", "[file_io][encoding]") {
 
 TEST_CASE("Index: serialization textual roundtrip", "[index][serialization]") {
     using boost::multiprecision::cpp_int;
-    auto audioData = FileIO::fromSamples(std::vector<int32_t>{0, 12345, -12345}, 44100, 16);
+    auto audioData = fromSamples(std::vector<int32_t>{0, 12345, -12345}, 44100, 16);
 
     cpp_int idx = Index::encode(audioData.samples);
     auto    s   = idx.convert_to<std::string>();

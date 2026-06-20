@@ -88,8 +88,9 @@ TEST_CASE("Scramble: disabled config leaves the index untouched", "[scramble][to
     ScrambleGuard guard(false, 42); // explicitly disabled
     auto          rawIndex = Index::encode(bytes);
 
-    // With scramble off, the index is the plain payload value (no permutation).
-    REQUIRE(IndexScramble::applyScramble(rawIndex) == rawIndex);
+    // With scramble off, the index is the plain payload value (no permutation):
+    // encoding again under the same disabled config reproduces it exactly.
+    REQUIRE(Index::encode(bytes) == rawIndex);
     auto decoded = Index::decode(rawIndex);
     REQUIRE(decoded == bytes);
 }

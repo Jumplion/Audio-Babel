@@ -252,13 +252,13 @@
 }
 
 #breadcrumb a {
-    color: var(--link);
+    color: var(--accent);
     text-decoration: none;
     transition: color 0.2s ease;
 }
 
 #breadcrumb a:hover {
-    color: var(--link-hover);
+    color: var(--accent-dim);
     text-decoration: underline;
 }
 

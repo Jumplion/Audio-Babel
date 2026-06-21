@@ -13,12 +13,13 @@
  */
 
 import { buildResultForIndex } from '../utils/resultBuilder.js';
-import { isValidBase64Url } from '../utils/validationUtils.js';
+import { isValidBase64Url, filterToBase64UrlChars } from '../utils/validationUtils.js';
 import { getWasmModule } from '../core/wasmModule.js';
 import { parseWavFile } from '../utils/wavUtils.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
 
 const BASE64_URL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+const VALID_BASE64_URL_CHAR = /[A-Za-z0-9_-]/;
 
 // Default random index length range (characters), chosen for a reasonable
 // demo duration without configurable "advanced options".
@@ -120,16 +121,6 @@ export async function uploadWav(file, handleJsonResponse, setLoading) {
 }
 
 /**
- * Filter a string to only contain valid base64 URL-safe characters
- * @param {string} text - Text to filter
- * @returns {string} Filtered text containing only A-Z, a-z, 0-9, -, _
- */
-function filterToValidChars(text) {
-  const allowed = /[A-Za-z0-9_-]/;
-  return text.split('').filter((c) => allowed.test(c)).join('');
-}
-
-/**
  * Auto-resize a textarea to fit its content
  * @param {HTMLTextAreaElement} element - Textarea element to resize
  */
@@ -151,7 +142,7 @@ function autosizeTextarea(element) {
 function handlePaste(e, inputEl) {
   try {
     const text = (e.clipboardData || window.clipboardData).getData('text') || '';
-    const filtered = filterToValidChars(text);
+    const filtered = filterToBase64UrlChars(text);
 
     if (filtered !== text) {
       e.preventDefault();
@@ -178,7 +169,7 @@ function handlePaste(e, inputEl) {
  */
 function handleInput(inputEl) {
   const value = inputEl.value || '';
-  const filtered = filterToValidChars(value);
+  const filtered = filterToBase64UrlChars(value);
 
   if (filtered !== value) {
     const cursorPos = inputEl.selectionStart || filtered.length;
@@ -201,12 +192,10 @@ function handleInput(inputEl) {
 export function attachSearchInputFilter(inputEl) {
   if (!inputEl) return;
 
-  const allowed = /[A-Za-z0-9_-]/;
-
   // Prevent invalid keypress
   inputEl.addEventListener('keypress', (e) => {
     const char = String.fromCharCode(e.charCode || e.which || 0);
-    if (!allowed.test(char)) {
+    if (!VALID_BASE64_URL_CHAR.test(char)) {
       e.preventDefault();
     }
   });

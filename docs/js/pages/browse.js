@@ -4,6 +4,7 @@ import { buildResultForIndex } from '../utils/resultBuilder.js';
 import { indexToBase64 } from '../utils/base64.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
 import { handleJsonResponse, cleanupResultHandler } from '../core/resultDisplay.js';
+import { filterToBase64UrlChars } from '../utils/validationUtils.js';
 
 // Library hierarchy constants — loaded from WASM at init time (R5).
 // Fallbacks match the C++ LibraryConstants defaults.
@@ -481,8 +482,7 @@ function init() {
         roomInput.addEventListener('input', (e) => {
             const input = e.target;
             const value = input.value;
-            // Allow: 0-9 (numbers), A-Z, a-z, -, _ (URL-safe base64 alphabet)
-            const filtered = value.replace(/[^0-9A-Za-z\-_]/g, '');
+            const filtered = filterToBase64UrlChars(value);
             if (value !== filtered) {
                 input.value = filtered;
             }

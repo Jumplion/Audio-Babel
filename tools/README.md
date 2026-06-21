@@ -7,13 +7,12 @@ Scripts are split by shell:
 
 Files added
 
-- `build.ps1` / `build.sh` - Configure and build the project.
+- `build.ps1` / `build.sh` - Configure and build the project. Run this first; it produces the `build` folder the other scripts expect.
 - `run_tests.ps1` / `run_tests.sh` - Run the `tests_catch2` binary from the `build` folder.
-- `run_example.ps1` / `run_example.sh` - Run the `example_main` binary from the `build` folder.
 - `clean.ps1` / `clean.sh` - Clean build artifacts. Pass `-RemoveDir` (PowerShell) or `--remove` (bash) to delete the build directory.
 - `run-clang-tidy.ps1` / `run-clang-tidy.sh` - Run clang-tidy (and clang-format on PowerShell) over the C++ sources.
 - `run_performance.ps1` / `run_performance.sh` - Build (Release) and run the performance benchmark suite.
-- `npm-serve.ps1` - Serve the web frontend (Windows only; no bash equivalent).
+- `serve-docs.ps1` - Serve the static `docs/` site locally for preview (Windows only; no bash equivalent — use `python3 -m http.server --directory docs` on Linux/WSL).
 
 Usage (PowerShell)
 
@@ -31,5 +30,5 @@ Open a shell in the repository root and run, for example:
 
 Notes
 
-- `build.sh` / `clean.sh` / `run_example.sh` / `run_tests.sh` resolve `BUILD_DIR` (default `../build`) relative to the current working directory, not the script location. The default only resolves to the repo-root `build/` folder when invoked from a directory one level below the repo root (e.g. `cpp/`); when invoking from the repo root, pass `build` explicitly as shown above. `run_performance.sh` and `run-clang-tidy.sh` resolve paths relative to the script itself and always target the repo-root `build/` folder regardless of working directory.
+- `build.sh` / `clean.sh` / `run_tests.sh` resolve `BUILD_DIR` (default `../build`) relative to the current working directory, not the script location. The default only resolves to the repo-root `build/` folder when invoked from a directory one level below the repo root (e.g. `cpp/`); when invoking from the repo root, pass `build` explicitly as shown above. `run_performance.sh` and `run-clang-tidy.sh` resolve paths relative to the script itself and always target the repo-root `build/` folder regardless of working directory.
 - `build.sh` / `run_performance.sh` default to the `Unix Makefiles` generator and `make`, matching a native Linux/WSL toolchain (no MinGW). `build.ps1` / `run_performance.ps1` default to `MinGW Makefiles` and `mingw32-make` for native Windows builds. Pass another generator if you use Visual Studio, Ninja, etc.

@@ -15,7 +15,7 @@ elseif (-not [System.IO.Path]::IsPathRooted($BuildDir)) {
 
 $FullBuildDir = Resolve-Path -LiteralPath $BuildDir -ErrorAction SilentlyContinue
 if (-not $FullBuildDir) {
-    Write-Error "Build directory '$BuildDir' does not exist. Run build.ps1 first."
+    Write-Error "Build directory '$BuildDir' does not exist. Generate it first, e.g.: .\tools\powershell\build.ps1 -Configuration Debug"
     exit 2
 }
 
@@ -48,13 +48,13 @@ $exitCode = 0
 if ($TestMode -eq "unit" -or $TestMode -eq "both") {
     $unitTestPath = Join-Path $PWD.Path "tests_catch2.exe"
     if (-not (Test-Path -LiteralPath $unitTestPath)) {
-        Write-Error "Unit test executable 'tests_catch2.exe' not found in $PWD"
+        Write-Error "Unit test executable 'tests_catch2.exe' not found in $PWD. Build it first, e.g.: .\tools\powershell\build.ps1 -Configuration Debug"
         Pop-Location
         exit 3
     }
     
     Write-Host "`n[run_tests.ps1] Running unit tests: $unitTestPath" -ForegroundColor Cyan
-    & $unitTestPath
+    & $unitTestPath -d yes
     if ($LASTEXITCODE -ne 0) {
         $exitCode = $LASTEXITCODE
     }

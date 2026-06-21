@@ -23,7 +23,6 @@ Every unique audio file maps to exactly one index, and every index maps to exact
 | `cpp/include/`, `cpp/src/` | Core C++ library (`namespace AudioBabel`) |
 | `cpp/tests/` | Catch2 unit tests |
 | `cpp/wasm/` | Emscripten WASM build; outputs to `docs/wasm/` |
-| `cpp/examples/`, `cpp/tools/` | CLI binaries (example, extract, reconstruct) |
 | `docs/` | Static web app (GitHub Pages) |
 | `tools/powershell/`, `tools/bash/` | Build/test/run scripts (PowerShell, Bash) |
 
@@ -133,7 +132,7 @@ This creates the `build/` directory and compiles:
 | -------- | ------------- |
 | `build/audiolib.lib` or `build/libaudiolib.a` (toolchain-dependent) | Static library |
 | `build/tests_catch2.exe` (Windows) / `build/tests_catch2` (Linux) | Unit tests |
-| `build/example_main.exe` (Windows) / `build/example_main` (Linux) | Example CLI |
+| `build/performance_benchmarks.exe` (Windows) / `build/performance_benchmarks` (Linux) | Performance benchmarks |
 
 ### Running Tests
 

@@ -9,7 +9,6 @@ Native C++ audio-indexing library with WebAssembly bindings for a serverless bro
 | `cpp/include/`, `cpp/src/` | Core C++ library (`namespace AudioBabel`) |
 | `cpp/tests/` | Catch2 v3 unit tests + legacy `TestRunner` (being phased out) |
 | `cpp/wasm/` | Emscripten WASM build; outputs to `docs/wasm/` |
-| `cpp/examples/`, `cpp/tools/` | CLI binaries (example, extract, reconstruct) |
 | `docs/` | Static web app (ES6 modules, no server) |
 | `tools/powershell/`, `tools/bash/` | Build/test/run scripts (PowerShell, Bash) |
 
@@ -35,7 +34,6 @@ VS Code tasks are available: "Build (PowerShell)", "Run Tests (PowerShell)".
 - **Base64:** URL-safe alphabet (`A-Z a-z 0-9 - _`), no `=` padding. See `Utilities.h` for `isValidBase64Url` / `b64ToIndex` / `indexToB64`.
 - **Index serialization:** `cpp_int` ↔ bytes via `export_bits`. Keep both overloads of `extractMetadataFromIndex` symmetric.
 - **Static helpers** stay file-local when they are implementation details.
-- **New CLI targets:** follow the pattern in root `CMakeLists.txt` (`EXAMPLE_SRC`, `RECON_SRC`, `EXTRACT_SRC`).
 
 ### WASM conventions
 

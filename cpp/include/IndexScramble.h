@@ -13,7 +13,7 @@
  * audio. This module applies a keyed, reversible permutation so that neighbours
  * are scattered across the space while the mapping stays a perfect bijection.
  *
- * @section algorithm Algorithm (keyed Feistel permutation, per tier)
+ * @section Algorithm (keyed Feistel permutation, per tier)
  * Every index lives in a length-band: an L-sample payload maps to an integer in
  * [S_L, S_{L+1}) where S_L = (B^L - 1)/(B - 1) and the band width is exactly
  * B^L = 2^(16L).
@@ -49,6 +49,11 @@
  * replaced because undoing it needs a big-integer modular inverse, which made
  * decoding take seconds on multi-MB clips. Feistel is O(N) both ways.)
  *
+ * @section references References
+ * - Feistel networks: https://en.wikipedia.org/wiki/Feistel_cipher
+ * - Cycle-walking: Black & Rogaway, "Ciphers with Arbitrary Finite Domains"
+ *   (CT-RSA 2002), https://www.cs.ucdavis.edu/~rogaway/papers/subset.pdf
+ *
  * @section toggle Toggling
  * The pure scramble()/unscramble() functions are always available. Whether the
  * core encode/decode actually applies them is controlled by config() (a runtime
@@ -58,7 +63,6 @@
  * (optionally with AUDIOBABEL_SCRAMBLE_SEED) to bake the toggle in for a final
  * build.
  */
-
 namespace AudioBabel::IndexScramble {
 
 using boost::multiprecision::cpp_int;
@@ -73,8 +77,7 @@ using boost::multiprecision::cpp_int;
 /// increasing (enforced by static_assert in IndexScramble.cpp). Override at
 /// build time to experiment, e.g. -DAUDIOBABEL_SCRAMBLE_TIER_SECONDS="{2, 30}".
 #ifndef AUDIOBABEL_SCRAMBLE_TIER_SECONDS
-#    define AUDIOBABEL_SCRAMBLE_TIER_SECONDS \
-        { 1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 240 }
+#    define AUDIOBABEL_SCRAMBLE_TIER_SECONDS {1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 240}
 #endif
 
 #ifdef AUDIOBABEL_SCRAMBLE

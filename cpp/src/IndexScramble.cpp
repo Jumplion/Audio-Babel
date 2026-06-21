@@ -17,6 +17,8 @@ namespace {
     constexpr int FEISTEL_ROUNDS = 4;
 
     // A small, fast bit mixer (one SplitMix64 step on a running state).
+    // Source: Steele, Lea & Flood, "Fast Splittable Pseudorandom Number
+    // Generators" (OOPSLA 2014) — https://gee.cs.oswego.edu/dl/papers/oopsla14.pdf
     inline void mixIn(uint64_t& state, uint8_t x) {
         state += x + 0x9E3779B97F4A7C15ULL;
         state = (state ^ (state >> 30)) * 0xBF58476D1CE4E5B9ULL;
@@ -267,6 +269,9 @@ auto scramble(const cpp_int& index, uint64_t seed) -> cpp_int {
     TierGeometry g = tierGeometry(tier);
     cpp_int      z = index - g.lo; // in [0, N)
     cpp_int      y = feistelPow2(z, g.e, seed, g.tier, /*encrypt=*/true);
+    // Cycle-walking (Black & Rogaway, "Ciphers with Arbitrary Finite Domains",
+    // CT-RSA 2002): re-apply the power-of-two bijection until the result lands
+    // back in [0, N); see IndexScramble.h "References" for the paper.
     while (y >= g.n) { // cycle-walk back into [0, N)
         y = feistelPow2(y, g.e, seed, g.tier, /*encrypt=*/true);
     }

@@ -84,7 +84,6 @@ inline auto bandIndex(const boost::multiprecision::cpp_int& n) -> size_t {
 }
 
 // --- Base64 URL-safe utilities (alphabet A-Z a-z 0-9 - _, no padding) ---------
-// Accepts string-like inputs via std::string_view.
 // URL-safe base64 alphabet used by encoder/decoder (no padding)
 constexpr char BASE64_URL_ALPHA[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
@@ -93,7 +92,7 @@ constexpr char BASE64_URL_ALPHA[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq
 // The dual implementations provide defence-in-depth: JS validates at the UI
 // boundary while C++ validates at the library boundary, and each uses an
 // idiomatic approach for its runtime.
-constexpr auto isValidBase64Url(std::string_view s) -> bool {
+inline auto isValidBase64Url(const std::string& s) -> bool {
     for (char c : s) {
         if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' && c != '_') {
             return false;
@@ -108,6 +107,7 @@ constexpr auto isValidBase64Url(std::string_view s) -> bool {
 // (digit = value + 1). Every string of any length >= 0 maps to exactly one
 // integer and back, with the empty string <-> 0. Nothing is rejected for
 // alphabet-valid input. Do NOT use the bit-accumulator base64 for indices.
+// Reference: https://en.wikipedia.org/wiki/Bijective_numeration
 
 // Map a single alphabet character to its 0..63 value, or -1 if not in the alphabet.
 inline auto base64UrlValue(char c) -> int {

@@ -67,12 +67,17 @@ auto IndexMetadata::buildMetadataFromBytesAndB64(const std::vector<uint8_t>& byt
         return meta;
     }
 
+    // Step 1: sum index bytes into 4 buckets (round-robin by position) to get
+    // one weight per field. This ties field sizes to the index's content
+    // without favoring any single byte.
     std::array<uint32_t, 4> weights = {0, 0, 0, 0};
     for (size_t i = 0; i < bytes.size(); ++i) {
         weights[i % 4] += static_cast<uint32_t>(bytes[i]);
     }
     uint32_t totalWeight = weights[0] + weights[1] + weights[2] + weights[3];
     if (totalWeight == 0) {
+        // All-zero bytes would make every field length 0; fall back to an
+        // even split so genre/artist/album/track all still get characters.
         weights     = {1, 1, 1, 1};
         totalWeight = 4;
     }
@@ -80,19 +85,25 @@ auto IndexMetadata::buildMetadataFromBytesAndB64(const std::vector<uint8_t>& byt
     size_t                b64Len = b64str.size();
     std::array<size_t, 4> lens   = {0, 0, 0, 0};
 
-    // Closed-form weighted allocation with remainder distribution
+    // Step 2: give each field its proportional share of the base64 string,
+    // i.e. lens[i] = floor(b64Len * weights[i] / totalWeight). Integer
+    // division means the four shares can undershoot b64Len by a few chars.
     size_t sum = 0;
     for (int i = 0; i < 4; ++i) {
         lens[i] = (b64Len * weights[i]) / totalWeight;
         sum += lens[i];
     }
 
-    // Distribute remaining characters round-robin to fields 0..(rem-1)
+    // Step 3: hand out the undershoot (rem = b64Len - sum, always < 4) one
+    // character at a time to fields 0..rem-1 so every character of the
+    // string ends up assigned to exactly one field.
     size_t rem = b64Len - sum;
     for (size_t i = 0; i < rem; ++i) {
         lens[i % 4]++;
     }
 
+    // Step 4: slice the base64 string into the four fields in order, using
+    // each field's computed length.
     size_t pos = 0;
     meta.genre = (pos < b64Len) ? b64str.substr(pos, std::min(lens[0], b64Len - pos)) : "g";
     pos += lens[0];

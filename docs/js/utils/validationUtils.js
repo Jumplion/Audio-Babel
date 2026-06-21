@@ -15,4 +15,13 @@ export function isValidBase64Url(s) {
   return /^[A-Za-z0-9\-_]*$/.test(s);
 }
 
+/**
+ * Strip any characters that aren't URL-safe base64 (A-Z, a-z, 0-9, -, _).
+ * @param {string} text - Text to filter
+ * @returns {string} Filtered text containing only valid characters
+ */
+export function filterToBase64UrlChars(text) {
+  return text.replace(/[^A-Za-z0-9\-_]/g, '');
+}
+
 console.info('✅ validationUtils.js loaded - validation utilities ready');

@@ -36,8 +36,6 @@ export async function loadFragment(containerSelector, fragmentPath) {
     if (s.type) newScript.type = s.type;
     if (s.src) {
       newScript.src = s.src;
-      // preserve module behavior if present
-      if (s.type) newScript.type = s.type;
       newScript.async = false;
       container.appendChild(newScript);
       await new Promise((resolve, reject) => {

@@ -65,12 +65,4 @@ export function showValidationError(message) {
   showError(message, ErrorLevel.WARNING);
 }
 
-/**
- * Handle an informational message
- * @param {string} message - Info message
- */
-export function showInfo(message) {
-  showError(message, ErrorLevel.INFO);
-}
-
 console.info('✅ errorHandler.js loaded - error handling utilities ready');

@@ -130,8 +130,7 @@ inline auto fromSamples(const std::vector<int32_t>& samples, int sampleRate = 44
     for (size_t sampleIndex = 0; sampleIndex < samples.size(); ++sampleIndex) {
         int32_t sample = samples[sampleIndex];
         for (size_t byteIndex = 0; byteIndex < bytes_per_sample; ++byteIndex) {
-            audioData.samples[(sampleIndex * bytes_per_sample) + byteIndex] =
-                static_cast<uint8_t>((sample >> (byteIndex * 8)) & 0xFF);
+            audioData.samples[(sampleIndex * bytes_per_sample) + byteIndex] = static_cast<uint8_t>((sample >> (byteIndex * 8)) & 0xFF);
         }
     }
 

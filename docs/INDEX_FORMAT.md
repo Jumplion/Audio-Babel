@@ -171,27 +171,25 @@ decoded duration at 44100 Hz. The default tier table is:
 | 1    | 1s           | 44,100      |
 | 2    | 5s           | 220,500     |
 | 3    | 10s          | 441,000     |
-| 4    | 20s          | 882,000     |
-| 5    | 30s          | 1,323,000   |
-| 6    | 45s          | 1,984,500   |
-| 7    | 60s          | 2,646,000   |
-| 8    | 90s          | 3,969,000   |
-| 9    | 120s         | 5,292,000   |
-| 10   | 180s         | 7,938,000   |
-| 11   | 240s         | 10,584,000  |
+| 4    | 15s          | 661,500     |
 
 Tier *i* covers all sample counts from the previous tier's cap + 1 up to its own
-cap (tier 1 starts at 1 sample). Payloads longer than 240s (tier 11) keep the
+cap (tier 1 starts at 1 sample). Payloads longer than 15s (tier 4) keep the
 original length-preserving permutation.
+
+The tier table is deliberately short: each Feistel round's cost scales with the
+*tier's* byte width (not the input's), so a much larger top tier costs multiple
+seconds per `scramble()`/`unscramble()` call — an earlier 240s/11-tier default
+measured multiple seconds per call in the top few tiers.
 
 The tier durations (and how many tiers there are) are a compile-time setting,
 `AUDIOBABEL_SCRAMBLE_TIER_SECONDS` in `cpp/include/IndexScramble.h` — a
-brace-initializer list of seconds, e.g. the default
-`{1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 240}`. Override it at build time
-(`-DAUDIOBABEL_SCRAMBLE_TIER_SECONDS="{2, 30}"`) to use a different number of
-tiers or different cutoffs; it must be non-empty and strictly increasing, which
-is enforced by `static_assert` in `cpp/src/IndexScramble.cpp`. There is no
-runtime setting for this — it is baked into the binary, like the scramble seed.
+brace-initializer list of seconds, e.g. the default `{1, 5, 10, 15}`. Override
+it at build time (`-DAUDIOBABEL_SCRAMBLE_TIER_SECONDS="{2, 30}"`) to use a
+different number of tiers or different cutoffs; it must be non-empty and
+strictly increasing, which is enforced by `static_assert` in
+`cpp/src/IndexScramble.cpp`. There is no runtime setting for this — it is
+baked into the binary, like the scramble seed.
 
 ### Keyed permutation across a tier
 
@@ -221,8 +219,8 @@ second of audio rather than a handful of samples.
   even a 3-sample payload — remains fully reachable; it is just astronomically
   unlikely to be produced from a casually chosen index.
 - Cost scales with the **tier width**, not the input size, so even a short
-  tier-1 input does ~1 second's worth of permutation work (sub-millisecond to a
-  few ms); a 240s tier-11 index does proportionally more.
+  tier-1 input does ~1 second's worth of permutation work (a few ms); a 15s
+  tier-4 index does proportionally more (still sub-second).
 
 The seed is effectively part of the format: changing it (or toggling the
 scramble) changes every index. The feature is controlled by the compile-time

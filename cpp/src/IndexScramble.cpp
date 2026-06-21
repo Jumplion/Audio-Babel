@@ -2,6 +2,8 @@
 
 #include <array>
 #include <cstdint>
+#include <iterator>
+#include <memory>
 #include <vector>
 
 #include "Constants.h"
@@ -121,9 +123,19 @@ namespace {
     // keeps the original length-preserving feistel().
 
     // Tier boundaries in seconds, configurable at compile time via
-    // AUDIOBABEL_SCRAMBLE_TIER_SECONDS (see IndexScramble.h). Defaults to 11 tiers
-    // at 1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 240 seconds.
-    constexpr std::array<uint64_t, 11> kTierSeconds = AUDIOBABEL_SCRAMBLE_TIER_SECONDS;
+    // AUDIOBABEL_SCRAMBLE_TIER_SECONDS (see IndexScramble.h). Defaults to 4 tiers
+    // at 1, 5, 10, 15 seconds. The array size is derived from the macro itself
+    // (via the raw C array below) so overriding the macro with a different
+    // number of tiers doesn't require also updating a hardcoded size here.
+    constexpr uint64_t kTierSecondsRaw[]  = AUDIOBABEL_SCRAMBLE_TIER_SECONDS;
+    constexpr size_t   kNumTiers          = std::size(kTierSecondsRaw);
+    constexpr std::array<uint64_t, kNumTiers> kTierSeconds = [] {
+        std::array<uint64_t, kNumTiers> a{};
+        for (size_t i = 0; i < kNumTiers; ++i) {
+            a[i] = kTierSecondsRaw[i];
+        }
+        return a;
+    }();
 
     template <typename Container>
     constexpr auto isStrictlyIncreasing(const Container& values) -> bool {
@@ -136,6 +148,8 @@ namespace {
         }
         return true;
     }
+
+    static_assert(isStrictlyIncreasing(kTierSeconds), "AUDIOBABEL_SCRAMBLE_TIER_SECONDS must be non-empty and strictly increasing");
 
     template <typename Container>
     auto secondsToMaxSamples(const Container& seconds) -> std::array<uint32_t, std::tuple_size<std::decay_t<Container>>::value> {
@@ -176,7 +190,9 @@ namespace {
     // h-bit keyed diffusing round function built on the byte-oriented roundFunction.
     // The h-bit half is laid out in ceil(h/8) bytes (most-significant first) and the
     // result is masked back to h bits, so it maps an h-bit value to an h-bit value.
-    auto roundFunctionBits(const cpp_int& half, size_t h, uint64_t key) -> cpp_int {
+    // `mask` is the caller's already-computed lowBitsMask(h), passed in so the
+    // (otherwise identical) mask isn't rebuilt on every one of the four rounds.
+    auto roundFunctionBits(const cpp_int& half, size_t h, uint64_t key, const cpp_int& mask) -> cpp_int {
         const size_t         hbytes = (h + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
         std::vector<uint8_t> in(hbytes, 0);
 
@@ -189,7 +205,7 @@ namespace {
         std::vector<uint8_t> out = roundFunction(in, key);
         cpp_int              r   = 0;
         mp::import_bits(r, out.begin(), out.end(), BITS_PER_BYTE, true);
-        return r & lowBitsMask(h);
+        return r & mask;
     }
 
     // Keyed balanced Feistel permutation over [0, 2^e) (e even), built from big
@@ -203,14 +219,14 @@ namespace {
 
         if (encrypt) {
             for (int r = 0; r < FEISTEL_ROUNDS; ++r) {
-                cpp_int f = roundFunctionBits(lo, h, tierRoundKey(seed, tier, r));
+                cpp_int f = roundFunctionBits(lo, h, tierRoundKey(seed, tier, r), mask);
                 cpp_int t = hi ^ f;
                 hi        = lo;
                 lo        = t;
             }
         } else {
             for (int r = FEISTEL_ROUNDS - 1; r >= 0; --r) {
-                cpp_int f = roundFunctionBits(hi, h, tierRoundKey(seed, tier, r));
+                cpp_int f = roundFunctionBits(hi, h, tierRoundKey(seed, tier, r), mask);
                 cpp_int t = lo ^ f;
                 lo        = hi;
                 hi        = t;
@@ -229,7 +245,7 @@ namespace {
         uint64_t tier;
     };
 
-    auto tierGeometry(size_t tier) -> TierGeometry {
+    auto computeTierGeometry(size_t tier) -> TierGeometry {
         const uint32_t highBand = kTierMaxSamples[tier - 1];
         const uint32_t lowBand  = (tier == 1) ? 1U : (kTierMaxSamples[tier - 2] + 1U);
 
@@ -243,6 +259,19 @@ namespace {
         size_t e    = (p % 2 == 0) ? p : p + 1;
 
         return TierGeometry{lo, n, e, static_cast<uint64_t>(tier)};
+    }
+
+    // tierGeometry() is pure (depends only on the fixed tier boundaries, never
+    // on seed or index), but rebuilding it involves a big-integer subtraction
+    // over the whole tier width — cache it per tier instead of redoing that
+    // work on every scramble()/unscramble() call.
+    auto tierGeometry(size_t tier) -> const TierGeometry& {
+        static std::array<std::unique_ptr<TierGeometry>, kTierMaxSamples.size()> cache{};
+        auto& slot = cache[tier - 1];
+        if (!slot) {
+            slot = std::make_unique<TierGeometry>(computeTierGeometry(tier));
+        }
+        return *slot;
     }
 
 } // namespace
@@ -266,9 +295,9 @@ auto scramble(const cpp_int& index, uint64_t seed) -> cpp_int {
 
     // Tiered path: permute across the whole tier so neighbouring lengths spread
     // out and short inputs reach the tier's (much larger) maximum length.
-    TierGeometry g = tierGeometry(tier);
-    cpp_int      z = index - g.lo; // in [0, N)
-    cpp_int      y = feistelPow2(z, g.e, seed, g.tier, /*encrypt=*/true);
+    const TierGeometry& g = tierGeometry(tier);
+    cpp_int              z = index - g.lo; // in [0, N)
+    cpp_int              y = feistelPow2(z, g.e, seed, g.tier, /*encrypt=*/true);
     // Cycle-walking (Black & Rogaway, "Ciphers with Arbitrary Finite Domains",
     // CT-RSA 2002): re-apply the power-of-two bijection until the result lands
     // back in [0, N); see IndexScramble.h "References" for the paper.
@@ -294,9 +323,9 @@ auto unscramble(const cpp_int& index, uint64_t seed) -> cpp_int {
         return S + feistel(y2, L, seed, /*encrypt=*/false);
     }
 
-    TierGeometry g = tierGeometry(tier);
-    cpp_int      y = index - g.lo; // in [0, N)
-    cpp_int      z = feistelPow2(y, g.e, seed, g.tier, /*encrypt=*/false);
+    const TierGeometry& g = tierGeometry(tier);
+    cpp_int             y = index - g.lo; // in [0, N)
+    cpp_int             z = feistelPow2(y, g.e, seed, g.tier, /*encrypt=*/false);
     while (z >= g.n) { // cycle-walk back into [0, N)
         z = feistelPow2(z, g.e, seed, g.tier, /*encrypt=*/false);
     }

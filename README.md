@@ -101,7 +101,15 @@ Every index has a unique position in a hierarchical "library":
 | Tracks per album | 15 |
 | **Items per room** | **9,600** |
 
-The index integer is divided by 9,600. The quotient identifies the room (base64-encoded), and the remainder is decomposed into wall → shelf → album → track. This gives every index a browsable, human-friendly address and provides a perfect bijection between index values and library positions.
+The index integer is divided by 9,600. The quotient identifies the room (base64-encoded), and the remainder is decomposed into wall → shelf → album → track. This gives every index a browsable, human-friendly address and provides a perfect bijection between index values and library positions. See `cpp/include/LibraryPosition.h`.
+
+## Index Metadata
+
+`IndexMetadata::extractMetadataFromIndex` derives a genre, artist, album, and track label (URL-safe base64 strings, weighted by the index's byte sums) plus a 256×256 SVG album cover, all deterministically from the index bytes — no extra data is stored. See `cpp/include/IndexMetadata.h`.
+
+## Optional Index Scrambling
+
+By default, similar payloads land at numerically nearby indices, so a short, casually-typed index decodes to only a few samples of near-silence. An optional, reversible scramble (a keyed Feistel permutation applied per length-tier) scatters neighbors across the space so short indices yield a wide, interesting range of audio lengths, while keeping the index↔payload mapping a perfect bijection. It's a compile-time toggle (`AUDIOBABEL_SCRAMBLE`); see [`docs/INDEX_FORMAT.md`](docs/INDEX_FORMAT.md) for the full algorithm.
 
 ## Building the Project
 
@@ -235,17 +243,21 @@ These files are committed to the repo so the GitHub Pages site works without a b
 
 The `docs/` directory is a static site served by GitHub Pages. All audio processing runs in the browser via WASM — there is no backend.
 
+To preview it locally:
+
+```powershell
+.\tools\powershell\serve-docs.ps1            # serves docs/ on http://localhost:3000
+```
+
+```bash
+python3 -m http.server --directory docs      # Linux / WSL (no bash equivalent script)
+```
+
 | Page | Purpose |
 | ------ | --------- |
 | `index.html` | Home — overview and glossary |
 | `browse.html` | Navigate the library by room / wall / shelf / album / track |
-| `random.html` | Generate and play a random audio index |
-| `search.html` | Search for audio by terms |
-| `fileSearch.html` | Upload a WAV file and extract its index |
-
-> **Note:** A "Record" page (record microphone audio and extract its index) previously
-> existed but has been disabled and removed from site navigation. Its code is preserved
-> in [`disabled-features/recording/`](disabled-features/recording/) for potential future use.
+| `search.html` | Reconstruct audio from a typed index, generate a random index, or upload a WAV to extract its index |
 
 ### Audio Constraints
 
@@ -255,7 +267,6 @@ The `docs/` directory is a static site served by GitHub Pages. All audio process
 | Sample rate | 44,100 Hz |
 | Bit depth | 16-bit |
 | Channels | Mono |
-| Max duration | 2 minutes |
 
 ## License
 

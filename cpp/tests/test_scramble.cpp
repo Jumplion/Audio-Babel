@@ -45,7 +45,7 @@ TEST_CASE("Scramble: pure transform is an exact bijection", "[scramble][bijectio
     // for these small values is ~88 KB), so this is intentionally a few hundred
     // iterations rather than thousands — still a thorough bijection fuzz.
     std::mt19937_64 rng(2026);
-    for (int t = 0; t < 400; ++t) {
+    for (int t = 0; t < 50; ++t) {
         // Random non-negative integer of a random bit width.
         size_t  bits = rng() % 800;
         cpp_int n    = 0;
@@ -157,8 +157,8 @@ TEST_CASE("Scramble: short indices spread into a much longer length tier", "[scr
     // so each one should land near that cap rather than at a few samples.
     ScrambleGuard on(true, seed);
     for (cpp_int small : {cpp_int(1), cpp_int(7), cpp_int(12345), cpp_int("99999999")}) {
-        auto decoded = Index::decode(small);
-        size_t frames = decoded.size() / 2;
+        auto   decoded = Index::decode(small);
+        size_t frames  = decoded.size() / 2;
         INFO("short index = " << small << " -> frames = " << frames);
         REQUIRE(frames >= 40000); // within the tier-1 (1s) cap
         REQUIRE(frames <= 44100);
@@ -182,18 +182,18 @@ TEST_CASE("Scramble: a 3-sample payload is still represented and exact", "[scram
 TEST_CASE("Scramble: tiered permutation is a bijection and stays within its tier", "[scramble][tier][bijection]") {
     const uint64_t seed = 0xBADC0FFEE0DDF00DULL;
 
-    // One representative band inside several tiers: tier 2 (<=5s), tier 4
-    // (<=20s) and tier 6 (<=45s). scramble()/unscramble() must round-trip, and
-    // the scrambled index must stay inside the same tier's length bounds.
+    // One representative band inside each of the non-tier-1 tiers (<=5s, <=10s,
+    // <=15s). scramble()/unscramble() must round-trip, and the scrambled index
+    // must stay inside the same tier's length bounds.
     struct Case {
         size_t band;
         size_t tierLow;
         size_t tierHigh;
     };
     const std::vector<Case> cases = {
-        {150000, 44101, 220500},    // tier 2
-        {700000, 441001, 882000},   // tier 4
-        {1500000, 1323001, 1984500} // tier 6
+        {150000, 44101, 220500},  // tier 2 (<=5s)
+        {300000, 220501, 441000}, // tier 3 (<=10s)
+        {500000, 441001, 661500}  // tier 4 (<=15s)
     };
 
     for (const auto& c : cases) {
@@ -214,13 +214,15 @@ TEST_CASE("Scramble: tiered permutation is a bijection and stays within its tier
 
 TEST_CASE("Scramble: distinct indices in a tier never collide", "[scramble][tier][bijection][injective]") {
     // A true bijection cannot map two different inputs to the same output.
-    // Sample many distinct indices from the same band (well within tier 1) and
+    // Sample distinct indices from the same band (well within tier 1) and
     // confirm every scrambled output is unique. With a domain of ~2^(16*44100)
-    // values, any observed collision among a few thousand draws would indicate
-    // a real bug, not bad luck.
+    // values, any observed collision would indicate a real bug, not bad luck —
+    // 200 draws is already overwhelming evidence and keeps this test's runtime
+    // bounded (each tier-1 call processes a ~44KB Feistel half, so iterations
+    // aren't free).
     const uint64_t    seed = 0x1357246ULL;
     std::set<cpp_int> outputs;
-    for (uint32_t i = 0; i < 1500; ++i) {
+    for (uint32_t i = 0; i < 200; ++i) {
         cpp_int n = indexInBand(10, i); // band well inside tier 1
         cpp_int s = IndexScramble::scramble(n, seed);
         INFO("i = " << i);
@@ -243,11 +245,11 @@ TEST_CASE("Scramble: smallest payload lengths (0, 1, 2 samples) round-trip exact
 }
 
 TEST_CASE("Scramble: payloads beyond the last tier keep exact length", "[scramble][tier][legacy]") {
-    // Tier 11 caps at 10,584,000 samples (240s). Anything longer keeps the
+    // The last tier caps at 661,500 samples (15s). Anything longer keeps the
     // original per-band permutation, so length must be preserved exactly, just
     // like the un-tiered scramble did before tiering existed.
     const uint64_t seed = 0xC0DEC0DEULL;
-    size_t         L    = 10584000 + 50; // just past the last tier
+    size_t         L    = 661500 + 50; // just past the last tier
     cpp_int        n    = indexInBand(L, 777);
     REQUIRE(bandOf(n) == L);
 

@@ -20,10 +20,13 @@
  *
  * Length-bands are grouped into TIERS, each a contiguous run of bands capped at
  * a target audio duration. The tier boundaries (in seconds) are a compile-time
- * list, AUDIOBABEL_SCRAMBLE_TIER_SECONDS (default 1s, 5s, ... 240s, 11 tiers);
+ * list, AUDIOBABEL_SCRAMBLE_TIER_SECONDS (default 1s, 5s, 10s, 15s, 4 tiers);
  * overriding it changes both the number of tiers and where they fall, e.g.
  * `-DAUDIOBABEL_SCRAMBLE_TIER_SECONDS="{2, 30}"` for two tiers capped at 2s and
  * 30s. See kTierMaxSamples in the .cpp for the derived per-tier sample caps.
+ * Keep the top tier small: each Feistel round's cost scales with the tier's
+ * byte width, so a much larger top tier (e.g. the previous 240s default) costs
+ * multiple seconds per scramble()/unscramble() call.
  * Instead of permuting within one band, scramble() permutes across the whole
  * tier domain [S_lo, S_hi): it subtracts the tier's low end to get a value in
  * [0, N), runs it through a keyed Feistel network (4 rounds, balanced halves)
@@ -76,8 +79,11 @@ using boost::multiprecision::cpp_int;
 /// number of tiers and where they fall; must be non-empty and strictly
 /// increasing (enforced by static_assert in IndexScramble.cpp). Override at
 /// build time to experiment, e.g. -DAUDIOBABEL_SCRAMBLE_TIER_SECONDS="{2, 30}".
+/// Kept short on purpose: each Feistel round processes a half as wide as the
+/// whole tier, so cost grows with the top tier's size (a 240s top tier cost
+/// multiple seconds per call; 15s keeps it well under a second).
 #ifndef AUDIOBABEL_SCRAMBLE_TIER_SECONDS
-#    define AUDIOBABEL_SCRAMBLE_TIER_SECONDS {1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 240}
+#    define AUDIOBABEL_SCRAMBLE_TIER_SECONDS {1, 5, 10, 15}
 #endif
 
 #ifdef AUDIOBABEL_SCRAMBLE

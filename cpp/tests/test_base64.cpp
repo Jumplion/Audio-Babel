@@ -4,8 +4,6 @@
  *
  * Tests the Utilities::isValidBase64Url function and the validation it
  * performs at the IndexMetadata::extractMetadataFromIndex boundary.
- *
- * Migrated to Catch2 v3 framework.
  */
 
 #include <catch2/catch_test_macros.hpp>
@@ -32,13 +30,13 @@ TEST_CASE("Base64Url: validation behavior", "[base64][validation]") {
         invalid_byte += "B";
 
         std::vector<std::string> invalid = {
+            invalid_byte,
             "A=",   // Padding '=' invalid
             "!",    // '!' invalid
             "A B",  // Space invalid
             "A\tB", // Tab invalid
             "A\nB", // Newline invalid
             "A\rB", // Carriage return invalid
-            invalid_byte,
             "A=B",  // '=' in middle invalid
             "A/B",  // '/' invalid
             "A+B",  // '+' invalid
@@ -66,4 +64,3 @@ TEST_CASE("Base64Url: validation behavior", "[base64][validation]") {
         }
     }
 }
-

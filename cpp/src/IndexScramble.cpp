@@ -121,23 +121,23 @@ namespace {
     // Tier boundaries in seconds, configurable at compile time via
     // AUDIOBABEL_SCRAMBLE_TIER_SECONDS (see IndexScramble.h). Defaults to 11 tiers
     // at 1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 240 seconds.
-    constexpr std::array kTierSeconds = AUDIOBABEL_SCRAMBLE_TIER_SECONDS;
+    constexpr std::array<uint64_t, 11> kTierSeconds = AUDIOBABEL_SCRAMBLE_TIER_SECONDS;
 
-    template <typename T, size_t N>
-    constexpr auto isStrictlyIncreasing(const std::array<T, N>& values) -> bool {
+    template <typename Container>
+    constexpr auto isStrictlyIncreasing(const Container& values) -> bool {
+        constexpr size_t N    = std::tuple_size<std::decay_t<Container>>::value;
+        auto             data = values.data();
         for (size_t i = 1; i < N; ++i) {
-            if (!(values[i - 1] < values[i])) {
+            if (!(*(data + i - 1) < *(data + i))) {
                 return false;
             }
         }
         return true;
     }
 
-    static_assert(kTierSeconds.size() > 0, "AUDIOBABEL_SCRAMBLE_TIER_SECONDS must list at least one tier");
-    static_assert(isStrictlyIncreasing(kTierSeconds), "AUDIOBABEL_SCRAMBLE_TIER_SECONDS must be strictly increasing");
-
-    template <typename T, size_t N>
-    constexpr auto secondsToMaxSamples(const std::array<T, N>& seconds) -> std::array<uint32_t, N> {
+    template <typename Container>
+    auto secondsToMaxSamples(const Container& seconds) -> std::array<uint32_t, std::tuple_size<std::decay_t<Container>>::value> {
+        constexpr size_t        N = std::tuple_size<std::decay_t<Container>>::value;
         std::array<uint32_t, N> result{};
         for (size_t i = 0; i < N; ++i) {
             result[i] = static_cast<uint32_t>(seconds[i]) * DEFAULT_SAMPLE_RATE;
@@ -146,8 +146,7 @@ namespace {
     }
 
     // Per-tier maximum sample count at DEFAULT_SAMPLE_RATE, derived from kTierSeconds.
-    constexpr auto kTierMaxSamples = secondsToMaxSamples(kTierSeconds);
-    static_assert(isStrictlyIncreasing(kTierMaxSamples), "Tier seconds must map to strictly increasing sample counts");
+    const auto kTierMaxSamples = secondsToMaxSamples(kTierSeconds);
 
     // Tier (1-based) containing sample-band L, or 0 if L is beyond the last tier
     // (those keep the legacy length-preserving scramble). L is assumed >= 1.

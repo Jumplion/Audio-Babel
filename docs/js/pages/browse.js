@@ -3,7 +3,7 @@ import { getWasmModule } from '../core/wasmModule.js';
 import { buildResultForIndex } from '../utils/resultBuilder.js';
 import { indexToBase64 } from '../utils/base64.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
-import { handleJsonResponse, cleanupResultHandler } from '../core/resultDisplay.js';
+import { handleJsonResponse, cleanupResultHandler } from '../core/resultDisplay.js?v=2';
 import { filterToBase64UrlChars } from '../utils/validationUtils.js';
 
 // Library hierarchy constants — loaded from WASM at init time (R5).
@@ -166,6 +166,32 @@ const REVEAL_VARIANTS = {
 };
 
 /**
+ * Fade the selected track's info/waveform in on the sleeve, replacing the
+ * album art. Toggles `display` first so the opacity transition can run (a
+ * class added in the same frame as `display: none -> flex` won't animate).
+ */
+function showTrackDetail() {
+    const panel = $('trackDetail');
+    if (!panel) return;
+    panel.style.display = 'flex';
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => panel.classList.add('visible'));
+    });
+}
+
+/**
+ * Hide the track detail panel, revealing the album art again (e.g. when a
+ * new album is opened, so a previous track's info doesn't linger before a
+ * track is chosen).
+ */
+function hideTrackDetail() {
+    const panel = $('trackDetail');
+    if (!panel) return;
+    panel.classList.remove('visible');
+    panel.style.display = 'none';
+}
+
+/**
  * Play the zoom-in reveal animation on a freshly-shown section.
  * If `originEvent` carries click coordinates, the animation's transform-origin
  * is set to that point so the new section appears to grow out of whatever was
@@ -202,7 +228,7 @@ function triggerZoomReveal(el, originEvent = null, variant = null) {
  * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation (for the reveal animation)
  */
 function showSection(sectionId, originEvent = null) {
-    const sections = ['roomSection', 'wallSection', 'shelfSection', 'albumSection', 'trackSection', 'resultSection'];
+    const sections = ['roomSection', 'wallSection', 'shelfSection', 'albumSection', 'trackSection'];
     sections.forEach(id => {
         const el = $(id);
         if (!el) return;
@@ -216,8 +242,9 @@ function showSection(sectionId, originEvent = null) {
         }
     });
 
-    // Clean up result handler when leaving result section
-    if (sectionId !== 'resultSection') {
+    // Clean up the result handler (wavesurfer instance) when leaving track
+    // section, since its info panel is the only place results are shown now
+    if (sectionId !== 'trackSection') {
         cleanupResultHandler();
     }
 }
@@ -489,6 +516,7 @@ async function loadGatefoldCover(albumNum) {
 function resetGatefold() {
     const stage = $('gatefoldStage');
     if (stage) stage.classList.remove('open');
+    hideTrackDetail();
 }
 
 /**
@@ -510,19 +538,20 @@ async function openAlbumGatefold(albumNum) {
 
 /**
  * Select a track and display its audio content
- * Validates that all parent levels have been selected
+ * Validates that all parent levels have been selected. Stays on the track
+ * section — the result (metadata + waveform) fades in on the sleeve, in
+ * place of the album art, rather than replacing the track selector.
  * @param {number} trackNum - Track number (0-14)
- * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation (unused; resultSection isn't animated)
+ * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation (unused)
  */
 async function selectTrack(trackNum, originEvent = null) {
-    if (navState.room === null || navState.wall === null || 
+    if (navState.room === null || navState.wall === null ||
         navState.shelf === null || navState.album === null) return;
-    
+
     navState.track = trackNum;
-    
-    showSection('resultSection');
     updateBreadcrumb();
-    
+
+    showTrackDetail();
     await generateAndDisplayTrack();
 }
 

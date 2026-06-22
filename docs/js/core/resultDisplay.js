@@ -49,7 +49,7 @@ function truncateString(str, threshold = 30, partLength = Math.floor(threshold *
  * @returns {Promise<Object>} Fragment helper object with get/getAll methods
  */
 export async function ensureResultFrag() {
-  if (!resultFrag) resultFrag = await loadFragment('#resultContainer', './components/result.html');
+  if (!resultFrag) resultFrag = await loadFragment('#resultContainer', './components/result.html?v=2');
   return resultFrag;
 }
 

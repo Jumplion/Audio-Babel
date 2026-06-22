@@ -237,9 +237,9 @@ export async function handleJsonResponse(j, originalIndexB64) {
         // Create new WaveSurfer instance with playback controls
         wavesurferInstance = WaveSurfer.create({
           container: waveformContainer,
-          waveColor: '#64b5f6',
-          progressColor: '#2196f3',
-          cursorColor: '#1976d2',
+          waveColor: '#cf8a48',
+          progressColor: '#d9ac5e',
+          cursorColor: '#f1e7d6',
           barWidth: 2,
           barRadius: 3,
           cursorWidth: 2,

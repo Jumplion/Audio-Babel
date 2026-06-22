@@ -76,7 +76,12 @@ export async function generateRandom(handleJsonResponse, setLoading) {
 
     const length = RANDOM_MIN_CHARS + Math.floor(Math.random() * (RANDOM_MAX_CHARS - RANDOM_MIN_CHARS + 1));
     const randomIndices = new Uint8Array(length);
-    window.crypto.getRandomValues(randomIndices);
+    // crypto.getRandomValues caps out at 65536 bytes per call, but our
+    // random indices can be up to 1 MB — fill it in chunks.
+    const MAX_CRYPTO_BYTES = 65536;
+    for (let offset = 0; offset < length; offset += MAX_CRYPTO_BYTES) {
+      window.crypto.getRandomValues(randomIndices.subarray(offset, offset + MAX_CRYPTO_BYTES));
+    }
 
     let indexString = '';
     for (let i = 0; i < length; i++) {

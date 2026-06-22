@@ -1,20 +1,36 @@
 /**
- * Styles specific to the search.html page
+ * Styles specific to the search.html page — card-catalog "drawers"
  */
 
 .search .search-section {
+    position: relative;
+    margin-top: 22px;
     margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 24px 20px 20px;
+    background: rgba(36, 26, 20, 0.3);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
 }
 
-.search .search-section:last-of-type {
-    border-bottom: none;
+.search .search-section:first-of-type {
+    margin-top: 30px;
 }
 
 .search .search-section h2 {
-    font-size: 16px;
-    margin-bottom: 8px;
+    position: absolute;
+    top: -14px;
+    left: 16px;
+    margin: 0;
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 5px 12px;
+    background: linear-gradient(135deg, var(--btn), var(--accent-dim));
+    color: #2a1c10;
+    border-radius: 4px;
+    font-weight: 700;
+    box-shadow: var(--shadow-sm);
 }
 
 .search #searchInput {

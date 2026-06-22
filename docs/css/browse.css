@@ -10,9 +10,9 @@
 .nav-section {
     margin-bottom: 32px;
     padding: 20px;
-    background: rgba(30, 36, 51, 0.3);
+    background: rgba(36, 26, 20, 0.3);
     border: 1px solid var(--card-border);
-    border-radius: 10px;
+    border-radius: 8px;
 }
 
 .nav-section h2 {
@@ -65,14 +65,14 @@
 }
 
 .hexagon-outline {
-    fill: rgba(20, 25, 35, 0.5);
-    stroke: rgba(100, 120, 200, 0.8);
+    fill: rgba(22, 16, 11, 0.5);
+    stroke: rgba(201, 164, 100, 0.8);
     stroke-width: 3;
 }
 
 .hexagon-inner {
-    fill: rgba(20, 25, 35, 0.8);
-    stroke: rgba(80, 100, 180, 0.6);
+    fill: rgba(22, 16, 11, 0.85);
+    stroke: rgba(170, 130, 80, 0.6);
     stroke-width: 2;
 }
 
@@ -85,7 +85,7 @@
 
 /* Non-selectable segments - darker/grayed out */
 .segment-disabled {
-    fill: rgba(50, 60, 80, 0.4);
+    fill: rgba(45, 35, 28, 0.4);
     cursor: not-allowed;
     opacity: 0.5;
 }
@@ -95,51 +95,51 @@
     cursor: pointer;
 }
 
-/* Top segment (Wall 0) - Blue */
+/* Top segment (Wall 0) - Indigo */
 .wall[data-wall="0"] {
-    fill: rgba(70, 130, 220, 0.6);
+    fill: rgba(75, 85, 145, 0.6);
 }
 
 .wall[data-wall="0"]:hover,
 .wall[data-wall="0"].hover {
-    fill: rgba(100, 160, 255, 0.85);
-    stroke: rgba(150, 200, 255, 0.9);
+    fill: rgba(105, 115, 185, 0.85);
+    stroke: rgba(160, 170, 230, 0.9);
     stroke-width: 2.5;
 }
 
-/* Bottom-right segment (Wall 1) - Green */
+/* Bottom-right segment (Wall 1) - Forest green */
 .wall[data-wall="1"] {
-    fill: rgba(80, 180, 100, 0.6);
+    fill: rgba(75, 125, 75, 0.6);
 }
 
 .wall[data-wall="1"]:hover,
 .wall[data-wall="1"].hover {
-    fill: rgba(110, 220, 130, 0.85);
-    stroke: rgba(150, 255, 180, 0.9);
+    fill: rgba(105, 165, 105, 0.85);
+    stroke: rgba(160, 220, 160, 0.9);
     stroke-width: 2.5;
 }
 
-/* Bottom segment (Wall 2) - Orange */
+/* Bottom segment (Wall 2) - Brass gold */
 .wall[data-wall="2"] {
-    fill: rgba(220, 140, 60, 0.6);
+    fill: rgba(200, 150, 70, 0.6);
 }
 
 .wall[data-wall="2"]:hover,
 .wall[data-wall="2"].hover {
-    fill: rgba(255, 170, 90, 0.85);
-    stroke: rgba(255, 200, 130, 0.9);
+    fill: rgba(230, 182, 100, 0.85);
+    stroke: rgba(250, 215, 150, 0.9);
     stroke-width: 2.5;
 }
 
-/* Top-left segment (Wall 3) - Purple */
+/* Top-left segment (Wall 3) - Rosewood */
 .wall[data-wall="3"] {
-    fill: rgba(150, 80, 180, 0.6);
+    fill: rgba(150, 65, 60, 0.6);
 }
 
 .wall[data-wall="3"]:hover,
 .wall[data-wall="3"].hover {
-    fill: rgba(180, 110, 220, 0.85);
-    stroke: rgba(210, 150, 255, 0.9);
+    fill: rgba(190, 95, 88, 0.85);
+    stroke: rgba(230, 150, 140, 0.9);
     stroke-width: 2.5;
 }
 
@@ -158,9 +158,9 @@
 
 .shelf-btn {
     padding: 16px 20px;
-    background: rgba(80, 100, 180, 0.3);
-    border: 2px solid rgba(80, 100, 180, 0.6);
-    border-radius: 8px;
+    background: rgba(120, 90, 60, 0.3);
+    border: 2px solid rgba(120, 90, 60, 0.65);
+    border-radius: 6px;
     color: var(--text);
     font-size: 18px;
     font-weight: 500;
@@ -170,8 +170,8 @@
 }
 
 .shelf-btn:hover {
-    background: rgba(80, 100, 180, 0.5);
-    border-color: rgba(120, 140, 220, 0.8);
+    background: rgba(150, 113, 75, 0.5);
+    border-color: rgba(201, 164, 100, 0.8);
     transform: translateX(4px);
 }
 
@@ -189,8 +189,8 @@
 
 .album-btn {
     padding: 14px 16px;
-    background: rgba(120, 80, 150, 0.3);
-    border: 2px solid rgba(120, 80, 150, 0.6);
+    background: rgba(140, 70, 60, 0.3);
+    border: 2px solid rgba(140, 70, 60, 0.6);
     border-radius: 6px;
     color: var(--text);
     font-size: 16px;
@@ -203,8 +203,8 @@
 }
 
 .album-btn:hover {
-    background: rgba(120, 80, 150, 0.5);
-    border-color: rgba(160, 120, 190, 0.8);
+    background: rgba(170, 95, 85, 0.5);
+    border-color: rgba(210, 140, 130, 0.8);
     transform: translateY(-2px);
 }
 
@@ -221,8 +221,8 @@
 
 .track-btn {
     padding: 12px 16px;
-    background: rgba(150, 120, 80, 0.3);
-    border: 2px solid rgba(150, 120, 80, 0.6);
+    background: rgba(190, 150, 80, 0.25);
+    border: 2px solid rgba(190, 150, 80, 0.55);
     border-radius: 6px;
     color: var(--text);
     font-size: 14px;
@@ -232,8 +232,8 @@
 }
 
 .track-btn:hover {
-    background: rgba(150, 120, 80, 0.5);
-    border-color: rgba(190, 160, 120, 0.8);
+    background: rgba(217, 172, 94, 0.4);
+    border-color: rgba(230, 195, 130, 0.8);
     transform: translateY(-2px);
 }
 
@@ -241,27 +241,7 @@
     transform: translateY(0);
 }
 
-/* Breadcrumb navigation */
-#breadcrumb {
-    margin-bottom: 20px;
-    padding: 12px 16px;
-    background: rgba(30, 36, 51, 0.4);
-    border: 1px solid var(--card-border);
-    border-radius: 8px;
-    font-size: 15px;
-}
-
-#breadcrumb a {
-    color: var(--accent);
-    text-decoration: none;
-    transition: color 0.2s ease;
-}
-
-#breadcrumb a:hover {
-    color: var(--accent-dim);
-    text-decoration: underline;
-}
-
+/* Breadcrumb base styling lives in site.css (#breadcrumb) — shared across pages */
 #breadcrumb span {
     color: var(--text);
 }

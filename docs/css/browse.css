@@ -212,33 +212,168 @@
     transform: translateY(0);
 }
 
-/* Tracks container — always 3 columns, never scrolls */
+/* Tracks container — single column inside the gatefold's inner leaf */
 .tracks-container {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    max-height: 210px;
+    overflow-y: auto;
 }
 
 .track-btn {
-    padding: 12px 16px;
-    background: rgba(190, 150, 80, 0.25);
-    border: 2px solid rgba(190, 150, 80, 0.55);
-    border-radius: 6px;
+    padding: 8px 10px;
+    background: rgba(190, 150, 80, 0.18);
+    border: 1px solid rgba(190, 150, 80, 0.5);
+    border-radius: 5px;
     color: var(--text);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s ease;
+    text-align: left;
+    transition: all 0.2s ease;
 }
 
 .track-btn:hover {
-    background: rgba(217, 172, 94, 0.4);
-    border-color: rgba(230, 195, 130, 0.8);
-    transform: translateY(-2px);
+    background: rgba(217, 172, 94, 0.32);
+    border-color: rgba(230, 195, 130, 0.85);
 }
 
-.track-btn:active {
-    transform: translateY(0);
+/* ---------- Gatefold album/track selector ----------
+   Front cover stays fixed at rest on the right of the seam, showing the
+   real generated album art. The inner leaf is hinged at the seam (its own
+   right edge) and is rotated edge-on (collapsed to a sliver) while closed,
+   tucked behind the front cover; browse.js adds .open shortly after the
+   section appears to swing it flat, revealing the track list. The record
+   sits on the seam and slides further right as the album opens, ending up
+   half-overlapping the front cover. */
+.gatefold-stage {
+    position: relative;
+    width: 560px;
+    max-width: 100%;
+    height: 280px;
+    margin: 24px auto;
+    perspective: 1600px;
+}
+
+.gatefold-spine {
+    position: absolute;
+    left: 50%;
+    top: 4%;
+    bottom: 4%;
+    width: 1px;
+    background: rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 18px 3px rgba(0, 0, 0, 0.3);
+    z-index: 2;
+}
+
+.cover-square {
+    position: absolute;
+    top: 0;
+    width: 280px;
+    height: 280px;
+    border-radius: 4px;
+    box-shadow: var(--shadow-lg);
+    backface-visibility: hidden;
+    box-sizing: border-box;
+}
+
+.cover-right {
+    left: 50%;
+    background: linear-gradient(160deg, #2d2119, #1b140f);
+    border: 1px solid var(--card-border);
+    z-index: 1;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.cover-art {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.cover-caption {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-dim);
+    background: linear-gradient(180deg, transparent, rgba(10, 6, 3, 0.8));
+}
+
+.gate-leaf {
+    right: 50%;
+    transform-origin: right center;
+    transform: rotateY(88deg);
+    transition: transform 0.85s cubic-bezier(0.22, 0.85, 0.32, 1);
+    background: rgba(36, 26, 20, 0.97);
+    border: 1px solid var(--card-border);
+    z-index: 3;
+    padding: 18px;
+    color: var(--text);
+}
+
+.gatefold-stage.open .gate-leaf {
+    transform: rotateY(0deg);
+}
+
+.leaf-face {
+    backface-visibility: hidden;
+}
+
+.leaf-face h3 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    color: var(--accent);
+}
+
+.record {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 210px;
+    height: 210px;
+    border-radius: 50%;
+    z-index: 2;
+    background:
+        repeating-radial-gradient(circle,
+            rgba(0, 0, 0, 0.55) 0px,
+            rgba(0, 0, 0, 0.55) 2px,
+            rgba(20, 14, 10, 0.92) 3px,
+            rgba(20, 14, 10, 0.92) 9px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    transition: transform 0.85s cubic-bezier(0.22, 0.85, 0.32, 1);
+    transform: translate(calc(-50% - 70px), -50%);
+}
+
+.record::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    transform: translate(-50%, -50%);
+    box-shadow: inset 0 0 0 4px rgba(20, 14, 10, 0.85);
+}
+
+.gatefold-stage.open .record {
+    transform: translate(calc(-50% + 20px), -50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .gate-leaf,
+    .record {
+        transition: none !important;
+    }
 }
 
 /* Zoom-in "reveal" transition — played by browse.js when a nav-section
@@ -264,27 +399,9 @@
     }
 }
 
-/* Album "lid opening" variant for trackSection — a little more pronounced */
-.nav-section.zoom-reveal.album-open {
-    animation: albumOpen 0.5s cubic-bezier(0.16, 0.84, 0.32, 1);
-}
-
-@keyframes albumOpen {
-    from {
-        opacity: 0;
-        transform: scale(0.75) rotateX(-12deg);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1) rotateX(0deg);
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
 
-    .nav-section.zoom-reveal,
-    .nav-section.zoom-reveal.album-open {
+    .nav-section.zoom-reveal {
         animation: none !important;
     }
 }
@@ -314,13 +431,27 @@
         flex-wrap: wrap;
     }
 
-    .tracks-container {
-        gap: 6px;
+    .gatefold-stage {
+        height: 160px;
     }
 
-    .track-btn {
-        padding: 10px 8px;
-        font-size: 12px;
+    .cover-square {
+        width: 160px;
+        height: 160px;
+    }
+
+    .record {
+        width: 120px;
+        height: 120px;
+        transform: translate(calc(-50% - 40px), -50%);
+    }
+
+    .gatefold-stage.open .record {
+        transform: translate(calc(-50% + 12px), -50%);
+    }
+
+    .leaf-face h3 {
+        font-size: 14px;
     }
 
     .input-row {

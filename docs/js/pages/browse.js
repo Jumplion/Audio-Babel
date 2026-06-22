@@ -156,12 +156,13 @@ function updateBreadcrumb() {
 }
 
 // Sections that play a "zoom in to reveal" transition when they become visible.
-// trackSection uses a slightly different variant (album lid tilting open).
+// trackSection's own "opening the gatefold" animation (see openAlbumGatefold)
+// provides its dramatic reveal, so it just uses the plain zoom-in here.
 const REVEAL_VARIANTS = {
     wallSection: null,
     shelfSection: null,
     albumSection: null,
-    trackSection: 'album-open'
+    trackSection: null
 };
 
 /**
@@ -426,7 +427,7 @@ function selectAlbum(albumNum, originEvent = null) {
     clearNavLevels(['track']);
 
     showSection('trackSection', originEvent);
-    renderTracks();
+    openAlbumGatefold(albumNum);
     updateBreadcrumb();
 }
 
@@ -436,6 +437,75 @@ function selectAlbum(albumNum, originEvent = null) {
  */
 function renderTracks() {
     renderButtons('tracksContainer', TRACKS_PER_ALBUM, 'track-btn', selectTrack, (i) => `Track ${i}`);
+}
+
+/**
+ * Build a "stand-in" full index for an album using track 0.
+ * Cover art only exists at the full index level (room+wall+shelf+album+track),
+ * not per-album, so this borrows track 0 purely to generate art to show on
+ * the closed cover before any specific track has been chosen.
+ * @param {Object} wasm - Initialized IndexWasm instance
+ * @param {number} albumNum - Album number (0-31)
+ * @returns {string} Base64 index
+ */
+function buildAlbumStandInIndex(wasm, albumNum) {
+    const pos = validatePositionValues(navState.wall, navState.shelf, albumNum, 0);
+    const result = wasm.module.reconstructIndex(navState.room.toString(), pos.wall, pos.shelf, pos.album, pos.track);
+    if (typeof result === 'string' && result.startsWith('{')) {
+        const err = JSON.parse(result);
+        throw new Error(err.error || 'Failed to build stand-in index for album cover');
+    }
+    return result;
+}
+
+/**
+ * Fetch and display the generated cover art + caption for an album on the
+ * gatefold's front cover face.
+ * @param {number} albumNum - Album number (0-31)
+ */
+async function loadGatefoldCover(albumNum) {
+    const coverArt = $('coverArt');
+    const coverCaption = $('coverCaption');
+    if (!coverArt || !coverCaption) return;
+
+    try {
+        const wasm = await getWasmModule();
+        const indexBase64 = buildAlbumStandInIndex(wasm, albumNum);
+        const metadata = JSON.parse(wasm.module.getMetadata(indexBase64));
+        if (metadata.error) throw new Error(metadata.error);
+
+        coverArt.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(metadata.cover);
+        coverCaption.textContent = `${metadata.artist} — ${metadata.album}`;
+    } catch (err) {
+        console.error('Failed to load album cover art', err);
+        coverArt.src = '';
+        coverCaption.textContent = '';
+    }
+}
+
+/**
+ * Reset the gatefold to its closed state (inner leaf and record tucked away).
+ */
+function resetGatefold() {
+    const stage = $('gatefoldStage');
+    if (stage) stage.classList.remove('open');
+}
+
+/**
+ * Populate the gatefold for a newly-selected album (cover art + track list),
+ * then swing it open shortly after so the reveal reads as "opening the
+ * album you just picked" rather than a plain content swap.
+ * @param {number} albumNum - Album number (0-31)
+ */
+async function openAlbumGatefold(albumNum) {
+    resetGatefold();
+    renderTracks();
+    await loadGatefoldCover(albumNum);
+
+    setTimeout(() => {
+        const stage = $('gatefoldStage');
+        if (stage) stage.classList.add('open');
+    }, 350);
 }
 
 /**
@@ -578,6 +648,16 @@ function init() {
         wall.addEventListener('mouseleave', () => wall.classList.remove('hover'));
     });
     
+    // Clicking the closed cover opens it (in case the auto-open is skipped,
+    // e.g. reduced-motion users landing mid-transition)
+    const coverRight = $('coverRight');
+    if (coverRight) {
+        coverRight.addEventListener('click', () => {
+            const stage = $('gatefoldStage');
+            if (stage) stage.classList.add('open');
+        });
+    }
+
     // Initialize breadcrumb
     updateBreadcrumb();
     

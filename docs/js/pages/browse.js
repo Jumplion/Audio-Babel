@@ -98,7 +98,7 @@ function updateBreadcrumb() {
         link.textContent = `Room ${navState.room}`;
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            goToRoom();
+            goToRoom(e);
         });
         parts.push(link);
     }
@@ -109,7 +109,7 @@ function updateBreadcrumb() {
         link.textContent = `Wall ${navState.wall}`;
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            goToWall();
+            goToWall(e);
         });
         parts.push(link);
     }
@@ -120,7 +120,7 @@ function updateBreadcrumb() {
         link.textContent = `Shelf ${navState.shelf}`;
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            goToShelf();
+            goToShelf(e);
         });
         parts.push(link);
     }
@@ -131,7 +131,7 @@ function updateBreadcrumb() {
         link.textContent = `Album ${navState.album}`;
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            goToAlbum();
+            goToAlbum(e);
         });
         parts.push(link);
     }
@@ -155,17 +155,66 @@ function updateBreadcrumb() {
     });
 }
 
+// Sections that play a "zoom in to reveal" transition when they become visible.
+// trackSection uses a slightly different variant (album lid tilting open).
+const REVEAL_VARIANTS = {
+    wallSection: null,
+    shelfSection: null,
+    albumSection: null,
+    trackSection: 'album-open'
+};
+
+/**
+ * Play the zoom-in reveal animation on a freshly-shown section.
+ * If `originEvent` carries click coordinates, the animation's transform-origin
+ * is set to that point so the new section appears to grow out of whatever was
+ * just clicked (the wall segment / shelf / album button); otherwise it zooms
+ * in from its own center (e.g. keyboard submission, breadcrumb back-nav).
+ * @param {HTMLElement} el - Section element to animate
+ * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
+ * @param {string|null} [variant] - Optional animation variant class (e.g. 'album-open')
+ */
+function triggerZoomReveal(el, originEvent = null, variant = null) {
+    if (!el) return;
+
+    if (originEvent && typeof originEvent.clientX === 'number') {
+        const rect = el.getBoundingClientRect();
+        const x = rect.width ? ((originEvent.clientX - rect.left) / rect.width) * 100 : 50;
+        const y = rect.height ? ((originEvent.clientY - rect.top) / rect.height) * 100 : 50;
+        el.style.setProperty('--reveal-x', `${Math.min(100, Math.max(0, x))}%`);
+        el.style.setProperty('--reveal-y', `${Math.min(100, Math.max(0, y))}%`);
+    } else {
+        el.style.removeProperty('--reveal-x');
+        el.style.removeProperty('--reveal-y');
+    }
+
+    // Restart the animation even if it's already mid-flight (e.g. rapid clicks)
+    el.classList.remove('zoom-reveal', 'album-open');
+    void el.offsetWidth; // force reflow
+    el.classList.add('zoom-reveal');
+    if (variant) el.classList.add(variant);
+}
+
 /**
  * Show only the specified section, hiding all others
  * @param {string} sectionId - ID of section to display
+ * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation (for the reveal animation)
  */
-function showSection(sectionId) {
+function showSection(sectionId, originEvent = null) {
     const sections = ['roomSection', 'wallSection', 'shelfSection', 'albumSection', 'trackSection', 'resultSection'];
     sections.forEach(id => {
         const el = $(id);
-        if (el) el.style.display = (id === sectionId) ? 'block' : 'none';
+        if (!el) return;
+
+        const wasVisible = el.style.display === 'block';
+        const willBeVisible = (id === sectionId);
+        el.style.display = willBeVisible ? 'block' : 'none';
+
+        if (willBeVisible && !wasVisible && Object.prototype.hasOwnProperty.call(REVEAL_VARIANTS, id)) {
+            triggerZoomReveal(el, originEvent, REVEAL_VARIANTS[id]);
+        }
     });
-    
+
     // Clean up result handler when leaving result section
     if (sectionId !== 'resultSection') {
         cleanupResultHandler();
@@ -187,10 +236,11 @@ function clearNavLevels(levelsToClear) {
  * @param {string} section - Section to show (e.g., 'wallSection')
  * @param {string[]} clearLevels - Levels to clear from nav state
  * @param {Function} [renderFn] - Optional render function to call after navigation
+ * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
  */
-function navigateToLevel(section, clearLevels, renderFn = null) {
+function navigateToLevel(section, clearLevels, renderFn = null, originEvent = null) {
     clearNavLevels(clearLevels);
-    showSection(section);
+    showSection(section, originEvent);
     if (renderFn) renderFn();
     updateBreadcrumb();
 }
@@ -198,39 +248,40 @@ function navigateToLevel(section, clearLevels, renderFn = null) {
 /**
  * Navigate to room selection
  */
-function goToRoom() {
+function goToRoom(originEvent = null) {
     clearNavLevels(['wall', 'shelf', 'album', 'track']);
     showSection('roomSection');
-    showSection('wallSection');
+    showSection('wallSection', originEvent);
     updateBreadcrumb();
 }
 
 /**
  * Navigate to wall selection
  */
-function goToWall() {
-    navigateToLevel('wallSection', ['shelf', 'album', 'track']);
+function goToWall(originEvent = null) {
+    navigateToLevel('wallSection', ['shelf', 'album', 'track'], null, originEvent);
 }
 
 /**
  * Navigate to shelf selection
  */
-function goToShelf() {
-    navigateToLevel('shelfSection', ['album', 'track'], renderShelves);
+function goToShelf(originEvent = null) {
+    navigateToLevel('shelfSection', ['album', 'track'], renderShelves, originEvent);
 }
 
 /**
  * Navigate to album selection
  */
-function goToAlbum() {
-    navigateToLevel('albumSection', ['track'], renderAlbums);
+function goToAlbum(originEvent = null) {
+    navigateToLevel('albumSection', ['track'], renderAlbums, originEvent);
 }
 
 /**
  * Enter a room by ID or base64 string
  * Validates input and converts numeric room IDs to base64 format
+ * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
  */
-function enterRoom() {
+function enterRoom(originEvent = null) {
     const input = $('roomInput');
     if (!input) return;
     
@@ -267,22 +318,23 @@ function enterRoom() {
     navState.shelf = null;
     navState.album = null;
     navState.track = null;
-    
-    showSection('wallSection');
+
+    showSection('wallSection', originEvent);
     updateBreadcrumb();
 }
 
 /**
  * Select a wall and navigate to shelf selection
  * @param {number} wallNum - Wall number (0-3)
+ * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
  */
-function selectWall(wallNum) {
+function selectWall(wallNum, originEvent = null) {
     if (navState.room === null) return;
-    
+
     navState.wall = wallNum;
     clearNavLevels(['shelf', 'album', 'track']);
-    
-    showSection('shelfSection');
+
+    showSection('shelfSection', originEvent);
     renderShelves();
     updateBreadcrumb();
 }
@@ -292,20 +344,20 @@ function selectWall(wallNum) {
  * @param {string} containerId - ID of container element
  * @param {number} count - Number of buttons to create
  * @param {string} className - CSS class for buttons
- * @param {Function} clickHandler - Click handler function
+ * @param {Function} clickHandler - Click handler function, called as clickHandler(index, clickEvent)
  * @param {Function} [labelFn] - Optional function to generate button label (default: index number)
  */
 function renderButtons(containerId, count, className, clickHandler, labelFn = (i) => `${i}`) {
     const container = $(containerId);
     if (!container) return;
-    
+
     container.innerHTML = '';
-    
+
     for (let i = 0; i < count; i++) {
         const btn = document.createElement('button');
         btn.className = className;
         btn.textContent = labelFn(i);
-        btn.addEventListener('click', () => clickHandler(i));
+        btn.addEventListener('click', (e) => clickHandler(i, e));
         container.appendChild(btn);
     }
 }
@@ -322,14 +374,15 @@ function renderShelves() {
  * Select a shelf and navigate to album selection
  * Validates that room and wall have been selected first
  * @param {number} shelfNum - Shelf number (0-4)
+ * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
  */
-function selectShelf(shelfNum) {
+function selectShelf(shelfNum, originEvent = null) {
     if (navState.room === null || navState.wall === null) return;
-    
+
     navState.shelf = shelfNum;
     clearNavLevels(['album', 'track']);
-    
-    showSection('albumSection');
+
+    showSection('albumSection', originEvent);
     renderAlbums();
     updateBreadcrumb();
 }
@@ -346,14 +399,15 @@ function renderAlbums() {
  * Select an album and navigate to track selection
  * Validates that room, wall, and shelf have been selected first
  * @param {number} albumNum - Album number (0-31)
+ * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
  */
-function selectAlbum(albumNum) {
+function selectAlbum(albumNum, originEvent = null) {
     if (navState.room === null || navState.wall === null || navState.shelf === null) return;
-    
+
     navState.album = albumNum;
     clearNavLevels(['track']);
-    
-    showSection('trackSection');
+
+    showSection('trackSection', originEvent);
     renderTracks();
     updateBreadcrumb();
 }
@@ -370,8 +424,9 @@ function renderTracks() {
  * Select a track and display its audio content
  * Validates that all parent levels have been selected
  * @param {number} trackNum - Track number (0-14)
+ * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation (unused; resultSection isn't animated)
  */
-async function selectTrack(trackNum) {
+async function selectTrack(trackNum, originEvent = null) {
     if (navState.room === null || navState.wall === null || 
         navState.shelf === null || navState.album === null) return;
     
@@ -474,7 +529,7 @@ function init() {
     const enterRoomBtn = $('enterRoomBtn');
     
     if (enterRoomBtn) {
-        enterRoomBtn.addEventListener('click', enterRoom);
+        enterRoomBtn.addEventListener('click', (e) => enterRoom(e));
     }
     
     if (roomInput) {
@@ -500,7 +555,7 @@ function init() {
     const walls = document.querySelectorAll('.wall');
     walls.forEach(wall => {
         const wallNum = parseInt(wall.dataset.wall);
-        wall.addEventListener('click', () => selectWall(wallNum));
+        wall.addEventListener('click', (e) => selectWall(wallNum, e));
         wall.addEventListener('mouseenter', () => wall.classList.add('hover'));
         wall.addEventListener('mouseleave', () => wall.classList.remove('hover'));
     });

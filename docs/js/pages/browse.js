@@ -389,10 +389,28 @@ function selectShelf(shelfNum, originEvent = null) {
 
 /**
  * Render the albums for the current shelf
- * Creates numbered buttons (0-31) for album selection
+ * Creates album "spine" buttons (0-31); each shows its number only on hover/focus
+ * (see .album-number in browse.css), evoking a long box of records flipped through sideways.
  */
 function renderAlbums() {
-    renderButtons('albumsContainer', ALBUMS_PER_SHELF, 'album-btn', selectAlbum);
+    const container = $('albumsContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    for (let i = 0; i < ALBUMS_PER_SHELF; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'album-btn';
+        btn.setAttribute('aria-label', `Album ${i}`);
+
+        const numberSpan = document.createElement('span');
+        numberSpan.className = 'album-number';
+        numberSpan.textContent = i;
+        btn.appendChild(numberSpan);
+
+        btn.addEventListener('click', (e) => selectAlbum(i, e));
+        container.appendChild(btn);
+    }
 }
 
 /**

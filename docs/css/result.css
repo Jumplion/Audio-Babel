@@ -30,7 +30,7 @@
     margin-top: 8px;
     margin-bottom: 8px;
     padding: 12px;
-    background: rgba(30, 36, 51, 0.7);
+    background: rgba(36, 26, 20, 0.7);
     border: 1px solid var(--card-border);
     border-radius: 8px;
     max-height: 150px;
@@ -55,7 +55,7 @@
     overflow: auto;
     max-height: 180px;
     padding: 12px;
-    background: rgba(30, 36, 51, 0.7);
+    background: rgba(36, 26, 20, 0.7);
     border: 1px solid var(--card-border);
     border-radius: 8px;
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -68,9 +68,9 @@
     display: none;
     margin-bottom: 16px;
     padding: 16px;
-    background: rgba(30, 36, 51, 0.4);
+    background: rgba(36, 26, 20, 0.4);
     border: 1px solid var(--card-border);
-    border-radius: 10px;
+    border-radius: 8px;
 }
 
 #coverImg {
@@ -106,7 +106,7 @@
     margin-top: 8px;
     margin-bottom: 12px;
     padding: 0;
-    background: rgba(15, 20, 25, 0.8);
+    background: rgba(15, 11, 8, 0.8);
     border: 1px solid var(--card-border);
     border-radius: 8px;
     overflow: hidden;

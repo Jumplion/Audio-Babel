@@ -1,24 +1,29 @@
 /*
   site.css
   Purpose: global variables, base typography, themes, layout, common components and utilities.
+  Theme: warm "library / record shop" — walnut wood tones, brass-gold accents.
 */
 
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
+
 :root {
-  --bg: #1a1f2e;
-  --bg-gradient: linear-gradient(180deg, #1a1f2e 0%, #252b3d 100%);
-  --card: #1e2433;
-  --card-hover: #252d3f;
-  --card-border: rgba(255, 255, 255, 0.08);
-  --accent: #6eb5ff;
-  --accent-dim: #5a9dd9;
-  --text: #e8ecf1;
-  --text-dim: #c5cdd8;
-  --muted: #8b95a5;
-  --btn: #3b8fff;
-  --btn-hover: #5ba0ff;
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --bg: #1b140f;
+  --bg-gradient: linear-gradient(180deg, #1b140f 0%, #241a13 50%, #2c2017 100%);
+  --card: #241a14;
+  --card-hover: #2d2119;
+  --card-border: rgba(201, 164, 100, 0.16);
+  --accent: #d9ac5e;
+  --accent-dim: #b8924c;
+  --maroon: #7a3326;
+  --maroon-bright: #9c4633;
+  --text: #f1e7d6;
+  --text-dim: #cdbea7;
+  --muted: #9c8c75;
+  --btn: #b8763a;
+  --btn-hover: #cf8a48;
+  --shadow-sm: 0 2px 8px rgba(10, 6, 3, 0.35);
+  --shadow-md: 0 4px 18px rgba(10, 6, 3, 0.4);
+  --shadow-lg: 0 10px 36px rgba(10, 6, 3, 0.5);
 }
 
 /* -----------------------------
@@ -30,19 +35,67 @@ html {
 }
 
 body {
+  position: relative;
   min-height: 100vh;
   margin: 0;
   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-  background: linear-gradient(180deg, #1a1f2e 0%, #252b3d 50%, #2a3346 100%);
+  background: var(--bg-gradient);
   background-attachment: fixed;
   color: var(--text);
   font-size: 16px;
   line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Decorative "vinyl record" rings — fill empty space on short pages, evoke a record shop */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::before {
+  top: -12%;
+  right: -10%;
+  width: 620px;
+  height: 620px;
+  background: repeating-radial-gradient(circle,
+      rgba(217, 172, 94, 0.06) 0px,
+      rgba(217, 172, 94, 0.06) 2px,
+      transparent 3px,
+      transparent 16px);
+}
+
+body::after {
+  bottom: -16%;
+  left: -12%;
+  width: 520px;
+  height: 520px;
+  background: repeating-radial-gradient(circle,
+      rgba(122, 51, 38, 0.07) 0px,
+      rgba(122, 51, 38, 0.07) 2px,
+      transparent 3px,
+      transparent 16px);
+}
+
+.site-navbar,
+.wrap {
+  position: relative;
+  z-index: 1;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Fraunces", Georgia, "Times New Roman", serif;
 }
 
 h1 {
   margin: 0 0 16px;
-  font-size: 32px;
+  font-size: 34px;
   line-height: 1.2;
   color: var(--text);
   font-weight: 700;
@@ -58,9 +111,9 @@ h2 {
 
 h3 {
   margin: 20px 0 8px;
-  font-size: 20px;
+  font-size: 19px;
   line-height: 1.4;
-  color: var(--text-dim);
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -121,11 +174,11 @@ small {
 .card {
   background: var(--card);
   border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 40px 32px;
   max-width: 640px;
   width: 100%;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-md), inset 0 0 60px rgba(0, 0, 0, 0.18);
   backdrop-filter: blur(10px);
 }
 
@@ -147,10 +200,10 @@ small {
 .option {
   cursor: pointer;
   border: 1px solid var(--card-border);
-  background: rgba(30, 36, 51, 0.6);
+  background: rgba(36, 26, 20, 0.6);
   padding: 16px 20px;
   text-align: center;
-  border-radius: 10px;
+  border-radius: 8px;
   color: var(--accent);
   font-weight: 600;
   font-size: 16px;
@@ -161,7 +214,7 @@ small {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
   background: var(--card-hover);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(217, 172, 94, 0.3);
 }
 
 .option:disabled {
@@ -171,9 +224,9 @@ small {
 }
 
 .option.selected {
-  background: linear-gradient(90deg, var(--btn), #66a9ff);
-  color: #fff;
-  box-shadow: 0 4px 16px rgba(11, 120, 255, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  background: linear-gradient(90deg, var(--btn), var(--accent));
+  color: #2a1c10;
+  box-shadow: 0 4px 16px rgba(184, 118, 58, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
   border-color: transparent;
 }
@@ -186,7 +239,7 @@ small {
   padding: 12px 16px;
   margin: 8px 0;
   border-radius: 8px;
-  background: rgba(30, 36, 51, 0.6);
+  background: rgba(36, 26, 20, 0.6);
   border: 1px solid var(--card-border);
   white-space: nowrap;
   overflow: hidden;
@@ -197,7 +250,7 @@ small {
 
 .option.fallback:hover {
   background: var(--card-hover);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(217, 172, 94, 0.3);
 }
 
 /* -----------------------------
@@ -208,10 +261,10 @@ small {
   display: inline-block;
   padding: 10px 20px;
   border-radius: 8px;
-  background: var(--btn);
-  color: #fff;
+  background: linear-gradient(135deg, var(--btn), var(--accent-dim));
+  color: #2a1c10;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 15px;
   border: 1px solid transparent;
   cursor: pointer;
@@ -220,9 +273,9 @@ small {
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--btn-hover);
+  background: linear-gradient(135deg, var(--btn-hover), var(--accent));
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(11, 120, 255, 0.4);
+  box-shadow: 0 4px 14px rgba(184, 118, 58, 0.45);
 }
 
 .btn:active:not(:disabled) {
@@ -238,16 +291,37 @@ small {
   filter: grayscale(30%);
 }
 
+/* Secondary (ghost/outlined) action — for choices that shouldn't compete with .btn */
+.btn-secondary {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+  border: 1px solid var(--card-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(217, 172, 94, 0.1);
+  border-color: rgba(217, 172, 94, 0.4);
+  color: var(--btn-hover);
+}
+
 .btn.tab-active {
-  background: linear-gradient(90deg, var(--btn), #66a9ff);
-  color: #fff;
-  box-shadow: 0 4px 16px rgba(11, 120, 255, 0.3);
+  background: linear-gradient(90deg, var(--btn), var(--accent));
+  color: #2a1c10;
+  box-shadow: 0 4px 16px rgba(184, 118, 58, 0.35);
   transform: translateY(-1px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .btn.tab-active:focus {
-  outline: 2px solid rgba(11, 120, 255, 0.5);
+  outline: 2px solid rgba(217, 172, 94, 0.5);
   outline-offset: 2px;
 }
 
@@ -265,7 +339,7 @@ small {
 }
 
 /* -----------------------------
-    Breadcrumbs (in Browse)
+    Breadcrumbs (in Browse) — single source of truth, hidden until populated
    ----------------------------- */
 
 #breadcrumb {
@@ -273,35 +347,48 @@ small {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: rgba(36, 26, 20, 0.4);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+#breadcrumb:empty {
+  display: none;
+  margin-bottom: 0;
+  padding: 0;
+  border: none;
 }
 
 #breadcrumb a {
   color: var(--accent);
   text-decoration: none;
-  background: rgba(30, 36, 51, 0.4);
+  background: rgba(36, 26, 20, 0.5);
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid var(--card-border);
   transition: all 0.2s ease;
 }
 
 #breadcrumb a:hover {
-  background: rgba(30, 36, 51, 0.7);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(36, 26, 20, 0.8);
+  border-color: rgba(217, 172, 94, 0.3);
 }
 
 #breadcrumb .crumb-inactive {
   color: var(--muted);
   background: transparent;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 #breadcrumb .active-stage {
-  background: linear-gradient(90deg, var(--btn), #66a9ff);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(11, 120, 255, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(90deg, var(--btn), var(--accent));
+  color: #2a1c10;
+  box-shadow: 0 2px 8px rgba(184, 118, 58, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .stage-pill {
@@ -310,7 +397,7 @@ small {
   gap: 8px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(30, 36, 51, 0.5);
+  background: rgba(36, 26, 20, 0.5);
   border: 1px solid var(--card-border);
   color: var(--accent);
   font-weight: 600;
@@ -319,8 +406,8 @@ small {
 .index-links a {
   display: inline-block;
   padding: 16px 24px;
-  border-radius: 10px;
-  background: rgba(30, 36, 51, 0.6);
+  border-radius: 8px;
+  background: rgba(36, 26, 20, 0.6);
   border: 1px solid var(--card-border);
   color: var(--accent);
   text-decoration: none;
@@ -335,7 +422,7 @@ small {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
   background: var(--card-hover);
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(217, 172, 94, 0.35);
   color: var(--btn-hover);
 }
 
@@ -351,15 +438,14 @@ small {
   gap: 12px;
 }
 
-/* Loading spinner + skeleton (uses keyframes defined in component CSS)
-   Note: @keyframes spin and loading-shimmer are defined in css/sotb.css to avoid duplication.
+/* Loading spinner + skeleton (uses keyframes defined below)
 */
 .spinner {
   width: 16px;
   height: 16px;
   border-radius: 50%;
   box-sizing: border-box;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(217, 172, 94, 0.15);
   border-top-color: var(--accent);
   animation: spin 1s linear infinite;
   display: inline-block;
@@ -374,7 +460,7 @@ body.light .spinner {
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: rgba(11, 18, 32, 0.3);
+  background: rgba(15, 10, 7, 0.3);
   border: 1px solid var(--card-border);
   border-radius: 8px;
 }
@@ -386,7 +472,7 @@ body.light .spinner {
   top: 0;
   bottom: 0;
   width: 150px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  background: linear-gradient(90deg, transparent, rgba(217, 172, 94, 0.08), transparent);
   animation: loading-shimmer 1.5s infinite;
 }
 
@@ -397,7 +483,7 @@ body.light .spinner {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(8, 5, 3, 0.78);
   backdrop-filter: blur(4px);
   z-index: 9999;
   display: none;
@@ -417,7 +503,7 @@ body.light .spinner {
   gap: 20px;
   background: var(--card);
   padding: 40px 60px;
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid var(--card-border);
   box-shadow: var(--shadow-lg);
 }
@@ -426,7 +512,7 @@ body.light .spinner {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  border: 4px solid rgba(255, 255, 255, 0.1);
+  border: 4px solid rgba(217, 172, 94, 0.15);
   border-top-color: var(--accent);
   animation: spin 0.8s linear infinite;
 }
@@ -473,7 +559,7 @@ input[type="text"],
 input[type="file"],
 textarea,
 select {
-  background: rgba(30, 36, 51, 0.6);
+  background: rgba(36, 26, 20, 0.6);
   border: 1px solid var(--card-border);
   border-radius: 8px;
   padding: 10px 12px;
@@ -488,13 +574,30 @@ textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--btn);
-  box-shadow: 0 0 0 3px rgba(59, 143, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(184, 118, 58, 0.2);
   background: var(--card-hover);
 }
 
 input[type="text"]::placeholder,
 textarea::placeholder {
   color: var(--muted);
+}
+
+input[type="file"]::file-selector-button {
+  background: linear-gradient(135deg, var(--btn), var(--accent-dim));
+  color: #2a1c10;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin-right: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background: linear-gradient(135deg, var(--btn-hover), var(--accent));
 }
 
 label {

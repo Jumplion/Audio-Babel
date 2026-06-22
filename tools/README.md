@@ -12,7 +12,7 @@ Files added
 - `clean.ps1` / `clean.sh` - Clean build artifacts. Pass `-RemoveDir` (PowerShell) or `--remove` (bash) to delete the build directory.
 - `run-clang-tidy.ps1` / `run-clang-tidy.sh` - Run clang-tidy (and clang-format on PowerShell) over the C++ sources.
 - `run_performance.ps1` / `run_performance.sh` - Build (Release) and run the performance benchmark suite.
-- `serve-docs.ps1` - Serve the static `docs/` site locally for preview (Windows only; no bash equivalent — use `python3 -m http.server --directory docs` on Linux/WSL).
+- `serve-docs.ps1` / `serve-docs.sh` - Serve the static `docs/` site locally for preview, optionally on a custom port, and open it in the default browser.
 
 Usage (PowerShell)
 
@@ -27,6 +27,7 @@ Open a shell in the repository root and run, for example:
 
     ./tools/bash/build.sh Debug "Unix Makefiles" build
     ./tools/bash/run_tests.sh build unit
+    ./tools/bash/serve-docs.sh
 
 Notes
 

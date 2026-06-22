@@ -250,7 +250,7 @@ To preview it locally:
 ```
 
 ```bash
-python3 -m http.server --directory docs      # Linux / WSL (no bash equivalent script)
+./tools/bash/serve-docs.sh                   # Linux / WSL / msys, serves docs/ on http://localhost:3000
 ```
 
 | Page | Purpose |

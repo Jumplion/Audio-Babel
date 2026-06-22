@@ -96,8 +96,24 @@
             <!-- Track Selection -->
             <section id="trackSection" class="nav-section" style="display: none;">
                 <h2>Select a Track</h2>
-                <div id="tracksContainer" class="tracks-container">
-                    <!-- 15 tracks will be generated here -->
+
+                <div class="gatefold-stage" id="gatefoldStage">
+                    <div class="gatefold-spine"></div>
+                    <div class="record" id="record"></div>
+
+                    <div class="cover-square cover-right" id="coverRight">
+                        <img id="coverArt" class="cover-art" alt="Generated album cover art" />
+                        <div class="cover-caption" id="coverCaption"></div>
+                    </div>
+
+                    <div class="cover-square gate-leaf" id="gateLeaf">
+                        <div class="leaf-face">
+                            <h3>Tracks</h3>
+                            <div id="tracksContainer" class="tracks-container">
+                                <!-- 15 tracks will be generated here -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 

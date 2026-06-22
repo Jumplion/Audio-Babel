@@ -22,6 +22,15 @@
     color: var(--text);
 }
 
+/* Attribution for the track section's waveform widget, shown once below the
+   whole gatefold rather than crammed into the track-detail panel. */
+.track-section-subtitle {
+    margin: 16px 0 0;
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align: center;
+}
+
 /* Room input */
 .input-row {
     display: flex;
@@ -272,18 +281,20 @@
 }
 
 /* ---------- Gatefold album/track selector ----------
-   Front cover stays fixed at rest on the right of the seam, showing the
-   real generated album art. The inner leaf is hinged at the seam (its own
-   right edge) and is rotated edge-on (collapsed to a sliver) while closed,
-   tucked behind the front cover; browse.js adds .open shortly after the
-   section appears to swing it flat, revealing the track list. The record
-   sits on the seam and slides further right as the album opens, ending up
-   half-overlapping the front cover. */
+   Front cover ("sleeve") stays fixed at rest on the right of the seam,
+   showing the real generated album art. The inner leaf is hinged at the
+   seam (its own right edge) and is rotated edge-on (collapsed to a sliver)
+   while closed, tucked behind the front cover; browse.js adds .open shortly
+   after the section appears to swing it flat, revealing the track list. The
+   record sits on the seam and slides onto the sleeve as the album opens,
+   covering its left portion. Once a track is picked, the sleeve's album art
+   is replaced by that track's info + waveform (see .track-detail below),
+   fading in to the right of the record rather than replacing the selector. */
 .gatefold-stage {
     position: relative;
-    width: 560px;
+    width: 700px;
     max-width: 100%;
-    height: 280px;
+    height: 350px;
     margin: 24px auto;
     perspective: 1600px;
 }
@@ -302,8 +313,8 @@
 .cover-square {
     position: absolute;
     top: 0;
-    width: 280px;
-    height: 280px;
+    width: 350px;
+    height: 350px;
     border-radius: 4px;
     box-shadow: var(--shadow-lg);
     backface-visibility: hidden;
@@ -336,6 +347,32 @@
     line-height: 1.4;
     color: var(--text-dim);
     background: linear-gradient(180deg, transparent, rgba(10, 6, 3, 0.8));
+}
+
+/* Selected track's metadata + waveform — overlays the sleeve in place of the
+   album art and fades in (see browse.js showTrackDetail), leaving room on
+   the right for its content since the record covers the sleeve's left side. */
+.track-detail {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    padding: 16px 16px 16px 125px;
+    opacity: 0;
+    background: linear-gradient(160deg, #2d2119, #1b140f);
+    color: var(--text);
+    overflow: hidden;
+    transition: opacity 0.45s ease;
+}
+
+.track-detail.visible {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .track-detail {
+        transition: none !important;
+    }
 }
 
 .gate-leaf {
@@ -380,7 +417,7 @@
             rgba(20, 14, 10, 0.92) 9px);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
     transition: transform 0.85s cubic-bezier(0.22, 0.85, 0.32, 1);
-    transform: translate(calc(-50% - 70px), -50%);
+    transform: translate(calc(-50% - 90px), -50%);
 }
 
 .record::after {
@@ -396,6 +433,8 @@
     box-shadow: inset 0 0 0 4px rgba(20, 14, 10, 0.85);
 }
 
+/* Lands on the sleeve's left portion, leaving its right side clear for
+   the track-detail panel's content. */
 .gatefold-stage.open .record {
     transform: translate(calc(-50% + 20px), -50%);
 }
@@ -412,6 +451,8 @@
    (wall/shelf/album/track) is shown, growing out of the spot that was clicked. */
 .browse .card {
     perspective: 1000px;
+    /* Wider than the default .card so the 640px gatefold has room to breathe */
+    max-width: 760px;
 }
 
 .nav-section.zoom-reveal {
@@ -443,9 +484,91 @@
     color: var(--text);
 }
 
-/* Result container */
+/* Result container — lives inside .track-detail on the sleeve; restyled
+   into a compact stack (track name, index, waveform, play/download) since
+   the breadcrumb above already shows room/wall/shelf/album/track position. */
 #resultContainer {
-    padding: 16px;
+    height: 100%;
+}
+
+.browse #result {
+    /* !important needed: resultDisplay.js sets style.display="block" inline
+       once content is populated, which would otherwise beat this rule */
+    display: flex !important;
+    flex-direction: column;
+    height: 100%;
+}
+
+.browse #result > h3,
+.browse #positionInfo {
+    display: none;
+}
+
+.browse #metadata {
+    order: -2;
+    display: block;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0 0 4px;
+}
+
+.browse #coverImg,
+.browse .metadata-clearfix,
+.browse .meta-genre,
+.browse .meta-artist,
+.browse .meta-album {
+    display: none;
+}
+
+.browse .meta-track strong {
+    display: none;
+}
+
+.browse .meta-track {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.browse #indexDisplay {
+    order: -1;
+    margin: 0 0 10px;
+    font-size: 11px;
+    white-space: normal;
+    word-break: break-all;
+}
+
+.browse #waveformContainer {
+    order: 1;
+    flex: 1;
+    margin-bottom: 10px;
+    min-height: 140px;
+}
+
+.browse .audio-actions {
+    order: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.browse .play-row,
+.browse .download-row {
+    margin: 0;
+}
+
+.browse .play-row sub {
+    display: none;
+}
+
+.browse .audio-actions .btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    min-width: unset !important;
+    white-space: nowrap;
 }
 
 /* Responsive adjustments */
@@ -479,11 +602,24 @@
     .record {
         width: 120px;
         height: 120px;
-        transform: translate(calc(-50% - 40px), -50%);
+        transform: translate(calc(-50% - 50px), -50%);
     }
 
     .gatefold-stage.open .record {
-        transform: translate(calc(-50% + 12px), -50%);
+        transform: translate(calc(-50% + 18px), -50%);
+    }
+
+    .track-detail {
+        padding: 12px 12px 12px 78px;
+    }
+
+    .browse .meta-track {
+        font-size: 14px;
+    }
+
+    .browse #indexDisplay {
+        font-size: 10px;
+        margin-bottom: 8px;
     }
 
     .leaf-face h3 {

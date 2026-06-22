@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Audio Babel — Browse</title>
     <link rel="stylesheet" href="./css/site.css" />
-    <link rel="stylesheet" href="./css/browse.css" />
-    <link rel="stylesheet" href="./css/result.css" />
+    <link rel="stylesheet" href="./css/browse.css?v=2" />
+    <link rel="stylesheet" href="./css/result.css?v=2" />
 </head>
 
 <body class="browse">
@@ -104,6 +104,11 @@
                     <div class="cover-square cover-right" id="coverRight">
                         <img id="coverArt" class="cover-art" alt="Generated album cover art" />
                         <div class="cover-caption" id="coverCaption"></div>
+
+                        <!-- Selected track's info + waveform fade in here, replacing the album art -->
+                        <div class="track-detail" id="trackDetail">
+                            <div id="resultContainer"></div>
+                        </div>
                     </div>
 
                     <div class="cover-square gate-leaf" id="gateLeaf">
@@ -115,12 +120,10 @@
                         </div>
                     </div>
                 </div>
-            </section>
 
-            <!-- Result Display -->
-            <section id="resultSection" class="nav-section" style="display: none;">
-                <h2>Track Details</h2>
-                <div id="resultContainer"></div>
+                <p class="track-section-subtitle">
+                    Utilizing <a href="https://wavesurfer.xyz/" target="_blank" rel="noopener">WaveSurfer.js</a> for waveform visualization and playback
+                </p>
             </section>
 
         </main>
@@ -128,7 +131,7 @@
 
     <!-- IMPORTANT: main.js must load FIRST to enable client-side API before browse.js makes fetch calls -->
     <script type="module" src="./js/pages/main.js?v=5"></script>
-    <script type="module" src="./js/pages/browse.js?v=5"></script>
+    <script type="module" src="./js/pages/browse.js?v=6"></script>
     <script type="module">
         import { loadFragment } from './js/ui/loadFragment.js';
         import { highlightActiveNav } from './js/ui/nav.js';

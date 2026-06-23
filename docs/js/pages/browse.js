@@ -95,7 +95,9 @@ function updateBreadcrumb() {
     if (navState.room !== null) {
         const link = document.createElement('a');
         link.href = '#';
+        link.className = 'breadcrumb-room';
         link.textContent = `Room ${navState.room}`;
+        link.title = link.textContent;
         link.addEventListener('click', (e) => {
             e.preventDefault();
             goToRoom(e);

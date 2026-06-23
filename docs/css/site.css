@@ -346,13 +346,29 @@ small {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   margin-bottom: 20px;
   padding: 12px 16px;
   background: rgba(36, 26, 20, 0.4);
   border: 1px solid var(--card-border);
   border-radius: 8px;
   font-size: 15px;
+}
+
+#breadcrumb > * {
+  flex-shrink: 0;
+}
+
+/* The room name is the one crumb that can be arbitrarily long — truncate it
+   so the rest of the trail (wall/shelf/album/track) stays on one row. */
+#breadcrumb .breadcrumb-room {
+  flex-shrink: 1;
+  min-width: 40px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #breadcrumb:empty {

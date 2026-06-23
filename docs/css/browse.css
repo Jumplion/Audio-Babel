@@ -325,7 +325,10 @@
     left: 50%;
     background: linear-gradient(160deg, #2d2119, #1b140f);
     border: 1px solid var(--card-border);
-    z-index: 1;
+    /* Above the record: covers its right side, as if it's still tucked
+       inside the sleeve there, while the record's left side (over the
+       tracks panel, z-index 4) stays on top. */
+    z-index: 5;
     overflow: hidden;
     cursor: pointer;
 }
@@ -350,14 +353,16 @@
 }
 
 /* Selected track's metadata + waveform — overlays the sleeve in place of the
-   album art and fades in (see browse.js showTrackDetail), leaving room on
-   the right for its content since the record covers the sleeve's left side. */
+   album art and fades in (see browse.js showTrackDetail). It can use the
+   sleeve's full width: the sleeve's z-index (5) sits above the record (4),
+   so the record never visibly shows through this panel even though it
+   geometrically overlaps it — no need to pad around it. */
 .track-detail {
     position: absolute;
     inset: 0;
     display: none;
     flex-direction: column;
-    padding: 16px 16px 16px 125px;
+    padding: 16px;
     opacity: 0;
     background: linear-gradient(160deg, #2d2119, #1b140f);
     color: var(--text);
@@ -401,6 +406,10 @@
     color: var(--accent);
 }
 
+/* z-index above the leaf (tracks panel) so the record visibly slides out
+   over it on the left, but below the sleeve (z-index 5) on the right, so
+   it reads as still tucked inside the sleeve there. Fully opaque so
+   nothing behind it — leaf or sleeve — ever shows through. */
 .record {
     position: absolute;
     top: 50%;
@@ -408,16 +417,17 @@
     width: 210px;
     height: 210px;
     border-radius: 50%;
-    z-index: 2;
+    z-index: 4;
     background:
         repeating-radial-gradient(circle,
-            rgba(0, 0, 0, 0.55) 0px,
-            rgba(0, 0, 0, 0.55) 2px,
-            rgba(20, 14, 10, 0.92) 3px,
-            rgba(20, 14, 10, 0.92) 9px);
+            rgb(0, 0, 0) 0px,
+            rgb(0, 0, 0) 2px,
+            rgb(20, 14, 10) 3px,
+            rgb(20, 14, 10) 9px);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
     transition: transform 0.85s cubic-bezier(0.22, 0.85, 0.32, 1);
-    transform: translate(calc(-50% - 90px), -50%);
+    /* Rests tucked inside the sleeve (right) until the gatefold opens. */
+    transform: translate(calc(-50% + 90px), -50%);
 }
 
 .record::after {
@@ -433,10 +443,10 @@
     box-shadow: inset 0 0 0 4px rgba(20, 14, 10, 0.85);
 }
 
-/* Lands on the sleeve's left portion, leaving its right side clear for
-   the track-detail panel's content. */
+/* Exits the sleeve toward the left, landing mostly over the tracks panel
+   (it's fine for it to cover part of the track list/scrollbar there). */
 .gatefold-stage.open .record {
-    transform: translate(calc(-50% + 20px), -50%);
+    transform: translate(calc(-50% - 20px), -50%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -497,6 +507,10 @@
     display: flex !important;
     flex-direction: column;
     height: 100%;
+    /* result.css's margin-top:24px is meant for the search page's layout;
+       here it would push content past the panel's bottom edge, getting
+       clipped by .cover-right's overflow:hidden. */
+    margin-top: 0;
 }
 
 .browse #result > h3,
@@ -529,21 +543,22 @@
     font-size: 18px;
     font-weight: 700;
     color: var(--accent);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .browse #indexDisplay {
-    order: -1;
-    margin: 0 0 10px;
-    font-size: 11px;
-    white-space: normal;
-    word-break: break-all;
+    display: none;
 }
 
 .browse #waveformContainer {
     order: 1;
     flex: 1;
-    margin-bottom: 10px;
-    min-height: 140px;
+    width: 92%;
+    margin: 0 auto 10px;
+    min-height: 170px;
 }
 
 .browse .audio-actions {
@@ -591,39 +606,62 @@
     }
 
     .gatefold-stage {
-        height: 160px;
+        height: 290px;
     }
 
     .cover-square {
         width: 160px;
-        height: 160px;
+        height: 290px;
     }
 
     .record {
         width: 120px;
         height: 120px;
-        transform: translate(calc(-50% - 50px), -50%);
+        transform: translate(calc(-50% + 50px), -50%);
     }
 
     .gatefold-stage.open .record {
-        transform: translate(calc(-50% + 18px), -50%);
+        transform: translate(calc(-50% - 18px), -50%);
     }
 
     .track-detail {
-        padding: 12px 12px 12px 78px;
+        padding: 12px;
+    }
+
+    .browse #waveformContainer {
+        min-height: 110px;
+        width: 96%;
+    }
+
+    /* The sleeve is too narrow on mobile to fit Play and Download
+       side by side without clipping — stack them and let their labels
+       wrap instead of forcing a single line that runs past the edge. */
+    .browse .audio-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+
+    .browse .audio-actions .btn {
+        white-space: normal;
+        text-align: center;
+        font-size: 11px;
+        padding: 6px 8px;
     }
 
     .browse .meta-track {
         font-size: 14px;
     }
 
-    .browse #indexDisplay {
-        font-size: 10px;
-        margin-bottom: 8px;
-    }
-
     .leaf-face h3 {
         font-size: 14px;
+    }
+
+    /* The tracks list can scroll taller than the shrunk mobile gatefold
+       (see .tracks-container's max-height), so it overflows the stage's
+       box — push the subtitle below it instead of letting them collide. */
+    .track-section-subtitle {
+        margin-top: 130px;
     }
 
     .input-row {

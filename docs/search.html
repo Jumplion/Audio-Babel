@@ -58,6 +58,41 @@
                         </button>
                     </div>
                 </div>
+
+                <details class="advanced-options" id="advancedOptions">
+                    <summary>
+                        <svg class="icon-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                        Advanced Options
+                    </summary>
+                    <div class="advanced-options-content">
+                        <div class="option-field">
+                            <label for="bitDepthSelect">Bit Depth</label>
+                            <select id="bitDepthSelect">
+                                <option value="8">8-bit</option>
+                                <option value="16" selected>16-bit</option>
+                                <option value="32">32-bit</option>
+                            </select>
+                        </div>
+                        <div class="option-field">
+                            <label for="sampleRateSelect">Sample Rate</label>
+                            <select id="sampleRateSelect">
+                                <option value="8000">8,000 Hz</option>
+                                <option value="11025">11,025 Hz</option>
+                                <option value="16000">16,000 Hz</option>
+                                <option value="22050">22,050 Hz</option>
+                                <option value="32000">32,000 Hz</option>
+                                <option value="44100" selected>44,100 Hz</option>
+                                <option value="48000">48,000 Hz</option>
+                                <option value="88200">88,200 Hz</option>
+                                <option value="96000">96,000 Hz</option>
+                                <option value="176400">176,400 Hz</option>
+                                <option value="192000">192,000 Hz</option>
+                            </select>
+                        </div>
+                    </div>
+                </details>
             </section>
 
             <div id="resultContainer"></div>

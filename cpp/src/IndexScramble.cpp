@@ -18,27 +18,14 @@ namespace {
     // Number of Feistel rounds. Four rounds give full avalanche across the band.
     constexpr int FEISTEL_ROUNDS = 4;
 
-    // A small, fast bit mixer (one SplitMix64 step on a running state).
-    // Source: Steele, Lea & Flood, "Fast Splittable Pseudorandom Number
-    // Generators" (OOPSLA 2014) — https://gee.cs.oswego.edu/dl/papers/oopsla14.pdf
-    inline void mixIn(uint64_t& state, uint8_t x) {
-        state += x + 0x9E3779B97F4A7C15ULL;
-        state = (state ^ (state >> 30)) * 0xBF58476D1CE4E5B9ULL;
-        state = (state ^ (state >> 27)) * 0x94D049BB133111EBULL;
-        state ^= state >> 31;
-    }
-
-    inline auto splitmix64(uint64_t& state) -> uint64_t {
-        uint64_t z = (state += 0x9E3779B97F4A7C15ULL);
-        z          = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
-        z          = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
-        return z ^ (z >> 31);
-    }
-
-    // bandIndex() and repunit() (length recovery and the base-B repunit) are
-    // shared with Index's payload bijection — see Utilities.h.
+    // bandIndex()/repunit() (length recovery and the base-B repunit) and
+    // mixIn()/splitmix64() (the avalanche bit mixer) are shared with Index's
+    // payload bijection and IndexNaming's cosmetic name generation — see
+    // Utilities.h.
     using AudioBabel::Utilities::bandIndex;
+    using AudioBabel::Utilities::mixIn;
     using AudioBabel::Utilities::repunit;
+    using AudioBabel::Utilities::splitmix64;
 
     // Per-round key derived from the seed, band and round index.
     auto roundKey(uint64_t seed, size_t L, int round) -> uint64_t {

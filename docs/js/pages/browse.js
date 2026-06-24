@@ -19,7 +19,16 @@ const navState = {
     wall: null,
     shelf: null,
     album: null,
-    track: null
+    track: null,
+    // Cosmetic names for the currently-rendered sibling group at each level,
+    // cached as they're fetched so the breadcrumb can show them without an
+    // extra WASM round-trip. shelfNames are artist names (shelf level),
+    // matching docs/browse.html's wall=genre/shelf=artist hierarchy. The
+    // internal field names stay wall/shelf for brevity; user-facing text
+    // (breadcrumb, section headers, hexagon tooltips) shows "Genre"/"Artist".
+    shelfNames: null,
+    albumNames: null,
+    trackNames: null
 };
 
 /**
@@ -108,7 +117,7 @@ function updateBreadcrumb() {
     if (navState.wall !== null) {
         const link = document.createElement('a');
         link.href = '#';
-        link.textContent = `Wall ${navState.wall}`;
+        link.textContent = `Genre ${navState.wall}`;
         link.addEventListener('click', (e) => {
             e.preventDefault();
             goToWall(e);
@@ -119,28 +128,31 @@ function updateBreadcrumb() {
     if (navState.shelf !== null) {
         const link = document.createElement('a');
         link.href = '#';
-        link.textContent = `Shelf ${navState.shelf}`;
+        const shelfName = navState.shelfNames?.[navState.shelf];
+        link.textContent = shelfName ? `Artist ${navState.shelf} — ${shelfName}` : `Artist ${navState.shelf}`;
         link.addEventListener('click', (e) => {
             e.preventDefault();
             goToShelf(e);
         });
         parts.push(link);
     }
-    
+
     if (navState.album !== null) {
         const link = document.createElement('a');
         link.href = '#';
-        link.textContent = `Album ${navState.album}`;
+        const albumName = navState.albumNames?.[navState.album];
+        link.textContent = albumName ? `Album ${navState.album} — ${albumName}` : `Album ${navState.album}`;
         link.addEventListener('click', (e) => {
             e.preventDefault();
             goToAlbum(e);
         });
         parts.push(link);
     }
-    
+
     if (navState.track !== null) {
         const span = document.createElement('span');
-        span.textContent = `Track ${navState.track}`;
+        const trackName = navState.trackNames?.[navState.track];
+        span.textContent = trackName ? `Track ${navState.track} — ${trackName}` : `Track ${navState.track}`;
         span.style.fontWeight = '600';
         parts.push(span);
     }
@@ -351,6 +363,32 @@ function enterRoom(originEvent = null) {
 
     showSection('wallSection', originEvent);
     updateBreadcrumb();
+    updateWallTooltips();
+}
+
+/**
+ * Label each wall hexagon segment with its genre name: a native title
+ * tooltip plus an in-hexagon text label that fades in on hover/focus, the
+ * same opacity-reveal treatment .album-number gets for albums (see
+ * .wall-genre-label in browse.css). Fire-and-forget — the hexagon is fully
+ * usable before the names arrive.
+ */
+async function updateWallTooltips() {
+    if (navState.room === null) return;
+    try {
+        const wasm = await getWasmModule();
+        const raw = JSON.parse(wasm.module.getGenreNames(navState.room.toString()));
+        if (!Array.isArray(raw)) throw new Error(raw.error || 'Failed to load genre names');
+        document.querySelectorAll('.wall').forEach(wall => {
+            const wallNum = parseInt(wall.dataset.wall, 10);
+            if (!raw[wallNum]) return;
+            wall.setAttribute('title', raw[wallNum]);
+            const label = document.querySelector(`.wall-genre-label[data-wall="${wallNum}"]`);
+            if (label) label.textContent = raw[wallNum];
+        });
+    } catch (err) {
+        console.error('Failed to load genre names', err);
+    }
 }
 
 /**
@@ -393,11 +431,27 @@ function renderButtons(containerId, count, className, clickHandler, labelFn = (i
 }
 
 /**
- * Render the shelves for the current wall
- * Creates numbered buttons (0-4) for shelf selection
+ * Render the shelves ("longboxes") for the current wall
+ * Fetches each shelf's artist name (shelf level, per docs/browse.html's
+ * wall=genre/shelf=artist hierarchy) and labels the buttons with it instead
+ * of a bare index.
  */
-function renderShelves() {
-    renderButtons('shelvesContainer', SHELVES_PER_WALL, 'shelf-btn', selectShelf);
+async function renderShelves() {
+    const container = $('shelvesContainer');
+    if (container) container.innerHTML = ''; // clear stale buttons while names load
+
+    let names = [];
+    try {
+        const wasm = await getWasmModule();
+        const raw = JSON.parse(wasm.module.getArtistNames(navState.room.toString(), navState.wall));
+        if (!Array.isArray(raw)) throw new Error(raw.error || 'Failed to load shelf names');
+        names = raw;
+    } catch (err) {
+        console.error('Failed to load shelf (artist) names', err);
+    }
+
+    navState.shelfNames = names;
+    renderButtons('shelvesContainer', SHELVES_PER_WALL, 'shelf-btn', selectShelf, (i) => names[i] ?? `${i}`);
 }
 
 /**
@@ -419,24 +473,39 @@ function selectShelf(shelfNum, originEvent = null) {
 
 /**
  * Render the albums for the current shelf
- * Creates album "spine" buttons (0-31); each shows its number only on hover/focus
- * (see .album-number in browse.css), evoking a long box of records flipped through sideways.
+ * Creates album "spine" buttons (0-31); each shows its generated album name
+ * only on hover/focus (see .album-number in browse.css), evoking a long box
+ * of records flipped through sideways.
  */
-function renderAlbums() {
+async function renderAlbums() {
     const container = $('albumsContainer');
     if (!container) return;
 
-    container.innerHTML = '';
+    container.innerHTML = ''; // clear stale buttons while names load
 
+    let names = [];
+    try {
+        const wasm = await getWasmModule();
+        const raw = JSON.parse(wasm.module.getAlbumNames(navState.room.toString(), navState.wall, navState.shelf));
+        if (!Array.isArray(raw)) throw new Error(raw.error || 'Failed to load album names');
+        names = raw;
+    } catch (err) {
+        console.error('Failed to load album names', err);
+    }
+    navState.albumNames = names;
+
+    container.innerHTML = '';
     for (let i = 0; i < ALBUMS_PER_SHELF; i++) {
+        const name = names[i] ?? `${i}`;
+
         const btn = document.createElement('button');
         btn.className = 'album-btn';
-        btn.setAttribute('aria-label', `Album ${i}`);
+        btn.setAttribute('aria-label', `Album ${name}`);
 
-        const numberSpan = document.createElement('span');
-        numberSpan.className = 'album-number';
-        numberSpan.textContent = i;
-        btn.appendChild(numberSpan);
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'album-number';
+        labelSpan.textContent = name;
+        btn.appendChild(labelSpan);
 
         btn.addEventListener('click', (e) => selectAlbum(i, e));
         container.appendChild(btn);
@@ -462,10 +531,25 @@ function selectAlbum(albumNum, originEvent = null) {
 
 /**
  * Render the tracks for the current album
- * Creates numbered buttons (0-14) labeled "Track N" for track selection
+ * Fetches each track's generated name and labels the buttons with it
+ * instead of a bare index.
  */
-function renderTracks() {
-    renderButtons('tracksContainer', TRACKS_PER_ALBUM, 'track-btn', selectTrack, (i) => `Track ${i}`);
+async function renderTracks() {
+    const container = $('tracksContainer');
+    if (container) container.innerHTML = ''; // clear stale buttons while names load
+
+    let names = [];
+    try {
+        const wasm = await getWasmModule();
+        const raw = JSON.parse(wasm.module.getTrackNames(navState.room.toString(), navState.wall, navState.shelf, navState.album));
+        if (!Array.isArray(raw)) throw new Error(raw.error || 'Failed to load track names');
+        names = raw;
+    } catch (err) {
+        console.error('Failed to load track names', err);
+    }
+
+    navState.trackNames = names;
+    renderButtons('tracksContainer', TRACKS_PER_ALBUM, 'track-btn', selectTrack, (i) => names[i] ?? `${i}`);
 }
 
 /**

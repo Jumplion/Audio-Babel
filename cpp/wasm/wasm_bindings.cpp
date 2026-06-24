@@ -14,7 +14,9 @@
  * - encodeIndex: Encode raw PCM bytes into a bijective base64 index string
  * - calculateSize: Get the size of audio data for a given duration
  * - getLibraryConstants: Return library hierarchy constants as JSON
- * 
+ * - getGenreNames/getArtistNames/getAlbumNames/getTrackNames: Batch cosmetic
+ *   names for one sibling group at a time (see IndexNaming.h)
+ *
  * @see docs/js/core/indexWasm.js for JavaScript integration wrapper
  */
 
@@ -31,6 +33,7 @@
 
 #include "../include/Index.h"
 #include "../include/IndexMetadata.h"
+#include "../include/IndexNaming.h"
 #include "../include/LibraryPosition.h"
 #include "../include/Utilities.h"
 
@@ -92,6 +95,17 @@ static std::string jsonStringField(const std::string& key, const std::string& va
 // Render a single `"key":<number>` JSON field.
 static std::string jsonNumberField(const std::string& key, long long value) {
     return "\"" + key + "\":" + std::to_string(value);
+}
+
+// Render a JSON array of strings: ["a","b",...]
+static std::string jsonStringArray(const std::vector<std::string>& values) {
+    std::string json = "[";
+    for (size_t i = 0; i < values.size(); ++i) {
+        if (i > 0) json += ",";
+        json += "\"" + escapeJsonString(values[i]) + "\"";
+    }
+    json += "]";
+    return json;
 }
 
 // Direct embind-compatible functions returning std::string / emscripten::val.
@@ -224,6 +238,43 @@ static std::string getLibraryConstantsWrapper() {
     return json;
 }
 
+/**
+ * Batch name generators for the browse UI — one call per rendered level
+ * instead of one getMetadata() call per sibling. Each returns a JSON array
+ * of names ordered by slot, or a JSON error object on invalid input.
+ */
+static std::string getGenreNamesWrapper(const std::string& roomStr) {
+    try {
+        return jsonStringArray(IndexNaming::genreNames(roomStr));
+    } catch (const std::exception& e) {
+        return makeJsonError(e.what());
+    }
+}
+
+static std::string getArtistNamesWrapper(const std::string& roomStr, int wall) {
+    try {
+        return jsonStringArray(IndexNaming::artistNames(roomStr, static_cast<uint8_t>(wall)));
+    } catch (const std::exception& e) {
+        return makeJsonError(e.what());
+    }
+}
+
+static std::string getAlbumNamesWrapper(const std::string& roomStr, int wall, int shelf) {
+    try {
+        return jsonStringArray(IndexNaming::albumNames(roomStr, static_cast<uint8_t>(wall), static_cast<uint8_t>(shelf)));
+    } catch (const std::exception& e) {
+        return makeJsonError(e.what());
+    }
+}
+
+static std::string getTrackNamesWrapper(const std::string& roomStr, int wall, int shelf, int album) {
+    try {
+        return jsonStringArray(IndexNaming::trackNames(roomStr, static_cast<uint8_t>(wall), static_cast<uint8_t>(shelf), static_cast<uint8_t>(album)));
+    } catch (const std::exception& e) {
+        return makeJsonError(e.what());
+    }
+}
+
 // Embind bindings for class-based API
 using namespace emscripten;
 
@@ -240,4 +291,10 @@ EMSCRIPTEN_BINDINGS(audio_index_module) {
 
     // Library hierarchy constants (R5 — avoids manual duplication in JS)
     function("getLibraryConstants", &getLibraryConstantsWrapper);
+
+    // Batch cosmetic-name generators for the browse UI
+    function("getGenreNames", &getGenreNamesWrapper);
+    function("getArtistNames", &getArtistNamesWrapper);
+    function("getAlbumNames", &getAlbumNamesWrapper);
+    function("getTrackNames", &getTrackNamesWrapper);
 }

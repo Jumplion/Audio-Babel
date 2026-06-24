@@ -164,8 +164,8 @@ export async function handleJsonResponse(j, originalIndexB64) {
       positionDisplay.innerHTML = `
         <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px;">
           <span><strong>Room:</strong> <code style="font-size: 13px;">${escapeHtml(roomDisplay)}</code></span>
-          <span><strong>Wall:</strong> ${escapeHtml(position.wall)}</span>
-          <span><strong>Shelf:</strong> ${escapeHtml(position.shelf)}</span>
+          <span><strong>Genre:</strong> ${escapeHtml(position.wall)}</span>
+          <span><strong>Artist:</strong> ${escapeHtml(position.shelf)}</span>
           <span><strong>Album:</strong> ${escapeHtml(position.album)}</span>
           <span><strong>Track:</strong> ${escapeHtml(position.track)}</span>
         </div>

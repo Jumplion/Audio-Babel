@@ -83,6 +83,26 @@ inline auto bandIndex(const boost::multiprecision::cpp_int& n) -> size_t {
     return static_cast<size_t>(boost::multiprecision::msb(m) / DEFAULT_BIT_DEPTH);
 }
 
+// --- Avalanche bit-mixing primitives -----------------------------------------
+// A small, fast bit mixer (one SplitMix64 step on a running state).
+// Source: Steele, Lea & Flood, "Fast Splittable Pseudorandom Number
+// Generators" (OOPSLA 2014) — https://gee.cs.oswego.edu/dl/papers/oopsla14.pdf
+// Shared by IndexScramble's Feistel keying and IndexNaming's cosmetic name
+// generation — both need a cheap, well-diffused mixer over a running state.
+inline void mixIn(uint64_t& state, uint8_t x) {
+    state += x + 0x9E3779B97F4A7C15ULL;
+    state = (state ^ (state >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    state = (state ^ (state >> 27)) * 0x94D049BB133111EBULL;
+    state ^= state >> 31;
+}
+
+inline auto splitmix64(uint64_t& state) -> uint64_t {
+    uint64_t z = (state += 0x9E3779B97F4A7C15ULL);
+    z          = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    z          = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+    return z ^ (z >> 31);
+}
+
 // --- Base64 URL-safe utilities (alphabet A-Z a-z 0-9 - _, no padding) ---------
 // URL-safe base64 alphabet used by encoder/decoder (no padding)
 constexpr char BASE64_URL_ALPHA[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";

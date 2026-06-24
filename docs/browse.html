@@ -18,8 +18,8 @@
             <h1>Browse the Record Shop</h1>
             
             <p class="browse-intro">
-                Navigate through the infinite Record Shop. Each room contains 4 walls (genres), 
-                each wall has 5 shelves (artists), each shelf holds 32 albums, and each album has 15 tracks.
+                Navigate through the infinite Record Shop. Each room contains 4 genres,
+                each genre has 5 artists, each artist holds 32 albums, and each album has 15 tracks.
             </p>
 
             <nav id="breadcrumb" aria-label="Breadcrumb"></nav>
@@ -36,7 +36,7 @@
 
             <!-- Wall Selection (Hexagon) -->
             <section id="wallSection" class="nav-section" style="display: none;">
-                <h2>Select a Wall</h2>
+                <h2>Select a Genre</h2>
                 <div id="hexagonContainer" class="hexagon-container">
                     <svg viewBox="0 0 220 220" class="hexagon-svg">
                         <!-- Full hexagon outline -->
@@ -50,28 +50,32 @@
                         <!-- 6 trapezoid segments (thinner with larger inner hexagon) -->
                         <g id="wallGroup">
                             <!-- Top segment (Wall 0 - Blue) -->
-                            <polygon class="wall segment" data-wall="0" 
+                            <polygon class="wall segment" data-wall="0"
                                 points="110,20 190,65 165,80 110,55 55,80 30,65" />
-                            
+                            <text class="wall-genre-label" data-wall="0" x="110" y="61"></text>
+
                             <!-- Top-right segment (non-selectable) -->
-                            <polygon class="segment segment-disabled" 
+                            <polygon class="segment segment-disabled"
                                 points="190,65 190,155 165,140 165,80" />
-                            
+
                             <!-- Bottom-right segment (Wall 1 - Green) -->
-                            <polygon class="wall segment" data-wall="1" 
+                            <polygon class="wall segment" data-wall="1"
                                 points="190,155 110,200 110,165 165,140" />
-                            
+                            <text class="wall-genre-label" data-wall="1" x="144" y="165"></text>
+
                             <!-- Bottom segment (Wall 2 - Orange) -->
-                            <polygon class="wall segment" data-wall="2" 
+                            <polygon class="wall segment" data-wall="2"
                                 points="110,200 30,155 55,140 110,165" />
-                            
+                            <text class="wall-genre-label" data-wall="2" x="76" y="165"></text>
+
                             <!-- Bottom-left segment (non-selectable) -->
-                            <polygon class="segment segment-disabled" 
+                            <polygon class="segment segment-disabled"
                                 points="30,155 30,65 55,80 55,140" />
-                            
+
                             <!-- Top-left segment (Wall 3 - Purple) -->
-                            <polygon class="wall segment" data-wall="3" 
+                            <polygon class="wall segment" data-wall="3"
                                 points="30,65 110,20 110,55 55,80" />
+                            <text class="wall-genre-label" data-wall="3" x="76" y="55"></text>
                         </g>
                     </svg>
                 </div>
@@ -79,7 +83,7 @@
 
             <!-- Shelf Selection -->
             <section id="shelfSection" class="nav-section" style="display: none;">
-                <h2>Select a Shelf</h2>
+                <h2>Select an Artist</h2>
                 <div id="shelvesContainer" class="shelves-container">
                     <!-- 5 shelves will be generated here -->
                 </div>

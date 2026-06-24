@@ -291,6 +291,17 @@ small {
   filter: grayscale(30%);
 }
 
+/* Random — distinct accent color so it doesn't compete with .btn (Reconstruct) */
+.btn-random {
+  background: linear-gradient(135deg, #3f7d8c, #5fa3b0);
+  color: #0e2226;
+}
+
+.btn-random:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4c93a3, #74b6c2);
+  box-shadow: 0 4px 14px rgba(63, 125, 140, 0.45);
+}
+
 /* Secondary (ghost/outlined) action — for choices that shouldn't compete with .btn */
 .btn-secondary {
   display: inline-block;

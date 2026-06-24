@@ -5,9 +5,8 @@
  * reconstruct-from-index, generate-random, and upload-WAV actions.
  */
 
-import { generateFromIndex, generateRandom, uploadWav, attachSearchInputFilter } from './search.js';
+import { generateFromIndex, generateRandom, extractIndexFromWav, attachSearchInputFilter } from './search.js';
 import { handleJsonResponse } from '../core/resultDisplay.js';
-import { showValidationError } from '../utils/errorHandler.js';
 
 /**
  * Set loading state for the UI
@@ -20,8 +19,8 @@ function setLoading(on) {
   const msg = document.getElementById('statusMsg');
   const doSearchGenerate = document.getElementById('doSearchGenerate');
   const doRandomGenerate = document.getElementById('doRandomGenerate');
-  const doFileSearch = document.getElementById('doFileSearch');
-  const controls = [doSearchGenerate, doRandomGenerate, doFileSearch];
+  const fileInput = document.getElementById('fileInput');
+  const controls = [doSearchGenerate, doRandomGenerate, fileInput];
   const resultContainer = document.getElementById('resultContainer');
   const loadingOverlay = document.getElementById('loadingOverlay');
 
@@ -66,20 +65,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // Generate random index
   const doRandomGenerate = document.getElementById('doRandomGenerate');
   if (doRandomGenerate) {
-    doRandomGenerate.addEventListener('click', () => generateRandom(handleJsonResponse, setLoading));
+    doRandomGenerate.addEventListener('click', () => generateRandom(handleJsonResponse, setLoading, searchInput));
   }
 
-  // Upload WAV file
-  const fileInput = document.getElementById('fileInput');
-  const doFileSearch = document.getElementById('doFileSearch');
-  if (fileInput && doFileSearch) {
-    doFileSearch.addEventListener('click', async () => {
+  // Upload WAV file: derive its index and drop it straight into the index input
+  const clearFileBtn = document.getElementById('clearFileBtn');
+  if (fileInput && searchInput) {
+    fileInput.addEventListener('change', async () => {
       const file = fileInput.files?.[0];
-      if (!file) {
-        showValidationError('Please select a .wav file first');
-        return;
+      clearFileBtn?.toggleAttribute('hidden', !file);
+      if (file) {
+        await extractIndexFromWav(file, searchInput, setLoading);
       }
-      await uploadWav(file, handleJsonResponse, setLoading);
+    });
+
+    clearFileBtn?.addEventListener('click', () => {
+      fileInput.value = '';
+      clearFileBtn.setAttribute('hidden', '');
     });
   }
 });

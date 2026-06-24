@@ -3,8 +3,9 @@ import { getWasmModule } from '../core/wasmModule.js';
 import { buildResultForIndex } from '../utils/resultBuilder.js';
 import { indexToBase64 } from '../utils/base64.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
-import { handleJsonResponse, cleanupResultHandler } from '../core/resultDisplay.js?v=2';
+import { handleJsonResponse, cleanupResultHandler } from '../core/resultDisplay.js?v=3';
 import { filterToBase64UrlChars } from '../utils/validationUtils.js';
+import { consumeFindInLibraryTarget } from '../utils/findInLibrary.js';
 
 // Library hierarchy constants — loaded from WASM at init time (R5).
 // Fallbacks match the C++ LibraryConstants defaults.
@@ -709,6 +710,45 @@ async function generateAndDisplayTrack() {
 }
 
 /**
+ * Wait for the given number of milliseconds.
+ * @param {number} ms - Milliseconds to wait
+ * @returns {Promise<void>}
+ */
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Step through room -> genre -> artist -> album -> track one level at a
+ * time, replaying the same selection functions a clicking user would
+ * trigger so the existing reveal/gatefold animations play at each step.
+ * Used by the Search page's "Find in Library" button (see findInLibrary.js)
+ * to land a result's position directly inside the Browse hierarchy.
+ * @param {{room: string, wall: number, shelf: number, album: number, track: number}} target
+ */
+async function autoNavigateToPosition(target) {
+    showSection('roomSection');
+
+    const input = $('roomInput');
+    if (input) input.value = target.room ?? '';
+    await delay(400);
+
+    enterRoom();
+    await delay(700);
+
+    selectWall(target.wall);
+    await delay(700);
+
+    selectShelf(target.shelf);
+    await delay(700);
+
+    selectAlbum(target.album);
+    await delay(900);
+
+    await selectTrack(target.track);
+}
+
+/**
  * Initialize the browse page
  * Sets up event listeners for room input, wall selection, and navigation
  * Initializes the breadcrumb and shows the room selection section by default
@@ -775,9 +815,15 @@ function init() {
 
     // Initialize breadcrumb
     updateBreadcrumb();
-    
-    // Show room section by default
-    showSection('roomSection');
+
+    // If the Search page handed off a "Find in Library" target, auto-walk
+    // to it; otherwise show room selection as usual.
+    const pendingTarget = consumeFindInLibraryTarget();
+    if (pendingTarget) {
+        autoNavigateToPosition(pendingTarget);
+    } else {
+        showSection('roomSection');
+    }
 }
 
 console.info('browse.js (hierarchical) loaded');

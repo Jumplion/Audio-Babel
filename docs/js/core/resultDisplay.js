@@ -10,6 +10,7 @@ import { loadFragment } from '../ui/loadFragment.js';
 import { getWasmModule } from './wasmModule.js';
 import { escapeHtml, downloadBlob } from '../utils/dom.js';
 import { openIndexInNewTab } from './indexViewer.js';
+import { setFindInLibraryTarget } from '../utils/findInLibrary.js';
 import WaveSurfer from 'https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.esm.js';
 
 let resultFrag = null;
@@ -44,12 +45,29 @@ function truncateString(str, threshold = 30, partLength = Math.floor(threshold *
 }
 
 /**
+ * Pick a single cosmetic name out of a getXNames() JSON array response,
+ * falling back to the raw numeric index if the names couldn't be loaded.
+ * @param {string} namesJson - JSON array string returned by a getXNames() wasm call
+ * @param {number} index - Slot to pick (wall/shelf/album/track number)
+ * @returns {string} The name at that slot, or the index as a string
+ */
+function resolveCosmeticName(namesJson, index) {
+  try {
+    const names = JSON.parse(namesJson);
+    if (Array.isArray(names) && names[index]) return names[index];
+  } catch (e) {
+    // Fall through to the index fallback below
+  }
+  return String(index);
+}
+
+/**
  * Ensures the result fragment component is loaded.
  * Loads result.html fragment into #resultContainer on first call, then caches it.
  * @returns {Promise<Object>} Fragment helper object with get/getAll methods
  */
 export async function ensureResultFrag() {
-  if (!resultFrag) resultFrag = await loadFragment('#resultContainer', './components/result.html?v=2');
+  if (!resultFrag) resultFrag = await loadFragment('#resultContainer', './components/result.html?v=3');
   return resultFrag;
 }
 
@@ -159,20 +177,58 @@ export async function handleJsonResponse(j, originalIndexB64) {
       }
 
       // Truncate room display if it's too long
-      const roomDisplay = truncateString(position.room === "" ? "0" : position.room, 20, 8);
+      const room = position.room === "" ? "0" : position.room;
+      const roomDisplay = truncateString(room, 20, 8);
+
+      // Resolve the cosmetic Genre/Artist/Album/Track names for this position,
+      // using the same per-level naming calls the Browse page uses.
+      const genreName = resolveCosmeticName(wasm.module.getGenreNames(room), position.wall);
+      const artistName = resolveCosmeticName(wasm.module.getArtistNames(room, position.wall), position.shelf);
+      const albumName = resolveCosmeticName(wasm.module.getAlbumNames(room, position.wall, position.shelf), position.album);
+      const trackName = resolveCosmeticName(wasm.module.getTrackNames(room, position.wall, position.shelf, position.album), position.track);
 
       positionDisplay.innerHTML = `
-        <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px;">
-          <span><strong>Room:</strong> <code style="font-size: 13px;">${escapeHtml(roomDisplay)}</code></span>
-          <span><strong>Genre:</strong> ${escapeHtml(position.wall)}</span>
-          <span><strong>Artist:</strong> ${escapeHtml(position.shelf)}</span>
-          <span><strong>Album:</strong> ${escapeHtml(position.album)}</span>
-          <span><strong>Track:</strong> ${escapeHtml(position.track)}</span>
+        <div class="position-grid">
+          <div class="position-row">
+            <span class="position-field"><strong>Room:</strong> <code class="position-value">${escapeHtml(roomDisplay)}</code></span>
+          </div>
+          <div class="position-row">
+            <span class="position-field"><strong>Genre:</strong> <span class="position-value">${escapeHtml(genreName)}</span></span>
+            <span class="position-field"><strong>Artist:</strong> <span class="position-value">${escapeHtml(artistName)}</span></span>
+          </div>
+          <div class="position-row">
+            <span class="position-field"><strong>Album:</strong> <span class="position-value">${escapeHtml(albumName)}</span></span>
+            <span class="position-field"><strong>Track:</strong> <span class="position-value">${escapeHtml(trackName)}</span></span>
+          </div>
         </div>
       `;
+
+      // Only offer to jump into Browse from pages other than Browse itself —
+      // on Browse, the user is already standing at this exact position.
+      const findInLibraryBtn = frag.get('#findInLibraryBtn');
+      if (findInLibraryBtn) {
+        if (document.body.classList.contains('browse')) {
+          findInLibraryBtn.style.display = 'none';
+        } else {
+          findInLibraryBtn.style.display = '';
+          findInLibraryBtn.onclick = () => {
+            setFindInLibraryTarget({
+              room: position.room,
+              wall: position.wall,
+              shelf: position.shelf,
+              album: position.album,
+              track: position.track
+            });
+            window.location.href = './browse.html';
+          };
+        }
+      }
     } catch (error) {
       console.error('Error calculating position:', error);
       positionDisplay.textContent = 'Unable to calculate position';
+
+      const findInLibraryBtn = frag.get('#findInLibraryBtn');
+      if (findInLibraryBtn) findInLibraryBtn.style.display = 'none';
     }
   }
 

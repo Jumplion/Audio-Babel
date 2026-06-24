@@ -69,8 +69,9 @@ export async function generateFromIndex(inputEl, handleJsonResponse, setLoading)
  * encode path.
  * @param {Function} handleJsonResponse - Callback for handling response
  * @param {Function} setLoading - Callback for loading state
+ * @param {HTMLTextAreaElement} [inputEl] - Index input to populate with the generated index
  */
-export async function generateRandom(handleJsonResponse, setLoading) {
+export async function generateRandom(handleJsonResponse, setLoading, inputEl) {
   try {
     setLoading(true);
 
@@ -88,6 +89,12 @@ export async function generateRandom(handleJsonResponse, setLoading) {
       indexString += BASE64_URL_ALPHABET[randomIndices[i] % BASE64_URL_ALPHABET.length];
     }
 
+    if (inputEl) {
+      inputEl.value = indexString;
+      // Re-run the same filter/autosize/button-state listeners that fire on user input.
+      inputEl.dispatchEvent(new Event('input'));
+    }
+
     await renderIndex(indexString, handleJsonResponse);
   } catch (error) {
     handleError('search.js:generateRandom', error, error.message);
@@ -97,13 +104,14 @@ export async function generateRandom(handleJsonResponse, setLoading) {
 }
 
 /**
- * Upload a WAV file, derive its real index via WASM's encodeIndex, and
- * reconstruct/display it through the same pipeline as a pasted index.
- * @param {File} file - WAV file to upload
- * @param {Function} handleJsonResponse - Callback for handling response
+ * Derive a WAV file's real index via WASM's encodeIndex and populate the
+ * index input with it. Does not reconstruct/display audio — the user
+ * triggers that themselves via the Reconstruct button.
+ * @param {File} file - WAV file to derive the index from
+ * @param {HTMLTextAreaElement} inputEl - Index input to populate
  * @param {Function} setLoading - Callback for loading state
  */
-export async function uploadWav(file, handleJsonResponse, setLoading) {
+export async function extractIndexFromWav(file, inputEl, setLoading) {
   if (!file) {
     throw new Error('No file provided');
   }
@@ -117,9 +125,10 @@ export async function uploadWav(file, handleJsonResponse, setLoading) {
 
     const indexString = wasm.encodeIndexFromPcm(pcmData, sampleRate, bitDepth, numChannels);
 
-    await renderIndex(indexString, handleJsonResponse);
+    inputEl.value = indexString;
+    inputEl.dispatchEvent(new Event('input'));
   } catch (error) {
-    handleError('search.js:uploadWav', error, error.message);
+    handleError('search.js:extractIndexFromWav', error, error.message);
   } finally {
     setLoading(false);
   }

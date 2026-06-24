@@ -31,10 +31,11 @@ const RANDOM_MAX_CHARS = 1048576; // ~1 MB
  * the result to the shared display handler.
  * @param {string} indexString - Bijective base64 index (no header)
  * @param {Function} handleJsonResponse - Callback for handling response
+ * @param {Object} [wavOptions] - Output WAV format overrides (sampleRate, bitDepth, numChannels)
  */
-async function renderIndex(indexString, handleJsonResponse) {
+async function renderIndex(indexString, handleJsonResponse, wavOptions) {
   const wasm = await getWasmModule();
-  const result = await buildResultForIndex(wasm, indexString);
+  const result = await buildResultForIndex(wasm, indexString, wavOptions);
   await handleJsonResponse(result, indexString);
 }
 
@@ -43,8 +44,9 @@ async function renderIndex(indexString, handleJsonResponse) {
  * @param {HTMLElement} inputEl - Input element containing the index
  * @param {Function} handleJsonResponse - Callback for handling response
  * @param {Function} setLoading - Callback for loading state
+ * @param {Object} [wavOptions] - Output WAV format overrides (sampleRate, bitDepth, numChannels)
  */
-export async function generateFromIndex(inputEl, handleJsonResponse, setLoading) {
+export async function generateFromIndex(inputEl, handleJsonResponse, setLoading, wavOptions) {
   const indexString = inputEl.value || '';
 
   if (!isValidBase64Url(indexString)) {
@@ -54,7 +56,7 @@ export async function generateFromIndex(inputEl, handleJsonResponse, setLoading)
 
   try {
     setLoading(true);
-    await renderIndex(indexString, handleJsonResponse);
+    await renderIndex(indexString, handleJsonResponse, wavOptions);
   } catch (error) {
     handleError('search.js:generateFromIndex', error, error.message);
   } finally {
@@ -70,8 +72,9 @@ export async function generateFromIndex(inputEl, handleJsonResponse, setLoading)
  * @param {Function} handleJsonResponse - Callback for handling response
  * @param {Function} setLoading - Callback for loading state
  * @param {HTMLTextAreaElement} [inputEl] - Index input to populate with the generated index
+ * @param {Object} [wavOptions] - Output WAV format overrides (sampleRate, bitDepth, numChannels)
  */
-export async function generateRandom(handleJsonResponse, setLoading, inputEl) {
+export async function generateRandom(handleJsonResponse, setLoading, inputEl, wavOptions) {
   try {
     setLoading(true);
 
@@ -95,7 +98,7 @@ export async function generateRandom(handleJsonResponse, setLoading, inputEl) {
       inputEl.dispatchEvent(new Event('input'));
     }
 
-    await renderIndex(indexString, handleJsonResponse);
+    await renderIndex(indexString, handleJsonResponse, wavOptions);
   } catch (error) {
     handleError('search.js:generateRandom', error, error.message);
   } finally {
@@ -110,6 +113,9 @@ export async function generateRandom(handleJsonResponse, setLoading, inputEl) {
  * @param {File} file - WAV file to derive the index from
  * @param {HTMLTextAreaElement} inputEl - Index input to populate
  * @param {Function} setLoading - Callback for loading state
+ * @returns {Promise<{sampleRate: number, bitDepth: number, numChannels: number}|undefined>}
+ *   The uploaded file's actual WAV properties, so the caller can sync the
+ *   advanced-options dropdowns to it. Undefined if extraction failed.
  */
 export async function extractIndexFromWav(file, inputEl, setLoading) {
   if (!file) {
@@ -127,6 +133,8 @@ export async function extractIndexFromWav(file, inputEl, setLoading) {
 
     inputEl.value = indexString;
     inputEl.dispatchEvent(new Event('input'));
+
+    return { sampleRate, bitDepth, numChannels };
   } catch (error) {
     handleError('search.js:extractIndexFromWav', error, error.message);
   } finally {

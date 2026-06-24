@@ -105,3 +105,4 @@ dist/
 tools/bash/clang-tidy-output.txt
 tools/powershell/clang-tidy-output.txt
 .cache/clangd/index/*
+.vscode/c_cpp_properties.json

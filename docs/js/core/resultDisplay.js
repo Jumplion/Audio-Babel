@@ -302,7 +302,6 @@ export async function handleJsonResponse(j, originalIndexB64) {
           height: 120,
           barGap: 1,
           normalize: false, // Don't normalize - show actual amplitudes
-          backend: 'WebAudio',
           interact: true, // Enable interaction for playback control
           dragToSeek: true, // Allow seeking by clicking/dragging
         });

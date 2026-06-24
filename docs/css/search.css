@@ -132,3 +132,66 @@
 .search #statusSpinner {
     display: none;
 }
+
+.search .advanced-options {
+    margin-top: 16px;
+    border-top: 1px solid var(--card-border);
+    padding-top: 12px;
+}
+
+.search .advanced-options summary {
+    cursor: pointer;
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    user-select: none;
+    transition: color 0.2s ease;
+}
+
+.search .advanced-options summary::-webkit-details-marker {
+    display: none;
+}
+
+.search .advanced-options summary:hover {
+    color: var(--accent);
+}
+
+.search .advanced-options .icon-chevron {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.search .advanced-options[open] .icon-chevron {
+    transform: rotate(90deg);
+}
+
+.search .advanced-options-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-top: 14px;
+}
+
+.search .option-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 160px;
+}
+
+.search .option-field label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+}
+
+.search .option-field select {
+    width: 100%;
+}

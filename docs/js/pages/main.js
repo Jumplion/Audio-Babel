@@ -9,6 +9,39 @@ import { generateFromIndex, generateRandom, extractIndexFromWav, attachSearchInp
 import { handleJsonResponse } from '../core/resultDisplay.js';
 
 /**
+ * Read the current Advanced Options dropdown selections.
+ * @returns {{sampleRate: number, bitDepth: number}}
+ */
+function getWavOptions() {
+  const bitDepthSelect = document.getElementById('bitDepthSelect');
+  const sampleRateSelect = document.getElementById('sampleRateSelect');
+  return {
+    bitDepth: bitDepthSelect ? Number(bitDepthSelect.value) : undefined,
+    sampleRate: sampleRateSelect ? Number(sampleRateSelect.value) : undefined
+  };
+}
+
+/**
+ * Select a value in a <select>, adding it as an option first if the
+ * uploaded WAV's actual property isn't already one of the dropdown's choices.
+ * @param {HTMLSelectElement} selectEl - Select element to update
+ * @param {number} value - Value to select
+ */
+function setSelectValue(selectEl, value) {
+  if (!selectEl || value === undefined || value === null) return;
+
+  const stringValue = String(value);
+  const hasOption = Array.from(selectEl.options).some((opt) => opt.value === stringValue);
+  if (!hasOption) {
+    const option = document.createElement('option');
+    option.value = stringValue;
+    option.textContent = stringValue;
+    selectEl.appendChild(option);
+  }
+  selectEl.value = stringValue;
+}
+
+/**
  * Set loading state for the UI
  * Shows/hides spinner, updates status message, and disables/enables controls
  * Also controls the loading overlay for better visual feedback
@@ -47,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     attachSearchInputFilter(searchInput);
 
     doSearchGenerate.addEventListener('click', () => {
-      generateFromIndex(searchInput, handleJsonResponse, setLoading);
+      generateFromIndex(searchInput, handleJsonResponse, setLoading, getWavOptions());
     });
 
     const updateSearchButtonState = () => {
@@ -65,17 +98,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // Generate random index
   const doRandomGenerate = document.getElementById('doRandomGenerate');
   if (doRandomGenerate) {
-    doRandomGenerate.addEventListener('click', () => generateRandom(handleJsonResponse, setLoading, searchInput));
+    doRandomGenerate.addEventListener('click', () => generateRandom(handleJsonResponse, setLoading, searchInput, getWavOptions()));
   }
 
   // Upload WAV file: derive its index and drop it straight into the index input
   const clearFileBtn = document.getElementById('clearFileBtn');
+  const bitDepthSelect = document.getElementById('bitDepthSelect');
+  const sampleRateSelect = document.getElementById('sampleRateSelect');
   if (fileInput && searchInput) {
     fileInput.addEventListener('change', async () => {
       const file = fileInput.files?.[0];
       clearFileBtn?.toggleAttribute('hidden', !file);
       if (file) {
-        await extractIndexFromWav(file, searchInput, setLoading);
+        const wavProps = await extractIndexFromWav(file, searchInput, setLoading);
+        if (wavProps) {
+          setSelectValue(bitDepthSelect, wavProps.bitDepth);
+          setSelectValue(sampleRateSelect, wavProps.sampleRate);
+        }
       }
     });
 

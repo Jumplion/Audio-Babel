@@ -96,19 +96,19 @@ TEST_CASE("IndexNaming: names are pairwise unique within one sibling batch", "[n
 }
 
 TEST_CASE("IndexNaming: a name is stable regardless of which descendant is also queried", "[naming][stability]") {
-    std::string room = "Stab1";
-    uint8_t     wall = 0;
+    std::string room  = "Stab1";
+    uint8_t     wall  = 0;
     uint8_t     shelf = 2;
     uint8_t     album = 5;
 
     // The shelf's artist name must not change depending on which album/track
     // underneath it happens to also be queried.
     std::string artistViaAlbum0 = IndexNaming::artistNameFor(room, wall, shelf);
-    (void)IndexNaming::albumNameFor(room, wall, shelf, 0);
-    (void)IndexNaming::trackNameFor(room, wall, shelf, 0, 0);
+    (void) IndexNaming::albumNameFor(room, wall, shelf, 0);
+    (void) IndexNaming::trackNameFor(room, wall, shelf, 0, 0);
     std::string artistViaAlbum7 = IndexNaming::artistNameFor(room, wall, shelf);
-    (void)IndexNaming::albumNameFor(room, wall, shelf, 7);
-    (void)IndexNaming::trackNameFor(room, wall, shelf, 7, 14);
+    (void) IndexNaming::albumNameFor(room, wall, shelf, 7);
+    (void) IndexNaming::trackNameFor(room, wall, shelf, 7, 14);
     REQUIRE(artistViaAlbum0 == artistViaAlbum7);
 
     // The album's name must not change depending on which track is queried.
@@ -129,9 +129,9 @@ TEST_CASE("IndexNaming: adjacent slots are decorrelated", "[naming][decorrelatio
 
     int sharedPrefixCount = 0;
     for (size_t i = 0; i + 1 < albums.size(); ++i) {
-        const std::string& a = albums[i];
-        const std::string& b = albums[i + 1];
-        size_t              commonPrefix = 0;
+        const std::string& a            = albums[i];
+        const std::string& b            = albums[i + 1];
+        size_t             commonPrefix = 0;
         while (commonPrefix < a.size() && commonPrefix < b.size() && a[commonPrefix] == b[commonPrefix]) {
             ++commonPrefix;
         }

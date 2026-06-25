@@ -76,7 +76,8 @@ TEST_CASE("LibraryPosition: IndexMetadata includes position field", "[library_po
     REQUIRE(!meta.position.room.empty());
 }
 
-TEST_CASE("LibraryPosition: cross-module consistency with IndexMetadata and full roundtrip", "[library_position][metadata][comprehensive][roundtrip]") {
+TEST_CASE("LibraryPosition: cross-module consistency with IndexMetadata and full roundtrip",
+          "[library_position][metadata][comprehensive][roundtrip]") {
     // Comprehensive list of indexes covering edge cases, boundaries, and large
     // values. This subsumes what used to be two separate near-duplicate tests
     // ("cpp_int overload includes position", "complete roundtrip for various

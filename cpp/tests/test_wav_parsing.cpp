@@ -201,8 +201,8 @@ TEST_CASE("WAV parsing: fmt chunk size variants are tolerated", "[wav][parsing][
     };
 
     std::vector<Case> cases = {
-        {18, {0x55, 0x66}, 1, 44100, 16, {0x11, 0x22, 0x33, 0x44}}, // 2 extra bytes
-        {17, {0x7F}, 1, 44100, 16, {0x11, 0x22}},                  // odd size, 1 extra byte
+        {18, {0x55, 0x66}, 1, 44100, 16, {0x11, 0x22, 0x33, 0x44}},       // 2 extra bytes
+        {17, {0x7F}, 1, 44100, 16, {0x11, 0x22}},                         // odd size, 1 extra byte
         {19, {0x01, 0x02, 0x03}, 2, 48000, 16, {0xAA, 0xBB, 0xCC, 0xDD}}, // odd size, 3 extra bytes
     };
 

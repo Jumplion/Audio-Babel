@@ -83,7 +83,8 @@ using boost::multiprecision::cpp_int;
 /// whole tier, so cost grows with the top tier's size (a 240s top tier cost
 /// multiple seconds per call; 15s keeps it well under a second).
 #ifndef AUDIOBABEL_SCRAMBLE_TIER_SECONDS
-#    define AUDIOBABEL_SCRAMBLE_TIER_SECONDS {1, 5, 10, 15}
+#    define AUDIOBABEL_SCRAMBLE_TIER_SECONDS \
+        { 1, 5, 10, 15 }
 #endif
 
 #ifdef AUDIOBABEL_SCRAMBLE

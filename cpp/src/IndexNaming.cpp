@@ -51,8 +51,8 @@ namespace {
 
     // Per-round key derived from the level key, half-width and round index.
     auto roundKey(uint64_t key, size_t halfBits, int round) -> uint64_t {
-        uint64_t state = key ^ (0x9E3779B97F4A7C15ULL * (static_cast<uint64_t>(halfBits) + 1)) ^
-                          (0xD1B54A32D192ED03ULL * (static_cast<uint64_t>(round) + 1));
+        uint64_t state =
+            key ^ (0x9E3779B97F4A7C15ULL * (static_cast<uint64_t>(halfBits) + 1)) ^ (0xD1B54A32D192ED03ULL * (static_cast<uint64_t>(round) + 1));
         return AudioBabel::Utilities::splitmix64(state);
     }
 
@@ -74,7 +74,7 @@ namespace {
     // Balanced Feistel permutation over [0, 2^bits) (bits even). Inverted by
     // running the rounds in reverse, exactly like IndexScramble::feistelPow2.
     auto feistel(uint64_t x, size_t bits, uint64_t key, bool encrypt) -> uint64_t {
-        const size_t h    = bits / 2;
+        const size_t   h    = bits / 2;
         const uint64_t mask = (uint64_t(1) << h) - 1;
         uint64_t       hi   = (x >> h) & mask;
         uint64_t       lo   = x & mask;
@@ -201,7 +201,7 @@ namespace {
     }
 
     auto encodeSlot(const std::string& room, uint64_t realKey, const Level& level) -> std::string {
-        uint64_t domain   = level.realCount * DECORATION_FACTOR;
+        uint64_t domain    = level.realCount * DECORATION_FACTOR;
         uint64_t key       = levelKey(level.salt, room);
         uint64_t expanded  = realKey * DECORATION_FACTOR;
         uint64_t displayed = permuteEncode(expanded, domain, key);

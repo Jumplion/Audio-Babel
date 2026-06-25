@@ -8,8 +8,14 @@ namespace AudioBabel::IndexFinder {
 
 namespace {
 
-    auto buildMatch(const std::string& room, NameLevel level, const std::string& query, uint8_t wall, uint8_t shelf, uint8_t album,
-                     uint8_t track, uint64_t indexesAtThisMatch) -> IndexMatch {
+    auto buildMatch(const std::string& room,
+                    NameLevel          level,
+                    const std::string& query,
+                    uint8_t            wall,
+                    uint8_t            shelf,
+                    uint8_t            album,
+                    uint8_t            track,
+                    uint64_t           indexesAtThisMatch) -> IndexMatch {
         IndexMatch match;
         match.room               = room;
         match.wall               = wall;
@@ -36,7 +42,7 @@ namespace {
                     return false;
                 }
                 uint64_t count = static_cast<uint64_t>(LibraryConstants::SHELVES_PER_WALL) * LibraryConstants::ALBUMS_PER_SHELF *
-                                  LibraryConstants::TRACKS_PER_ALBUM;
+                                 LibraryConstants::TRACKS_PER_ALBUM;
                 match = buildMatch(room, level, query, *wall, 0, 0, 0, count);
                 return true;
             }
@@ -46,7 +52,7 @@ namespace {
                     return false;
                 }
                 uint64_t count = static_cast<uint64_t>(LibraryConstants::ALBUMS_PER_SHELF) * LibraryConstants::TRACKS_PER_ALBUM;
-                match = buildMatch(room, level, query, slot->wall, slot->shelf, 0, 0, count);
+                match          = buildMatch(room, level, query, slot->wall, slot->shelf, 0, 0, count);
                 return true;
             }
             case NameLevel::Album: {

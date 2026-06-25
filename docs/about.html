@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Audio Babel — About</title>
   <link rel="stylesheet" href="./css/site.css" />
+  <link rel="stylesheet" href="./css/navbar.css" />
   <link rel="stylesheet" href="./css/about.css" />
   <!-- KaTeX CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -21,7 +22,18 @@
 </head>
 
 <body class="about">
-  <div id="navContainer"></div>
+  <div id="navContainer">
+    <nav class="site-navbar">
+      <div class="nav-inner">
+        <div class="nav-brand"><a href="./index.html">Audio Babel</a></div>
+        <div class="nav-links">
+          <a href="./browse.html">Browse</a>
+          <a href="./search.html">Search</a>
+          <a href="./about.html">About</a>
+        </div>
+      </div>
+    </nav>
+  </div>
 
   <div class="wrap">
     <main class="card about-card">
@@ -106,9 +118,8 @@
   </div>
 
   <script type="module">
-    import { loadFragment } from './js/ui/loadFragment.js';
     import { highlightActiveNav } from './js/ui/nav.js';
-    (async () => { await loadFragment('#navContainer', './components/navbar.html'); highlightActiveNav('#navContainer'); })();
+    highlightActiveNav('#navContainer');
   </script>
   <script type="module" src="./js/pages/main.js?v=5"></script>
 </body>

@@ -273,16 +273,41 @@
     }
 }
 
-/* Tracks container — single column inside the gatefold's inner leaf */
+/* Tracks container — single column inside the gatefold's inner leaf.
+   direction: rtl moves the scrollbar to the left edge (so the record,
+   which slides on from the right, never covers it); track-btn flips
+   back to ltr so its text still reads left-to-right. */
 .tracks-container {
     display: grid;
     grid-template-columns: 1fr;
     gap: 6px;
     max-height: 210px;
     overflow-y: auto;
+    direction: rtl;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-dim) rgba(190, 150, 80, 0.12);
+}
+
+.tracks-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.tracks-container::-webkit-scrollbar-track {
+    background: rgba(190, 150, 80, 0.12);
+    border-radius: 4px;
+}
+
+.tracks-container::-webkit-scrollbar-thumb {
+    background: var(--accent-dim);
+    border-radius: 4px;
+}
+
+.tracks-container::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
 }
 
 .track-btn {
+    direction: ltr;
     padding: 8px 10px;
     background: rgba(190, 150, 80, 0.18);
     border: 1px solid rgba(190, 150, 80, 0.5);

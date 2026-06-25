@@ -133,7 +133,7 @@ TEST_CASE("IndexFinder: respects maxResults", "[finder][limits]") {
 
 TEST_CASE("IndexFinder: respects maxRoomsToScan", "[finder][limits]") {
     std::string name = "ZZZZZ"; // 5 chars, the track name width, but content
-                                 // unlikely to be a valid track name anywhere.
+                                // unlikely to be a valid track name anywhere.
 
     FindOptions options;
     options.level          = NameLevel::Track;

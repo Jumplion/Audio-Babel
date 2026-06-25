@@ -48,6 +48,7 @@ set(INDEX_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/Index.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/IndexMetadata.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/IndexNaming.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/IndexFinder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/FileIO.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/LibraryPosition.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/IndexScramble.cpp

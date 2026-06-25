@@ -24,6 +24,7 @@
 #include <emscripten/emscripten.h>
 #include <emscripten/val.h>
 
+#include <algorithm>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <cstdint>
 #include <iomanip>
@@ -32,6 +33,7 @@
 #include <vector>
 
 #include "../include/Index.h"
+#include "../include/IndexFinder.h"
 #include "../include/IndexMetadata.h"
 #include "../include/IndexNaming.h"
 #include "../include/LibraryPosition.h"
@@ -277,6 +279,61 @@ static std::string getTrackNamesWrapper(const std::string& roomStr, int wall, in
     }
 }
 
+/**
+ * Search for indexes by a genre/artist/album/track name (see IndexFinder.h).
+ * `levelStr` is one of "genre"|"artist"|"album"|"track". Returns a JSON array
+ * of match objects: {"room","wall","shelf","album","track","level",
+ * "matchedName","representativeIndexBase64","indexesAtThisMatch"}, or a JSON
+ * error object on invalid input.
+ */
+static std::string findByNameWrapper(const std::string& query, const std::string& levelStr, int maxResults, double maxRoomsToScan) {
+    NameLevel level;
+    if (levelStr == "genre") {
+        level = NameLevel::Genre;
+    } else if (levelStr == "artist") {
+        level = NameLevel::Artist;
+    } else if (levelStr == "album") {
+        level = NameLevel::Album;
+    } else if (levelStr == "track") {
+        level = NameLevel::Track;
+    } else {
+        return makeJsonError("invalid level: " + levelStr);
+    }
+
+    try {
+        FindOptions options;
+        options.level          = level;
+        options.maxResults     = static_cast<size_t>(std::max(0, maxResults));
+        options.maxRoomsToScan = static_cast<uint64_t>(std::max(0.0, maxRoomsToScan));
+
+        std::vector<IndexMatch> matches = IndexFinder::findByName(query, options);
+
+        std::string json = "[";
+        for (size_t i = 0; i < matches.size(); ++i) {
+            if (i > 0) {
+                json += ",";
+            }
+            const IndexMatch& m = matches[i];
+            json += "{";
+            json += jsonStringField("room", m.room) + ",";
+            json += jsonNumberField("wall", m.wall) + ",";
+            json += jsonNumberField("shelf", m.shelf) + ",";
+            json += jsonNumberField("album", m.album) + ",";
+            json += jsonNumberField("track", m.track) + ",";
+            json += jsonStringField("level", levelStr) + ",";
+            json += jsonStringField("matchedName", m.matchedName) + ",";
+            json += jsonStringField("representativeIndexBase64", m.representativeIndexBase64) + ",";
+            json += jsonNumberField("indexesAtThisMatch", static_cast<long long>(m.indexesAtThisMatch));
+            json += "}";
+        }
+        json += "]";
+        return json;
+
+    } catch (const std::exception& e) {
+        return makeJsonError(e.what());
+    }
+}
+
 // Embind bindings for class-based API
 using namespace emscripten;
 
@@ -299,4 +356,7 @@ EMSCRIPTEN_BINDINGS(audio_index_module) {
     function("getArtistNames", &getArtistNamesWrapper);
     function("getAlbumNames", &getAlbumNamesWrapper);
     function("getTrackNames", &getTrackNamesWrapper);
+
+    // Cross-room search by name (see IndexFinder.h)
+    function("findByName", &findByNameWrapper);
 }

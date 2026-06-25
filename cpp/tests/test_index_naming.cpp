@@ -169,3 +169,82 @@ TEST_CASE("IndexNaming: empty room (room 0) generates normal names, not placehol
         REQUIRE(valid_b64_chars(name));
     }
 }
+
+TEST_CASE("IndexNaming: *SlotFor decodes a name back to its exact coordinate", "[naming][decode][roundtrip]") {
+    std::vector<std::string> rooms = {"", "A", "Qx7", "ThisIsALongerRoomIdentifier1234"};
+
+    for (const auto& room : rooms) {
+        INFO("room: \"" << room << "\"");
+
+        for (uint8_t wall = 0; wall < LibraryConstants::WALLS_PER_ROOM; ++wall) {
+            auto decodedWall = IndexNaming::genreSlotFor(room, IndexNaming::genreNameFor(room, wall));
+            REQUIRE(decodedWall.has_value());
+            REQUIRE(*decodedWall == wall);
+
+            for (uint8_t shelf = 0; shelf < LibraryConstants::SHELVES_PER_WALL; ++shelf) {
+                auto artistSlot = IndexNaming::artistSlotFor(room, IndexNaming::artistNameFor(room, wall, shelf));
+                REQUIRE(artistSlot.has_value());
+                REQUIRE(artistSlot->wall == wall);
+                REQUIRE(artistSlot->shelf == shelf);
+            }
+        }
+
+        // Spot-check album/track at a couple of coordinates rather than the
+        // full cross product (4*5*32*15), which would be slow without adding
+        // coverage beyond what genre/artist already established.
+        for (uint8_t album : {static_cast<uint8_t>(0), static_cast<uint8_t>(17), static_cast<uint8_t>(31)}) {
+            auto albumSlot = IndexNaming::albumSlotFor(room, IndexNaming::albumNameFor(room, 2, 3, album));
+            REQUIRE(albumSlot.has_value());
+            REQUIRE(albumSlot->wall == 2);
+            REQUIRE(albumSlot->shelf == 3);
+            REQUIRE(albumSlot->album == album);
+
+            for (uint8_t track : {static_cast<uint8_t>(0), static_cast<uint8_t>(7), static_cast<uint8_t>(14)}) {
+                auto trackSlot = IndexNaming::trackSlotFor(room, IndexNaming::trackNameFor(room, 2, 3, album, track));
+                REQUIRE(trackSlot.has_value());
+                REQUIRE(trackSlot->wall == 2);
+                REQUIRE(trackSlot->shelf == 3);
+                REQUIRE(trackSlot->album == album);
+                REQUIRE(trackSlot->track == track);
+            }
+        }
+    }
+}
+
+TEST_CASE("IndexNaming: *SlotFor rejects names from a different room", "[naming][decode][negative]") {
+    std::string roomA = "RoomA";
+    std::string roomB = "RoomB";
+
+    std::string trackName = IndexNaming::trackNameFor(roomA, 1, 2, 10, 5);
+
+    // Overwhelmingly likely to fail validation (wrong checksum/out-of-range)
+    // when decoded against a different room's key.
+    auto decoded = IndexNaming::trackSlotFor(roomB, trackName);
+    REQUIRE_FALSE(decoded.has_value());
+}
+
+TEST_CASE("IndexNaming: *SlotFor rejects malformed names", "[naming][decode][negative]") {
+    std::string room = "Reject";
+
+    REQUIRE_FALSE(IndexNaming::genreSlotFor(room, "").has_value());
+    REQUIRE_FALSE(IndexNaming::genreSlotFor(room, "TooLongForGenre").has_value());
+    REQUIRE_FALSE(IndexNaming::genreSlotFor(room, "@@@").has_value());
+
+    std::string validTrackName = IndexNaming::trackNameFor(room, 0, 0, 0, 0);
+    REQUIRE(IndexNaming::trackSlotFor(room, validTrackName).has_value());
+    REQUIRE_FALSE(IndexNaming::trackSlotFor(room, validTrackName + "X").has_value());
+}
+
+TEST_CASE("IndexNaming: decoding requires only (room, name), no ancestor coordinates", "[naming][decode][api]") {
+    // The whole point of the redesign: trackSlotFor needs nothing but the
+    // room and the name to recover wall/shelf/album/track in one shot.
+    std::string room = "Direct";
+    std::string name = IndexNaming::trackNameFor(room, 3, 4, 31, 14);
+
+    auto slot = IndexNaming::trackSlotFor(room, name);
+    REQUIRE(slot.has_value());
+    REQUIRE(slot->wall == 3);
+    REQUIRE(slot->shelf == 4);
+    REQUIRE(slot->album == 31);
+    REQUIRE(slot->track == 14);
+}

@@ -27,7 +27,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "style: apply clang-format"
-          file_pattern: "cpp/**/*.cpp cpp/**/*.h cpp/**/*.hpp"
+          file_pattern: "cpp/**/*.cpp cpp/**/*.h"
 
   clang-tidy:
     runs-on: ubuntu-latest

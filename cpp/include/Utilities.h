@@ -62,8 +62,8 @@ inline auto repunit(size_t L) -> boost::multiprecision::cpp_int {
     if (L == 0) {
         return boost::multiprecision::cpp_int(0);
     }
-    constexpr size_t      sampleBytes = DEFAULT_BIT_DEPTH / BITS_PER_BYTE;
-    std::vector<uint8_t>  bytes(L * sampleBytes, 0);
+    constexpr size_t     sampleBytes = DEFAULT_BIT_DEPTH / BITS_PER_BYTE;
+    std::vector<uint8_t> bytes(L * sampleBytes, 0);
     for (size_t i = 0; i < L; ++i) {
         bytes[(i * sampleBytes) + 1] = 0x01;
     }

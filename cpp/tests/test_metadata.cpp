@@ -145,14 +145,14 @@ TEST_CASE("IndexMetadata: generateSvgCover contains track text", "[metadata][svg
 TEST_CASE("IndexMetadata: stress test across small and large cpp_int values", "[metadata][edge_case]") {
     // Edge cases with minimal indexes, plus progressively larger indexes.
     std::vector<cpp_int> values = {
-        cpp_int(0),     // Zero
-        cpp_int(1),     // One
-        cpp_int(2),     // Two
-        cpp_int(15),    // Small value
-        cpp_int(255),   // Single byte max
-        cpp_int(256),   // Just over single byte
-        cpp_int(65535), // Two bytes max (uint16_t max)
-        cpp_int(65536), // Just over two bytes
+        cpp_int(0),                                                                               // Zero
+        cpp_int(1),                                                                               // One
+        cpp_int(2),                                                                               // Two
+        cpp_int(15),                                                                              // Small value
+        cpp_int(255),                                                                             // Single byte max
+        cpp_int(256),                                                                             // Just over single byte
+        cpp_int(65535),                                                                           // Two bytes max (uint16_t max)
+        cpp_int(65536),                                                                           // Just over two bytes
         cpp_int("4294967295"),                                                                    // 32-bit max
         cpp_int("18446744073709551615"),                                                          // 64-bit max
         cpp_int("340282366920938463463374607431768211455"),                                       // 128-bit value

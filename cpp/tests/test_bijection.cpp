@@ -198,7 +198,7 @@ TEST_CASE("Bijection: WAV default-format data chunk round-trips exactly", "[bije
     // Build a default-format payload, write a WAV, extract it, index it, decode,
     // and write a second WAV; the data-chunk bytes must match exactly.
     std::vector<uint16_t> samples = {0, 1, 2, 0, 0, 40000, 65535, 12345, 0};
-    auto                   bytes   = makePayload(samples);
+    auto                  bytes   = makePayload(samples);
 
     TempFile srcWav(make_temp_path("bijection_src.wav"));
     FileIO::writeWav(bytes, srcWav.path());

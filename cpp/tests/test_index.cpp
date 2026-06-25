@@ -64,8 +64,8 @@ TEST_CASE("Index: encode -> decode roundtrip for representative sample sets", "[
 
     for (const auto& samples : sampleSets) {
         auto audioData = fromSamples(samples, 44100, 16);
-        auto idx        = Index::encode(audioData.samples);
-        auto decoded    = Index::decode(idx);
+        auto idx       = Index::encode(audioData.samples);
+        auto decoded   = Index::decode(idx);
 
         REQUIRE(decoded.size() > 0);
         REQUIRE(decoded == audioData.samples);
@@ -75,7 +75,7 @@ TEST_CASE("Index: encode -> decode roundtrip for representative sample sets", "[
 TEST_CASE("FileIO: writeWav and readWav round trip", "[file_io][wav]") {
     std::vector<int32_t> samples   = {0, 1000, -1000, 2000, -2000};
     auto                 audioData = fromSamples(samples, 22050, 16);
-    TempFile              tmp(make_temp_path("temp_test.wav"));
+    TempFile             tmp(make_temp_path("temp_test.wav"));
 
     FileIO::writeWav(audioData, tmp.path());
     auto audioData2 = FileIO::readWav(tmp.path());
@@ -201,11 +201,11 @@ TEST_CASE("Index: serialization textual roundtrip", "[index][serialization]") {
 }
 
 TEST_CASE("Index: low-valued samples round-trip without loss", "[index][encoding]") {
-    size_t                numFrames = 4;
-    std::vector<uint8_t>  samples(numFrames * 2);
+    size_t               numFrames = 4;
+    std::vector<uint8_t> samples(numFrames * 2);
     for (size_t i = 0; i < numFrames; ++i) {
-        auto   v   = static_cast<int16_t>(i + 1);
-        size_t off = i * 2;
+        auto   v         = static_cast<int16_t>(i + 1);
+        size_t off       = i * 2;
         samples[off + 0] = static_cast<uint8_t>(v & 0xFF);
         samples[off + 1] = static_cast<uint8_t>((v >> 8) & 0xFF);
     }

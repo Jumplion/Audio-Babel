@@ -18,8 +18,8 @@ namespace {
     constexpr uint64_t ALBUM_SALT  = 0x27D4EB2F165667C5ULL;
     constexpr uint64_t TRACK_SALT  = 0x9E3779B185EBCA87ULL;
 
-    constexpr size_t MIN_NAME_LENGTH      = 3;
-    constexpr size_t MAX_NAME_LENGTH      = 10;
+    constexpr size_t MIN_NAME_LENGTH       = 3;
+    constexpr size_t MAX_NAME_LENGTH       = 10;
     constexpr int    MAX_COLLISION_RETRIES = 64;
 
     auto mixRoom(uint64_t state, const std::string& room) -> uint64_t {
@@ -77,8 +77,8 @@ auto trackSeed(const std::string& room, uint8_t wall, uint8_t shelf, uint8_t alb
 }
 
 auto generateSiblingNames(uint64_t parentSeed, size_t count) -> std::vector<std::string> {
-    std::vector<std::string>           names;
-    std::unordered_set<std::string>    used;
+    std::vector<std::string>        names;
+    std::unordered_set<std::string> used;
     names.reserve(count);
     used.reserve(count);
 

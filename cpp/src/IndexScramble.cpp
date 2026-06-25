@@ -114,9 +114,9 @@ namespace {
     // at 1, 5, 10, 15 seconds. The array size is derived from the macro itself
     // (via the raw C array below) so overriding the macro with a different
     // number of tiers doesn't require also updating a hardcoded size here.
-    constexpr uint64_t kTierSecondsRaw[]  = AUDIOBABEL_SCRAMBLE_TIER_SECONDS;
-    constexpr size_t   kNumTiers          = std::size(kTierSecondsRaw);
-    constexpr std::array<uint64_t, kNumTiers> kTierSeconds = [] {
+    constexpr uint64_t                        kTierSecondsRaw[] = AUDIOBABEL_SCRAMBLE_TIER_SECONDS;
+    constexpr size_t                          kNumTiers         = std::size(kTierSecondsRaw);
+    constexpr std::array<uint64_t, kNumTiers> kTierSeconds      = [] {
         std::array<uint64_t, kNumTiers> a{};
         for (size_t i = 0; i < kNumTiers; ++i) {
             a[i] = kTierSecondsRaw[i];
@@ -254,7 +254,7 @@ namespace {
     // work on every scramble()/unscramble() call.
     auto tierGeometry(size_t tier) -> const TierGeometry& {
         static std::array<std::unique_ptr<TierGeometry>, kTierMaxSamples.size()> cache{};
-        auto& slot = cache[tier - 1];
+        auto&                                                                    slot = cache[tier - 1];
         if (!slot) {
             slot = std::make_unique<TierGeometry>(computeTierGeometry(tier));
         }
@@ -283,8 +283,8 @@ auto scramble(const cpp_int& index, uint64_t seed) -> cpp_int {
     // Tiered path: permute across the whole tier so neighbouring lengths spread
     // out and short inputs reach the tier's (much larger) maximum length.
     const TierGeometry& g = tierGeometry(tier);
-    cpp_int              z = index - g.lo; // in [0, N)
-    cpp_int              y = feistelPow2(z, g.e, seed, g.tier, /*encrypt=*/true);
+    cpp_int             z = index - g.lo; // in [0, N)
+    cpp_int             y = feistelPow2(z, g.e, seed, g.tier, /*encrypt=*/true);
     // Cycle-walking (Black & Rogaway, "Ciphers with Arbitrary Finite Domains",
     // CT-RSA 2002): re-apply the power-of-two bijection until the result lands
     // back in [0, N); see IndexScramble.h "References" for the paper.

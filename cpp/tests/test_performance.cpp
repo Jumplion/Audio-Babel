@@ -203,7 +203,7 @@ std::vector<uint8_t> generateRandomBytes(size_t numBytes) {
 std::vector<uint8_t> packSamples16(const std::vector<int32_t>& samples) {
     std::vector<uint8_t> bytes(samples.size() * 2);
     for (size_t i = 0; i < samples.size(); ++i) {
-        auto v          = static_cast<int16_t>(samples[i]);
+        auto v           = static_cast<int16_t>(samples[i]);
         bytes[i * 2]     = static_cast<uint8_t>(v & 0xFF);
         bytes[i * 2 + 1] = static_cast<uint8_t>((v >> 8) & 0xFF);
     }
@@ -220,7 +220,12 @@ void runIndexBenchmarks(BenchmarkRunner& runner) {
         int iterations;
     };
     std::vector<DurationCase> durationCases = {
-        {1, 1000}, {30, 100}, {120, 10}, {240, 5}, {480, 2}, {600, 1},
+        {1, 1000},
+        {30, 100},
+        {120, 10},
+        {240, 5},
+        {480, 2},
+        {600, 1},
     };
 
     for (const auto& dc : durationCases) {

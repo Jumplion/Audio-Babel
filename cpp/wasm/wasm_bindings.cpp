@@ -101,7 +101,8 @@ static std::string jsonNumberField(const std::string& key, long long value) {
 static std::string jsonStringArray(const std::vector<std::string>& values) {
     std::string json = "[";
     for (size_t i = 0; i < values.size(); ++i) {
-        if (i > 0) json += ",";
+        if (i > 0)
+            json += ",";
         json += "\"" + escapeJsonString(values[i]) + "\"";
     }
     json += "]";
@@ -213,9 +214,9 @@ static int calculatePcmByteSize(int durationSeconds, int sampleRate, int bitDept
 static std::string encodeIndexWrapper(const emscripten::val& pcmBytes, int sampleRate, int bitDepth, int numChannels) {
     // sampleRate/bitDepth/numChannels are accepted for API compatibility with callers,
     // but the bijection is payload-only and never uses them.
-    (void)sampleRate;
-    (void)bitDepth;
-    (void)numChannels;
+    (void) sampleRate;
+    (void) bitDepth;
+    (void) numChannels;
     try {
         std::vector<uint8_t> samples = emscripten::vecFromJSArray<uint8_t>(pcmBytes);
 
@@ -269,7 +270,8 @@ static std::string getAlbumNamesWrapper(const std::string& roomStr, int wall, in
 
 static std::string getTrackNamesWrapper(const std::string& roomStr, int wall, int shelf, int album) {
     try {
-        return jsonStringArray(IndexNaming::trackNames(roomStr, static_cast<uint8_t>(wall), static_cast<uint8_t>(shelf), static_cast<uint8_t>(album)));
+        return jsonStringArray(
+            IndexNaming::trackNames(roomStr, static_cast<uint8_t>(wall), static_cast<uint8_t>(shelf), static_cast<uint8_t>(album)));
     } catch (const std::exception& e) {
         return makeJsonError(e.what());
     }

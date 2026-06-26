@@ -57,9 +57,10 @@ struct LibraryPosition {
  * 
  * @par Algorithm
  * 1. Compute remainder = index % 9600 for hierarchical subdivision
- * 2. Extract track (remainder % 15), album, shelf, wall via successive division
- * 3. Compute room = base64(index / 9600), with room 0 encoded as empty string
- * 
+ * 2. Unscramble remainder via a room-keyed Feistel permutation to get linearOffset
+ * 3. Extract track (linearOffset % 15), album, shelf, wall via successive division
+ * 4. Compute room = base64(index / 9600), with room 0 encoded as empty string
+ *
  * @note Every unique index maps to exactly one position (injective function)
  * 
  * @see reconstructIndexFromPosition for the inverse operation
@@ -81,7 +82,8 @@ auto calculateLibraryPosition(const cpp_int& index) -> LibraryPosition;
  * @par Algorithm
  * 1. Decode room base64 string to big integer (with empty string = 0)
  * 2. Compute hierarchy_offset = wall×2400 + shelf×480 + album×15 + track
- * 3. Return room_value × 9600 + hierarchy_offset
+ * 3. Scramble hierarchy_offset via the room-keyed Feistel permutation
+ * 4. Return room_value × 9600 + scrambled_offset
  * 
  * @note This function guarantees: reconstructIndexFromPosition(calculateLibraryPosition(x)) == x
  * 

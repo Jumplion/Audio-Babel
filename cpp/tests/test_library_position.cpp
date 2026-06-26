@@ -1,7 +1,7 @@
 /**
  * @file test_library_position.cpp
  * @brief Unit tests for LibraryPosition calculation and reconstruction.
- * 
+ *
  * Tests the LibraryPosition system including:
  * - Position calculation from indexes
  * - Index reconstruction from positions
@@ -9,11 +9,13 @@
  * - Boundary value handling
  * - Constants validation
  * - Uniqueness guarantees
- * 
+ * - Neighbor dissimilarity (adjacent positions produce scattered indices)
+ *
  * Migrated to Catch2 v3 framework.
  */
 
 #include <catch2/catch_test_macros.hpp>
+#include <algorithm>
 #include <sstream>
 #include <vector>
 
@@ -23,25 +25,15 @@ using boost::multiprecision::cpp_int;
 using namespace LibraryConstants;
 
 TEST_CASE("LibraryPosition: calculateLibraryPosition and roundtrip for representative indexes", "[library_position][calculation][roundtrip]") {
-    // Table-driven replacement for what used to be four near-identical
-    // single-index tests (42, 12345, 9600, 50000 [50000 now covered by the
-    // comprehensive roundtrip list below]).
     struct Case {
         cpp_int index;
         bool    roomEmpty;
-        uint8_t wall;
-        uint8_t shelf;
-        uint8_t album;
-        uint8_t track;
     };
 
     std::vector<Case> cases = {
-        // index 42: room 0 ("" ), wall=(42/2400)%4=0, shelf=(42/480)%5=0, album=(42/15)%32=2, track=42%15=12
-        {42, true, 0, 0, 2, 12},
-        // index 12345: room 1 (non-empty), wall=1, shelf=0, album=23, track=0
-        {12345, false, 1, 0, 23, 0},
-        // index 9600: first index in room 1
-        {9600, false, 0, 0, 0, 0},
+        {42,    true},   // room 0
+        {12345, false},  // room 1
+        {9600,  false},  // first index in room 1
     };
 
     for (const auto& c : cases) {
@@ -49,10 +41,6 @@ TEST_CASE("LibraryPosition: calculateLibraryPosition and roundtrip for represent
         auto pos = calculateLibraryPosition(c.index);
 
         REQUIRE(pos.room.empty() == c.roomEmpty);
-        REQUIRE(pos.wall == c.wall);
-        REQUIRE(pos.shelf == c.shelf);
-        REQUIRE(pos.album == c.album);
-        REQUIRE(pos.track == c.track);
 
         cpp_int reconstructed = reconstructIndexFromPosition(pos);
         REQUIRE(c.index == reconstructed);
@@ -78,10 +66,6 @@ TEST_CASE("LibraryPosition: IndexMetadata includes position field", "[library_po
 
 TEST_CASE("LibraryPosition: cross-module consistency with IndexMetadata and full roundtrip",
           "[library_position][metadata][comprehensive][roundtrip]") {
-    // Comprehensive list of indexes covering edge cases, boundaries, and large
-    // values. This subsumes what used to be two separate near-duplicate tests
-    // ("cpp_int overload includes position", "complete roundtrip for various
-    // patterns") plus the standalone "large index roundtrip" (50000) case.
     std::vector<cpp_int> test_indexes = {
         0,                         // Origin
         1,                         // First track
@@ -107,37 +91,32 @@ TEST_CASE("LibraryPosition: cross-module consistency with IndexMetadata and full
     for (const auto& index : test_indexes) {
         INFO("Testing index: " << index);
 
-        // Extract metadata using IndexMetadata (which internally uses LibraryPosition)
         auto meta = IndexMetadata::extractMetadataFromIndex(index);
-
-        // Calculate position directly using LibraryPosition function
         auto pos_direct = calculateLibraryPosition(index);
 
-        // Verify perfect consistency across all position fields
-        REQUIRE(meta.position.room == pos_direct.room);
-        REQUIRE(meta.position.wall == pos_direct.wall);
+        REQUIRE(meta.position.room  == pos_direct.room);
+        REQUIRE(meta.position.wall  == pos_direct.wall);
         REQUIRE(meta.position.shelf == pos_direct.shelf);
         REQUIRE(meta.position.album == pos_direct.album);
         REQUIRE(meta.position.track == pos_direct.track);
 
-        // Additionally verify that reconstructing the index from the position
-        // in the metadata gives us back the original index
         cpp_int reconstructed = reconstructIndexFromPosition(meta.position);
         REQUIRE(reconstructed == index);
     }
 }
 
-TEST_CASE("LibraryPosition: zero index maps to origin", "[library_position][edge_case]") {
+TEST_CASE("LibraryPosition: zero index maps to room 0", "[library_position][edge_case]") {
     cpp_int index = 0;
     auto    pos   = calculateLibraryPosition(index);
 
+    // With offset scrambling, wall/shelf/album/track are no longer necessarily 0,
+    // but the index must round-trip and must land in room 0.
     REQUIRE(pos.room == "");
-    REQUIRE(pos.wall == 0);
-    REQUIRE(pos.shelf == 0);
-    REQUIRE(pos.album == 0);
-    REQUIRE(pos.track == 0);
+    REQUIRE(pos.wall  < WALLS_PER_ROOM);
+    REQUIRE(pos.shelf < SHELVES_PER_WALL);
+    REQUIRE(pos.album < ALBUMS_PER_SHELF);
+    REQUIRE(pos.track < TRACKS_PER_ALBUM);
 
-    // Verify roundtrip
     cpp_int reconstructed = reconstructIndexFromPosition(pos);
     REQUIRE(index == reconstructed);
 }
@@ -154,7 +133,6 @@ TEST_CASE("LibraryPosition: constants validation", "[library_position][constants
 }
 
 TEST_CASE("LibraryPosition: uniqueness - consecutive indexes map to different positions", "[library_position][uniqueness]") {
-    // Test that consecutive indexes produce different positions
     for (int i = 0; i < 100; i++) {
         INFO("Testing consecutive indexes " << i << " and " << (i + 1));
 
@@ -164,7 +142,6 @@ TEST_CASE("LibraryPosition: uniqueness - consecutive indexes map to different po
         auto pos1 = calculateLibraryPosition(idx1);
         auto pos2 = calculateLibraryPosition(idx2);
 
-        // At least one field should be different
         bool different = (pos1.room != pos2.room) || (pos1.wall != pos2.wall) || (pos1.shelf != pos2.shelf) || (pos1.album != pos2.album) ||
                          (pos1.track != pos2.track);
 
@@ -173,81 +150,101 @@ TEST_CASE("LibraryPosition: uniqueness - consecutive indexes map to different po
 }
 
 TEST_CASE("LibraryPosition: perfect bijection - all positions in range are reachable", "[library_position][bijection]") {
-    SECTION("All tracks in first album are reachable") {
-        // Test all positions in first album (room 0, wall 0, shelf 0, album 0)
-        for (uint8_t track = 0; track < TRACKS_PER_ALBUM; track++) {
-            INFO("Testing track: " << (int) track);
-
+    SECTION("All tracks in first album produce distinct in-range indices") {
+        std::vector<cpp_int> indices;
+        indices.reserve(TRACKS_PER_ALBUM);
+        for (uint8_t track = 0; track < TRACKS_PER_ALBUM; ++track) {
             LibraryPosition pos;
-            pos.room  = ""; // Room 0 is empty string
+            pos.room  = "";
             pos.wall  = 0;
             pos.shelf = 0;
             pos.album = 0;
             pos.track = track;
 
-            cpp_int reconstructed = reconstructIndexFromPosition(pos);
-            REQUIRE(reconstructed == track);
+            cpp_int idx = reconstructIndexFromPosition(pos);
+            REQUIRE(idx >= 0);
+            REQUIRE(idx < cpp_int(ITEMS_PER_ROOM)); // stays in room 0
+            indices.push_back(idx);
+        }
+        // All 15 must be distinct (bijection property)
+        std::vector<cpp_int> sorted_indices = indices;
+        std::sort(sorted_indices.begin(), sorted_indices.end());
+        for (size_t i = 1; i < sorted_indices.size(); ++i) {
+            REQUIRE(sorted_indices[i] != sorted_indices[i - 1]);
         }
     }
 
-    SECTION("First position of each album in first shelf is reachable") {
-        // Test first position of each album in first shelf (room 0, wall 0, shelf 0)
-        for (uint8_t album = 0; album < ALBUMS_PER_SHELF; album++) {
-            INFO("Testing album: " << (int) album);
-
+    SECTION("First position of each album in first shelf produces distinct in-range indices") {
+        std::vector<cpp_int> indices;
+        indices.reserve(ALBUMS_PER_SHELF);
+        for (uint8_t album = 0; album < ALBUMS_PER_SHELF; ++album) {
             LibraryPosition pos;
-            pos.room  = ""; // Room 0 is empty string
+            pos.room  = "";
             pos.wall  = 0;
             pos.shelf = 0;
             pos.album = album;
             pos.track = 0;
 
-            cpp_int reconstructed = reconstructIndexFromPosition(pos);
-            cpp_int expected      = album * ITEMS_PER_ALBUM;
-
-            REQUIRE(reconstructed == expected);
+            cpp_int idx = reconstructIndexFromPosition(pos);
+            REQUIRE(idx >= 0);
+            REQUIRE(idx < cpp_int(ITEMS_PER_ROOM)); // stays in room 0
+            indices.push_back(idx);
+        }
+        // All 32 must be distinct (bijection property)
+        std::vector<cpp_int> sorted_indices = indices;
+        std::sort(sorted_indices.begin(), sorted_indices.end());
+        for (size_t i = 1; i < sorted_indices.size(); ++i) {
+            REQUIRE(sorted_indices[i] != sorted_indices[i - 1]);
         }
     }
 }
 
-TEST_CASE("LibraryPosition: boundary values produce correct positions", "[library_position][boundary]") {
-    struct Case {
-        cpp_int index;
-        uint8_t wall;
-        uint8_t shelf;
-        uint8_t album;
-        uint8_t track;
-    };
+TEST_CASE("LibraryPosition: boundary indices round-trip correctly", "[library_position][boundary]") {
+    // These boundary values exercise room-0 edges. With offset scrambling the
+    // wall/shelf/album/track are permuted, but every index must round-trip and
+    // stay in room 0 (all values < ITEMS_PER_ROOM).
+    std::vector<cpp_int> boundaries = {14, 15, 479, 480, 2399, 2400, 9599};
 
-    std::vector<Case> cases = {
-        {14, 0, 0, 0, 14},    // Last track of first album
-        {15, 0, 0, 1, 0},     // First track of second album
-        {479, 0, 0, 31, 14},  // Last track of first shelf
-        {480, 0, 1, 0, 0},    // First track of second shelf
-        {2399, 0, 4, 31, 14}, // Last track of first wall
-        {2400, 1, 0, 0, 0},   // First track of second wall
-        {9599, 3, 4, 31, 14}, // Last track of first room
-    };
+    for (const auto& idx : boundaries) {
+        INFO("Boundary index: " << idx);
+        auto pos = calculateLibraryPosition(idx);
 
-    for (const auto& c : cases) {
-        INFO("Testing boundary index: " << c.index);
-        auto pos = calculateLibraryPosition(c.index);
-
-        REQUIRE(pos.room == "");
-        REQUIRE(pos.wall == c.wall);
-        REQUIRE(pos.shelf == c.shelf);
-        REQUIRE(pos.album == c.album);
-        REQUIRE(pos.track == c.track);
+        REQUIRE(pos.room  == "");
+        REQUIRE(pos.wall  < WALLS_PER_ROOM);
+        REQUIRE(pos.shelf < SHELVES_PER_WALL);
+        REQUIRE(pos.album < ALBUMS_PER_SHELF);
+        REQUIRE(pos.track < TRACKS_PER_ALBUM);
+        REQUIRE(reconstructIndexFromPosition(pos) == idx);
     }
 }
 
-TEST_CASE("LibraryPosition: reconstructIndexFromPosition with out-of-range values", "[library_position][edge_case][validation]") {
-    // The header documents: "@throws std::invalid_argument if position fields are out of valid ranges"
-    // The implementation now enforces this contract.
-    //
-    // JavaScript layer (browse.js) also validates and clamps input values before calling WASM,
-    // but the C++ layer now rejects invalid inputs as a defence-in-depth measure.
+TEST_CASE("LibraryPosition: adjacent tracks produce scattered indices", "[library_position][scramble]") {
+    std::vector<cpp_int> indices;
+    indices.reserve(TRACKS_PER_ALBUM);
+    for (uint8_t track = 0; track < TRACKS_PER_ALBUM; ++track) {
+        LibraryPosition pos;
+        pos.room  = "";
+        pos.wall  = 0;
+        pos.shelf = 0;
+        pos.album = 0;
+        pos.track = track;
+        indices.push_back(reconstructIndexFromPosition(pos));
+    }
 
+    // No two consecutive tracks (by track number) should map to adjacent indices.
+    for (size_t i = 0; i + 1 < indices.size(); ++i) {
+        cpp_int diff = indices[i + 1] > indices[i] ? indices[i + 1] - indices[i] : indices[i] - indices[i + 1];
+        INFO("Track " << i << " → " << indices[i] << ", track " << (i + 1) << " → " << indices[i + 1] << ", diff = " << diff);
+        REQUIRE(diff > cpp_int(1));
+    }
+
+    // The spread across 15 well-scattered points in [0, 9600) should be large.
+    auto mn = *std::min_element(indices.begin(), indices.end());
+    auto mx = *std::max_element(indices.begin(), indices.end());
+    REQUIRE((mx - mn) > cpp_int(1000));
+}
+
+TEST_CASE("LibraryPosition: reconstructIndexFromPosition with out-of-range values", "[library_position][edge_case][validation]") {
     SECTION("track out of range (15, max is 14)") {
         LibraryPosition pos;
         pos.room  = ""; // room 0
@@ -316,11 +313,10 @@ TEST_CASE("LibraryPosition: reconstructIndexFromPosition with out-of-range value
     }
 
     SECTION("Forward calculation never produces out-of-range values") {
-        // Forward calculation should always produce valid ranges due to modulo operations
         cpp_int index = 999999; // arbitrary large index
         auto    pos   = calculateLibraryPosition(index);
 
-        REQUIRE(pos.wall < WALLS_PER_ROOM);
+        REQUIRE(pos.wall  < WALLS_PER_ROOM);
         REQUIRE(pos.shelf < SHELVES_PER_WALL);
         REQUIRE(pos.album < ALBUMS_PER_SHELF);
         REQUIRE(pos.track < TRACKS_PER_ALBUM);
@@ -334,7 +330,6 @@ TEST_CASE("LibraryPosition: reconstructIndexFromPosition with out-of-range value
         pos.album = 0;
         pos.track = 0;
 
-        // Expected: b64ToIndex should throw on invalid characters
         REQUIRE_THROWS_AS(reconstructIndexFromPosition(pos), std::invalid_argument);
     }
 }

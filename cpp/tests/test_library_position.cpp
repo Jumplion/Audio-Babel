@@ -14,8 +14,8 @@
  * Migrated to Catch2 v3 framework.
  */
 
-#include <catch2/catch_test_macros.hpp>
 #include <algorithm>
+#include <catch2/catch_test_macros.hpp>
 #include <sstream>
 #include <vector>
 
@@ -31,9 +31,9 @@ TEST_CASE("LibraryPosition: calculateLibraryPosition and roundtrip for represent
     };
 
     std::vector<Case> cases = {
-        {42,    true},   // room 0
-        {12345, false},  // room 1
-        {9600,  false},  // first index in room 1
+        {42, true},     // room 0
+        {12345, false}, // room 1
+        {9600, false},  // first index in room 1
     };
 
     for (const auto& c : cases) {
@@ -91,11 +91,11 @@ TEST_CASE("LibraryPosition: cross-module consistency with IndexMetadata and full
     for (const auto& index : test_indexes) {
         INFO("Testing index: " << index);
 
-        auto meta = IndexMetadata::extractMetadataFromIndex(index);
+        auto meta       = IndexMetadata::extractMetadataFromIndex(index);
         auto pos_direct = calculateLibraryPosition(index);
 
-        REQUIRE(meta.position.room  == pos_direct.room);
-        REQUIRE(meta.position.wall  == pos_direct.wall);
+        REQUIRE(meta.position.room == pos_direct.room);
+        REQUIRE(meta.position.wall == pos_direct.wall);
         REQUIRE(meta.position.shelf == pos_direct.shelf);
         REQUIRE(meta.position.album == pos_direct.album);
         REQUIRE(meta.position.track == pos_direct.track);
@@ -112,7 +112,7 @@ TEST_CASE("LibraryPosition: zero index maps to room 0", "[library_position][edge
     // With offset scrambling, wall/shelf/album/track are no longer necessarily 0,
     // but the index must round-trip and must land in room 0.
     REQUIRE(pos.room == "");
-    REQUIRE(pos.wall  < WALLS_PER_ROOM);
+    REQUIRE(pos.wall < WALLS_PER_ROOM);
     REQUIRE(pos.shelf < SHELVES_PER_WALL);
     REQUIRE(pos.album < ALBUMS_PER_SHELF);
     REQUIRE(pos.track < TRACKS_PER_ALBUM);
@@ -209,8 +209,8 @@ TEST_CASE("LibraryPosition: boundary indices round-trip correctly", "[library_po
         INFO("Boundary index: " << idx);
         auto pos = calculateLibraryPosition(idx);
 
-        REQUIRE(pos.room  == "");
-        REQUIRE(pos.wall  < WALLS_PER_ROOM);
+        REQUIRE(pos.room == "");
+        REQUIRE(pos.wall < WALLS_PER_ROOM);
         REQUIRE(pos.shelf < SHELVES_PER_WALL);
         REQUIRE(pos.album < ALBUMS_PER_SHELF);
         REQUIRE(pos.track < TRACKS_PER_ALBUM);
@@ -316,7 +316,7 @@ TEST_CASE("LibraryPosition: reconstructIndexFromPosition with out-of-range value
         cpp_int index = 999999; // arbitrary large index
         auto    pos   = calculateLibraryPosition(index);
 
-        REQUIRE(pos.wall  < WALLS_PER_ROOM);
+        REQUIRE(pos.wall < WALLS_PER_ROOM);
         REQUIRE(pos.shelf < SHELVES_PER_WALL);
         REQUIRE(pos.album < ALBUMS_PER_SHELF);
         REQUIRE(pos.track < TRACKS_PER_ALBUM);

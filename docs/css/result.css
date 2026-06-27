@@ -5,188 +5,190 @@
 
 /* Clickable metadata elements */
 .metadata-expandable {
-    cursor: pointer;
-    user-select: none;
-    transition: color 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s ease;
 }
 
 .metadata-expandable:hover {
-    color: var(--btn-hover);
+  color: var(--btn-hover);
 }
 
 /* Clickable index display */
 .index-clickable {
-    cursor: pointer;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .index-clickable:hover {
-    background: rgba(40, 46, 61, 0.9);
-    border-color: var(--accent);
+  background: rgba(40, 46, 61, 0.9);
+  border-color: var(--accent);
 }
 
 /* Expanded metadata view - scrollable container for full text */
 .metadata-expanded {
-    margin-top: 8px;
-    margin-bottom: 8px;
-    padding: 12px;
-    background: rgba(36, 26, 20, 0.7);
-    border: 1px solid var(--card-border);
-    border-radius: 8px;
-    max-height: 150px;
-    overflow-y: auto;
-    overflow-x: auto;
-    word-break: break-all;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    font-size: 13px;
-    white-space: pre-wrap;
-    color: var(--text-dim);
-    box-shadow: var(--shadow-sm);
+  margin-top: 8px;
+  margin-bottom: 8px;
+  padding: 12px;
+  background: rgba(36, 26, 20, 0.7);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+  overflow-x: auto;
+  word-break: break-all;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  color: var(--text-dim);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Result component styles (from result.html) */
 #result {
-    margin-top: 24px;
-    display: none;
+  margin-top: 24px;
+  display: none;
 }
 
 #indexDisplay {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding: 12px;
-    background: rgba(36, 26, 20, 0.7);
-    border: 1px solid var(--card-border);
-    border-radius: 8px;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    font-size: 13px;
-    color: var(--accent);
-    box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 12px;
+  background: rgba(36, 26, 20, 0.7);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
 }
 
 #positionInfo {
-    margin: 16px 0;
-    padding: 12px;
-    background: rgba(36, 26, 20, 0.4);
-    border: 1px solid var(--card-border);
-    border-radius: 8px;
+  margin: 16px 0;
+  padding: 12px;
+  background: rgba(36, 26, 20, 0.4);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
 }
 
 #positionDisplay {
-    margin-top: 8px;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  margin-top: 8px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
 .position-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
 }
 
 .position-row {
-    display: flex;
-    gap: 16px;
-    min-width: 0;
+  display: flex;
+  gap: 16px;
+  min-width: 0;
 }
 
 .position-field {
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-    min-width: 0;
-    flex: 1 1 0;
-    overflow: hidden;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 0;
+  overflow: hidden;
 }
 
 .position-field strong {
-    flex-shrink: 0;
-    color: var(--text);
+  flex-shrink: 0;
+  color: var(--text);
 }
 
 .position-value {
-    display: inline-block;
-    min-width: 0;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--text-dim);
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-dim);
 }
 
 .position-actions {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
 }
 
 .btn-find-in-library {
-    font-size: 13px;
-    padding: 6px 14px;
+  font-size: 13px;
+  padding: 6px 14px;
 }
 
 #metadata {
-    display: none;
-    margin-bottom: 16px;
-    padding: 16px;
-    background: rgba(36, 26, 20, 0.4);
-    border: 1px solid var(--card-border);
-    border-radius: 8px;
+  display: none;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: rgba(36, 26, 20, 0.4);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
 }
 
 #coverImg {
-    width: 128px;
-    height: 128px;
-    float: left;
-    margin-right: 16px;
-    border-radius: 8px;
-    border: 1px solid var(--card-border);
-    box-shadow: var(--shadow-sm);
+  width: 128px;
+  height: 128px;
+  float: left;
+  margin-right: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .metadata-content {
-    overflow: hidden;
+  overflow: hidden;
 }
 
-.metadata-content>div {
-    margin-bottom: 8px;
-    color: var(--text-dim);
+.metadata-content > div {
+  margin-bottom: 8px;
+  color: var(--text-dim);
 }
 
 .metadata-content strong {
-    color: var(--text);
-    margin-right: 8px;
+  color: var(--text);
+  margin-right: 8px;
 }
 
 .metadata-clearfix {
-    clear: both;
+  clear: both;
 }
 
 .audio-actions .play-row {
-    margin-top: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 /* WaveSurfer.js waveform visualization container */
 #waveformContainer {
-    margin-top: 8px;
-    margin-bottom: 12px;
-    padding: 0;
-    background: rgba(15, 11, 8, 0.8);
-    border: 1px solid var(--card-border);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-    min-height: 120px;
-    cursor: pointer;
-    /* Indicate clickability for play/pause */
+  margin-top: 8px;
+  margin-bottom: 12px;
+  padding: 0;
+  background: rgba(15, 11, 8, 0.8);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  min-height: 120px;
+  cursor: pointer;
+  /* Indicate clickability for play/pause */
 }
 
 /* Override WaveSurfer.js default styles */
 #waveformContainer wave {
-    overflow: hidden !important;
-    border-radius: 8px;
+  overflow: hidden !important;
+  border-radius: 8px;
 }

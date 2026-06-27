@@ -1,127 +1,160 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Audio Babel — About</title>
+    <link rel="stylesheet" href="./css/site.css" />
+    <link rel="stylesheet" href="./css/navbar.css" />
+    <link rel="stylesheet" href="./css/about.css" />
+    <!-- KaTeX CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+      integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV"
+      crossorigin="anonymous"
+    />
+    <!-- KaTeX JS -->
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+      integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8"
+      crossorigin="anonymous"
+    ></script>
+    <!-- KaTeX auto-render -->
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+      integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
+      crossorigin="anonymous"
+      onload="
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false },
+          ],
+        })
+      "
+    ></script>
+  </head>
 
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Audio Babel — About</title>
-  <link rel="stylesheet" href="./css/site.css" />
-  <link rel="stylesheet" href="./css/navbar.css" />
-  <link rel="stylesheet" href="./css/about.css" />
-  <!-- KaTeX CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
-    integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
-  <!-- KaTeX JS -->
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
-    integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8"
-    crossorigin="anonymous"></script>
-  <!-- KaTeX auto-render -->
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
-    integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous"
-    onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
-</head>
-
-<body class="about">
-  <div id="navContainer">
-    <nav class="site-navbar">
-      <div class="nav-inner">
-        <div class="nav-brand"><a href="./index.html">Audio Babel</a></div>
-        <div class="nav-links">
-          <a href="./browse.html">Browse</a>
-          <a href="./search.html">Search</a>
-          <a href="./about.html">About</a>
+  <body class="about">
+    <div id="navContainer">
+      <nav class="site-navbar">
+        <div class="nav-inner">
+          <div class="nav-brand"><a href="./index.html">Audio Babel</a></div>
+          <div class="nav-links">
+            <a href="./browse.html">Browse</a>
+            <a href="./search.html">Search</a>
+            <a href="./about.html">About</a>
+          </div>
         </div>
-      </div>
-    </nav>
-  </div>
+      </nav>
+    </div>
 
-  <div class="wrap">
-    <main class="card about-card">
-      <h1>About Audio Babel</h1>
+    <div class="wrap">
+      <main class="card about-card">
+        <h1>About Audio Babel</h1>
 
-      <h2>Who made this thing?</h2>
-      <p>
-        Hey, my name's Tomer Braff. I'm a programmer, developer, game designer, actor, voice over artist, youtuber, all
-        around something-or-other. I got a portfolio site at <a href="https://tomerbraff.com">tomerbraff.com</a>, a <a
-          href="https://www.youtube.com/@woblewoble">YouTube channel</a> I sometimes do things with, and you can find on
-        all the usual places like <a href="https://x.com/TomerBraff">Twitter</a> and <a
-          href="https://www.linkedin.com/in/tomerbraff/">LinkedIn</a>. If you're curious or just want to chat, contact
-        me at <a href="mailto:tomerbraff+audiobabel@gmail.com">tomerbraff@gmail.com</a>.
-      </p>
-      <h2>What is this site?</h2>
-      <p>
-        The Audio Library of Babel (or Audibel) is inspired by the <a
-          href="https://en.wikipedia.org/wiki/Library_of_Babel">Library of Babel</a>, a
-        thought experiment by Jorge Luis Borges. It is a collection of all possible books that can be created with a
-        given
-        set of parameters. It is also inspired by the <a href="https://libraryofbabel.info/">Library of Babel
-          website</a> by Jonathan
-        Basile, which implements said concept in a digital format. The goal in this case is to do the same, but for
-        audio files — a record shop with every record that could ever be pressed, shelved somewhere inside it.
-      </p>
+        <h2>Who made this thing?</h2>
+        <p>
+          Hey, my name's Tomer Braff. I'm a programmer, developer, game designer, actor, voice over
+          artist, youtuber, all around something-or-other. I got a portfolio site at
+          <a href="https://tomerbraff.com">tomerbraff.com</a>, a
+          <a href="https://www.youtube.com/@woblewoble">YouTube channel</a> I sometimes do things
+          with, and you can find on all the usual places like
+          <a href="https://x.com/TomerBraff">Twitter</a> and
+          <a href="https://www.linkedin.com/in/tomerbraff/">LinkedIn</a>. If you're curious or just
+          want to chat, contact me at
+          <a href="mailto:tomerbraff+audiobabel@gmail.com">tomerbraff@gmail.com</a>.
+        </p>
+        <h2>What is this site?</h2>
+        <p>
+          The Audio Library of Babel (or Audibel) is inspired by the
+          <a href="https://en.wikipedia.org/wiki/Library_of_Babel">Library of Babel</a>, a thought
+          experiment by Jorge Luis Borges. It is a collection of all possible books that can be
+          created with a given set of parameters. It is also inspired by the
+          <a href="https://libraryofbabel.info/">Library of Babel website</a> by Jonathan Basile,
+          which implements said concept in a digital format. The goal in this case is to do the
+          same, but for audio files — a record shop with every record that could ever be pressed,
+          shelved somewhere inside it.
+        </p>
 
-      <h2>How does it work?</h2>
-      <p>
-        Every audio file is generated from a unique "address" that encodes the audio data. The address is a string of
-        characters that can be used to recreate the exact same audio file.
-        These addresses are read as a bijective <a href="https://en.wikipedia.org/wiki/Base64">base64</a> number
-        (specifically URL Safe) and converted to a big integer, which decodes directly to the raw audio sample data —
-        no header or format information is stored in the address itself. Only when generating a playable file is a
-        pre-determined <a href="https://en.wikipedia.org/wiki/WAV">WAV</a> header attached separately, wrapping the
-        decoded samples. That WAV header is fixed, meaning all resulting audio files will have the same sample rate
-        (44.1kHz), bit depth (16-bit), and number of channels (mono).
+        <h2>How does it work?</h2>
+        <p>
+          Every audio file is generated from a unique "address" that encodes the audio data. The
+          address is a string of characters that can be used to recreate the exact same audio file.
+          These addresses are read as a bijective
+          <a href="https://en.wikipedia.org/wiki/Base64">base64</a> number (specifically URL Safe)
+          and converted to a big integer, which decodes directly to the raw audio sample data — no
+          header or format information is stored in the address itself. Only when generating a
+          playable file is a pre-determined
+          <a href="https://en.wikipedia.org/wiki/WAV">WAV</a> header attached separately, wrapping
+          the decoded samples. That WAV header is fixed, meaning all resulting audio files will have
+          the same sample rate (44.1kHz), bit depth (16-bit), and number of channels (mono).
+          Essentially, the index represents the specific sequence of audio samples that make up the
+          sound.
+        </p>
 
-        Essentially, the index represents the specific sequence of audio samples that make up the sound.
-      </p>
+        <h2>Surfing the Audio .WAV</h2>
+        <p>
+          Given these parameters we can calculate that there would be a total of $2^{44,100 \times 5
+          \times 16}=2^{3,528,000}$ possible 5-second audio files, which is approximately
+          $10^{10^7}=10^{10,000,000}$ files. This far exceeds the estimated number of atoms in the
+          observable universe (approximately $10^{80}$). The vast majority of these audio files will
+          be complete noise, but among them are also every possible sound that can be represented
+          within these parameters, including all music, speech, and other audio recordings.
+        </p>
 
-      <h2>Surfing the Audio .WAV</h2>
-      <p>
-        Given these parameters we can calculate that there would be a
-        total of $2^{44,100 \times 5 \times 16}=2^{3,528,000}$ possible 5-second audio files, which is approximately
-        $10^{10^7}=10^{10,000,000}$ files. This far exceeds the
-        estimated number of
-        atoms in the
-        observable
-        universe (approximately $10^{80}$).
-        The vast majority of these audio files will be complete noise, but among them are also every
-        possible sound that can be represented within these parameters, including all music, speech, and other audio
-        recordings.
-      </p>
+        <h3>Glossary</h3>
+        <ul>
+          <li>
+            <b>Audio Sample</b>: A single measurement of the amplitude of an audio signal at a
+            specific point in time. Audio samples are typically measured in bits, with higher bit
+            depths allowing for more precise measurements.
+          </li>
+          <li>
+            <b
+              ><a href="https://en.wikipedia.org/wiki/Sampling_(signal_processing)"
+                >Sample Rate</a
+              ></b
+            >: The number of samples of audio carried per second, measured in Hz or kHz. A higher
+            sample rate can capture more detail in the sound.
+          </li>
+          <li>
+            <b><a href="https://en.wikipedia.org/wiki/Bit_depth">Bit Depth</a></b
+            >: The number of bits of information in each sample, which directly corresponds to the
+            resolution of each sample. A higher bit depth allows for a greater dynamic range and
+            more accurate representation of the sound.
+          </li>
+          <li>
+            <b>Channels</b>: Refers to the number of separate audio signals or streams. Mono has one
+            channel, while stereo has two (left and right).
+          </li>
+          <li>
+            <b><a href="https://en.wikipedia.org/wiki/WAV">WAV</a></b
+            >: A common audio file format that stores raw and, importantly,
+            <b>uncompressed</b> audio data along with metadata such as sample rate, bit depth, and
+            number of channels.
+          </li>
+          <li>
+            <b>Base64</b>: A method for encoding binary data (like audio files) into a string of
+            ASCII characters, in this case all uppercase letters [A-Z], lowercase letters [a-z],
+            numbers [0-9], and the minus [-] and underscore [_] symbols.
+          </li>
+        </ul>
 
-      <h3>Glossary</h3>
-      <ul>
-        <li><b>Audio Sample</b>: A single measurement of the amplitude of an audio signal at a specific point in time.
-          Audio
-          samples are typically measured in bits, with higher bit depths allowing for more precise measurements.</li>
-        <li><b><a href="https://en.wikipedia.org/wiki/Sampling_(signal_processing)">Sample Rate</a></b>: The number of
-          samples of audio carried per second, measured in Hz or kHz. A higher sample
-          rate can capture more detail in the sound.</li>
-        <li><b><a href="https://en.wikipedia.org/wiki/Bit_depth">Bit Depth</a></b>: The number of bits of information in
-          each sample, which directly corresponds to the resolution
-          of each sample. A higher bit depth allows for a greater dynamic range and more accurate representation of the
-          sound.</li>
-        <li><b>Channels</b>: Refers to the number of separate audio signals or streams. Mono has one channel, while
-          stereo
-          has two (left and right).</li>
-        <li><b><a href="https://en.wikipedia.org/wiki/WAV">WAV</a></b>: A common audio file format that stores raw and,
-          importantly, <b>uncompressed</b> audio data
-          along with
-          metadata such as sample rate, bit depth, and number of channels.</li>
-        <li><b>Base64</b>: A method for encoding binary data (like audio files) into a string of ASCII characters, in
-          this case all uppercase letters [A-Z], lowercase letters [a-z], numbers [0-9], and the minus [-] and
-          underscore [_] symbols.</li>
-      </ul>
+        <p class="about-cta">
+          Ready to dig through the shelves? <a href="./browse.html">Browse</a> or
+          <a href="./search.html">Search</a> the stacks.
+        </p>
+      </main>
+    </div>
 
-      <p class="about-cta">Ready to dig through the shelves? <a href="./browse.html">Browse</a> or
-        <a href="./search.html">Search</a> the stacks.</p>
-    </main>
-  </div>
-
-  <script type="module">
-    import { highlightActiveNav } from './js/ui/nav.js';
-    highlightActiveNav('#navContainer');
-  </script>
-  <script type="module" src="./js/pages/main.js?v=5"></script>
-</body>
-
+    <script type="module">
+      import { highlightActiveNav } from './js/ui/nav.js';
+      highlightActiveNav('#navContainer');
+    </script>
+    <script type="module" src="./js/pages/main.js?v=5"></script>
+  </body>
 </html>

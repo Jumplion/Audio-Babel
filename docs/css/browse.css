@@ -1,162 +1,162 @@
 /* Styles for browse.html page - Hierarchical Navigation */
 
 .browse-intro {
-    color: var(--text-dim);
-    margin-bottom: 24px;
-    line-height: 1.6;
+  color: var(--text-dim);
+  margin-bottom: 24px;
+  line-height: 1.6;
 }
 
 /* Navigation sections */
 .nav-section {
-    margin-bottom: 32px;
-    padding: 20px;
-    background: rgba(36, 26, 20, 0.3);
-    border: 1px solid var(--card-border);
-    border-radius: 8px;
+  margin-bottom: 32px;
+  padding: 20px;
+  background: rgba(36, 26, 20, 0.3);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
 }
 
 .nav-section h2 {
-    margin-top: 0;
-    margin-bottom: 16px;
-    font-size: 20px;
-    color: var(--text);
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 20px;
+  color: var(--text);
 }
 
 /* Attribution for the track section's waveform widget, shown once below the
    whole gatefold rather than crammed into the track-detail panel. */
 .track-section-subtitle {
-    margin: 16px 0 0;
-    font-size: 13px;
-    color: var(--text-dim);
-    text-align: center;
+  margin: 16px 0 0;
+  font-size: 13px;
+  color: var(--text-dim);
+  text-align: center;
 }
 
 /* Room input */
 .input-row {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .input-row label {
-    font-weight: 500;
-    color: var(--text-dim);
+  font-weight: 500;
+  color: var(--text-dim);
 }
 
-.input-row input[type="text"] {
-    padding: 10px 12px;
-    min-width: 150px;
-    flex: 1;
-    max-width: 300px;
-    font-family: 'Courier New', Courier, monospace;
-    letter-spacing: 0.5px;
+.input-row input[type='text'] {
+  padding: 10px 12px;
+  min-width: 150px;
+  flex: 1;
+  max-width: 300px;
+  font-family: 'Courier New', Courier, monospace;
+  letter-spacing: 0.5px;
 }
 
 /* Hexagon container for walls */
 .hexagon-container {
-    display: flex;
-    justify-content: center;
-    padding: 20px;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
 
-    /* Configurable hexagon properties */
-    --hex-size: 300px;
-    --hex-center: 110;
-    --hex-inner-scale: 0.55;
-    /* Adjust this to make trapezoids thinner (0.5-0.7 recommended) */
+  /* Configurable hexagon properties */
+  --hex-size: 300px;
+  --hex-center: 110;
+  --hex-inner-scale: 0.55;
+  /* Adjust this to make trapezoids thinner (0.5-0.7 recommended) */
 }
 
 .hexagon-svg {
-    width: var(--hex-size);
-    /* height follows the viewBox aspect ratio (wider than tall now that labels
+  width: var(--hex-size);
+  /* height follows the viewBox aspect ratio (wider than tall now that labels
        sit off to the sides) so the hexagon isn't letterboxed */
-    height: auto;
-    max-width: 100%;
-    overflow: visible;
-    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  height: auto;
+  max-width: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
 }
 
 .hexagon-outline {
-    fill: rgba(22, 16, 11, 0.5);
-    stroke: rgba(201, 164, 100, 0.8);
-    stroke-width: 3;
+  fill: rgba(22, 16, 11, 0.5);
+  stroke: rgba(201, 164, 100, 0.8);
+  stroke-width: 3;
 }
 
 .hexagon-inner {
-    fill: rgba(22, 16, 11, 0.85);
-    stroke: rgba(170, 130, 80, 0.6);
-    stroke-width: 2;
+  fill: rgba(22, 16, 11, 0.85);
+  stroke: rgba(170, 130, 80, 0.6);
+  stroke-width: 2;
 }
 
 /* All segments share base styling */
 .segment {
-    stroke: rgba(255, 255, 255, 0.3);
-    stroke-width: 1.5;
-    transition: all 0.3s ease;
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 1.5;
+  transition: all 0.3s ease;
 }
 
 /* Non-selectable segments - darker/grayed out */
 .segment-disabled {
-    fill: rgba(45, 35, 28, 0.4);
-    cursor: not-allowed;
-    opacity: 0.5;
+  fill: rgba(45, 35, 28, 0.4);
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 /* Selectable wall segments */
 .wall {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 /* Top segment (Wall 0) - Indigo */
-.wall[data-wall="0"] {
-    fill: rgba(75, 85, 145, 0.6);
+.wall[data-wall='0'] {
+  fill: rgba(75, 85, 145, 0.6);
 }
 
-.wall[data-wall="0"]:hover,
-.wall[data-wall="0"].hover {
-    fill: rgba(105, 115, 185, 0.85);
-    stroke: rgba(160, 170, 230, 0.9);
-    stroke-width: 2.5;
+.wall[data-wall='0']:hover,
+.wall[data-wall='0'].hover {
+  fill: rgba(105, 115, 185, 0.85);
+  stroke: rgba(160, 170, 230, 0.9);
+  stroke-width: 2.5;
 }
 
 /* Bottom-right segment (Wall 1) - Forest green */
-.wall[data-wall="1"] {
-    fill: rgba(75, 125, 75, 0.6);
+.wall[data-wall='1'] {
+  fill: rgba(75, 125, 75, 0.6);
 }
 
-.wall[data-wall="1"]:hover,
-.wall[data-wall="1"].hover {
-    fill: rgba(105, 165, 105, 0.85);
-    stroke: rgba(160, 220, 160, 0.9);
-    stroke-width: 2.5;
+.wall[data-wall='1']:hover,
+.wall[data-wall='1'].hover {
+  fill: rgba(105, 165, 105, 0.85);
+  stroke: rgba(160, 220, 160, 0.9);
+  stroke-width: 2.5;
 }
 
 /* Bottom segment (Wall 2) - Brass gold */
-.wall[data-wall="2"] {
-    fill: rgba(200, 150, 70, 0.6);
+.wall[data-wall='2'] {
+  fill: rgba(200, 150, 70, 0.6);
 }
 
-.wall[data-wall="2"]:hover,
-.wall[data-wall="2"].hover {
-    fill: rgba(230, 182, 100, 0.85);
-    stroke: rgba(250, 215, 150, 0.9);
-    stroke-width: 2.5;
+.wall[data-wall='2']:hover,
+.wall[data-wall='2'].hover {
+  fill: rgba(230, 182, 100, 0.85);
+  stroke: rgba(250, 215, 150, 0.9);
+  stroke-width: 2.5;
 }
 
 /* Top-left segment (Wall 3) - Rosewood */
-.wall[data-wall="3"] {
-    fill: rgba(150, 65, 60, 0.6);
+.wall[data-wall='3'] {
+  fill: rgba(150, 65, 60, 0.6);
 }
 
-.wall[data-wall="3"]:hover,
-.wall[data-wall="3"].hover {
-    fill: rgba(190, 95, 88, 0.85);
-    stroke: rgba(230, 150, 140, 0.9);
-    stroke-width: 2.5;
+.wall[data-wall='3']:hover,
+.wall[data-wall='3'].hover {
+  fill: rgba(190, 95, 88, 0.85);
+  stroke: rgba(230, 150, 140, 0.9);
+  stroke-width: 2.5;
 }
 
 .wall:active {
-    filter: brightness(1.2);
+  filter: brightness(1.2);
 }
 
 /* Genre/label name, shown off to the side of its segment (text-anchor is set
@@ -164,128 +164,129 @@
    Always visible so every segment is identified; the matching label brightens
    when its wall is hovered/focused. */
 .wall-genre-label {
-    dominant-baseline: middle;
-    font-size: 12px;
-    font-weight: 600;
-    fill: var(--text);
-    pointer-events: none;
-    /* stroke behind the glyphs keeps them legible over the card background */
-    paint-order: stroke;
-    stroke: rgba(16, 11, 7, 0.85);
-    stroke-width: 3;
-    transition: fill 0.18s ease;
+  dominant-baseline: middle;
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--text);
+  pointer-events: none;
+  /* stroke behind the glyphs keeps them legible over the card background */
+  paint-order: stroke;
+  stroke: rgba(16, 11, 7, 0.85);
+  stroke-width: 3;
+  transition: fill 0.18s ease;
 }
 
 .wall:hover + .wall-genre-label,
 .wall.hover + .wall-genre-label {
-    fill: #fff;
+  fill: #fff;
 }
 
 /* Thin connector from each segment out to its side label */
 .wall-leader {
-    stroke: rgba(201, 164, 100, 0.55);
-    stroke-width: 1.5;
-    stroke-dasharray: 2 3;
-    pointer-events: none;
+  stroke: rgba(201, 164, 100, 0.55);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 3;
+  pointer-events: none;
 }
 
 /* Shelves container - vertical stack */
 .shelves-container {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    max-width: 400px;
-    margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
+  margin: 0 auto;
 }
 
 .shelf-btn {
-    padding: 16px 20px;
-    background: rgba(120, 90, 60, 0.3);
-    border: 2px solid rgba(120, 90, 60, 0.65);
-    border-radius: 6px;
-    color: var(--text);
-    font-size: 18px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-align: center;
+  padding: 16px 20px;
+  background: rgba(120, 90, 60, 0.3);
+  border: 2px solid rgba(120, 90, 60, 0.65);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
 }
 
 .shelf-btn:hover {
-    background: rgba(150, 113, 75, 0.5);
-    border-color: rgba(201, 164, 100, 0.8);
-    transform: translateX(4px);
+  background: rgba(150, 113, 75, 0.5);
+  border-color: rgba(201, 164, 100, 0.8);
+  transform: translateX(4px);
 }
 
 .shelf-btn:active {
-    transform: translateX(0);
+  transform: translateX(0);
 }
 
 /* Albums container - a "long box" of vinyl spines lined up horizontally,
    each equally sized and thin; hovering pulls one up above its neighbors. */
 .albums-container {
-    display: flex;
-    align-items: flex-end;
-    gap: 3px;
-    overflow-x: auto;
-    padding: 28px 6px 8px;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  overflow-x: auto;
+  padding: 28px 6px 8px;
 }
 
 .album-btn {
-    position: relative;
-    flex: 1 1 0;
-    min-width: 12px;
-    max-width: 36px;
-    height: 130px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    background: rgba(140, 70, 60, 0.3);
-    border: 2px solid rgba(140, 70, 60, 0.6);
-    border-radius: 4px;
-    color: var(--text);
-    cursor: pointer;
-    transition: transform 0.25s cubic-bezier(0.34, 1.2, 0.64, 1),
-                box-shadow 0.25s ease,
-                background 0.25s ease,
-                border-color 0.25s ease;
-    z-index: 1;
+  position: relative;
+  flex: 1 1 0;
+  min-width: 12px;
+  max-width: 36px;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: rgba(140, 70, 60, 0.3);
+  border: 2px solid rgba(140, 70, 60, 0.6);
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    transform 0.25s cubic-bezier(0.34, 1.2, 0.64, 1),
+    box-shadow 0.25s ease,
+    background 0.25s ease,
+    border-color 0.25s ease;
+  z-index: 1;
 }
 
 .album-btn:hover,
 .album-btn:focus-visible {
-    transform: translateY(-22px) scale(1.06);
-    background: rgba(170, 95, 85, 0.5);
-    border-color: rgba(210, 140, 130, 0.85);
-    box-shadow: 0 10px 18px rgba(0, 0, 0, 0.4);
-    z-index: 5;
+  transform: translateY(-22px) scale(1.06);
+  background: rgba(170, 95, 85, 0.5);
+  border-color: rgba(210, 140, 130, 0.85);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.4);
+  z-index: 5;
 }
 
 .album-btn:active {
-    transform: translateY(-22px) scale(1.02);
+  transform: translateY(-22px) scale(1.02);
 }
 
 .album-number {
-    font-size: 14px;
-    font-weight: 600;
-    opacity: 0;
-    transition: opacity 0.18s ease;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.18s ease;
 }
 
 .album-btn:hover .album-number,
 .album-btn:focus-visible .album-number {
-    opacity: 1;
-    transition-delay: 0.08s;
+  opacity: 1;
+  transition-delay: 0.08s;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .album-btn,
-    .album-number,
-    .wall,
-    .wall-genre-label {
-        transition: none !important;
-    }
+  .album-btn,
+  .album-number,
+  .wall,
+  .wall-genre-label {
+    transition: none !important;
+  }
 }
 
 /* Tracks container — single column inside the gatefold's inner leaf.
@@ -293,51 +294,51 @@
    which slides on from the right, never covers it); track-btn flips
    back to ltr so its text still reads left-to-right. */
 .tracks-container {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 6px;
-    max-height: 210px;
-    overflow-y: auto;
-    direction: rtl;
-    scrollbar-width: thin;
-    scrollbar-color: var(--accent-dim) rgba(190, 150, 80, 0.12);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  max-height: 210px;
+  overflow-y: auto;
+  direction: rtl;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-dim) rgba(190, 150, 80, 0.12);
 }
 
 .tracks-container::-webkit-scrollbar {
-    width: 8px;
+  width: 8px;
 }
 
 .tracks-container::-webkit-scrollbar-track {
-    background: rgba(190, 150, 80, 0.12);
-    border-radius: 4px;
+  background: rgba(190, 150, 80, 0.12);
+  border-radius: 4px;
 }
 
 .tracks-container::-webkit-scrollbar-thumb {
-    background: var(--accent-dim);
-    border-radius: 4px;
+  background: var(--accent-dim);
+  border-radius: 4px;
 }
 
 .tracks-container::-webkit-scrollbar-thumb:hover {
-    background: var(--accent);
+  background: var(--accent);
 }
 
 .track-btn {
-    direction: ltr;
-    padding: 8px 10px;
-    background: rgba(190, 150, 80, 0.18);
-    border: 1px solid rgba(190, 150, 80, 0.5);
-    border-radius: 5px;
-    color: var(--text);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    text-align: left;
-    transition: all 0.2s ease;
+  direction: ltr;
+  padding: 8px 10px;
+  background: rgba(190, 150, 80, 0.18);
+  border: 1px solid rgba(190, 150, 80, 0.5);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
 }
 
 .track-btn:hover {
-    background: rgba(217, 172, 94, 0.32);
-    border-color: rgba(230, 195, 130, 0.85);
+  background: rgba(217, 172, 94, 0.32);
+  border-color: rgba(230, 195, 130, 0.85);
 }
 
 /* ---------- Gatefold album/track selector ----------
@@ -351,65 +352,65 @@
    is replaced by that track's info + waveform (see .track-detail below),
    fading in to the right of the record rather than replacing the selector. */
 .gatefold-stage {
-    position: relative;
-    width: 700px;
-    max-width: 100%;
-    height: 350px;
-    margin: 24px auto;
-    perspective: 1600px;
+  position: relative;
+  width: 700px;
+  max-width: 100%;
+  height: 350px;
+  margin: 24px auto;
+  perspective: 1600px;
 }
 
 .gatefold-spine {
-    position: absolute;
-    left: 50%;
-    top: 4%;
-    bottom: 4%;
-    width: 1px;
-    background: rgba(0, 0, 0, 0.4);
-    box-shadow: 0 0 18px 3px rgba(0, 0, 0, 0.3);
-    z-index: 2;
+  position: absolute;
+  left: 50%;
+  top: 4%;
+  bottom: 4%;
+  width: 1px;
+  background: rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 18px 3px rgba(0, 0, 0, 0.3);
+  z-index: 2;
 }
 
 .cover-square {
-    position: absolute;
-    top: 0;
-    width: 350px;
-    height: 350px;
-    border-radius: 4px;
-    box-shadow: var(--shadow-lg);
-    backface-visibility: hidden;
-    box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  width: 350px;
+  height: 350px;
+  border-radius: 4px;
+  box-shadow: var(--shadow-lg);
+  backface-visibility: hidden;
+  box-sizing: border-box;
 }
 
 .cover-right {
-    left: 50%;
-    background: linear-gradient(160deg, #2d2119, #1b140f);
-    border: 1px solid var(--card-border);
-    /* Above the record: covers its right side, as if it's still tucked
+  left: 50%;
+  background: linear-gradient(160deg, #2d2119, #1b140f);
+  border: 1px solid var(--card-border);
+  /* Above the record: covers its right side, as if it's still tucked
        inside the sleeve there, while the record's left side (over the
        tracks panel, z-index 4) stays on top. */
-    z-index: 5;
-    overflow: hidden;
-    cursor: pointer;
+  z-index: 5;
+  overflow: hidden;
+  cursor: pointer;
 }
 
 .cover-art {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .cover-caption {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 10px 12px;
-    font-size: 12px;
-    line-height: 1.4;
-    color: var(--text-dim);
-    background: linear-gradient(180deg, transparent, rgba(10, 6, 3, 0.8));
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-dim);
+  background: linear-gradient(180deg, transparent, rgba(10, 6, 3, 0.8));
 }
 
 /* Selected track's metadata + waveform — overlays the sleeve in place of the
@@ -418,52 +419,52 @@
    so the record never visibly shows through this panel even though it
    geometrically overlaps it — no need to pad around it. */
 .track-detail {
-    position: absolute;
-    inset: 0;
-    display: none;
-    flex-direction: column;
-    padding: 16px;
-    opacity: 0;
-    background: linear-gradient(160deg, #2d2119, #1b140f);
-    color: var(--text);
-    overflow: hidden;
-    transition: opacity 0.45s ease;
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  padding: 16px;
+  opacity: 0;
+  background: linear-gradient(160deg, #2d2119, #1b140f);
+  color: var(--text);
+  overflow: hidden;
+  transition: opacity 0.45s ease;
 }
 
 .track-detail.visible {
-    opacity: 1;
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .track-detail {
-        transition: none !important;
-    }
+  .track-detail {
+    transition: none !important;
+  }
 }
 
 .gate-leaf {
-    right: 50%;
-    transform-origin: right center;
-    transform: rotateY(88deg);
-    transition: transform 0.85s cubic-bezier(0.22, 0.85, 0.32, 1);
-    background: rgba(36, 26, 20, 0.97);
-    border: 1px solid var(--card-border);
-    z-index: 3;
-    padding: 18px;
-    color: var(--text);
+  right: 50%;
+  transform-origin: right center;
+  transform: rotateY(88deg);
+  transition: transform 0.85s cubic-bezier(0.22, 0.85, 0.32, 1);
+  background: rgba(36, 26, 20, 0.97);
+  border: 1px solid var(--card-border);
+  z-index: 3;
+  padding: 18px;
+  color: var(--text);
 }
 
 .gatefold-stage.open .gate-leaf {
-    transform: rotateY(0deg);
+  transform: rotateY(0deg);
 }
 
 .leaf-face {
-    backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .leaf-face h3 {
-    margin: 0 0 12px;
-    font-size: 16px;
-    color: var(--accent);
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: var(--accent);
 }
 
 /* z-index above the leaf (tracks panel) so the record visibly slides out
@@ -471,50 +472,50 @@
    it reads as still tucked inside the sleeve there. Fully opaque so
    nothing behind it — leaf or sleeve — ever shows through. */
 .record {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 210px;
-    height: 210px;
-    border-radius: 50%;
-    z-index: 4;
-    background:
-        repeating-radial-gradient(circle,
-            rgb(0, 0, 0) 0px,
-            rgb(0, 0, 0) 2px,
-            rgb(20, 14, 10) 3px,
-            rgb(20, 14, 10) 9px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
-    transition: transform 0.85s cubic-bezier(0.22, 0.85, 0.32, 1);
-    /* Rests tucked inside the sleeve (right) until the gatefold opens. */
-    transform: translate(calc(-50% + 90px), -50%);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  z-index: 4;
+  background: repeating-radial-gradient(
+    circle,
+    rgb(0, 0, 0) 0,
+    rgb(0, 0, 0) 2px,
+    rgb(20, 14, 10) 3px,
+    rgb(20, 14, 10) 9px
+  );
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  transition: transform 0.85s cubic-bezier(0.22, 0.85, 0.32, 1);
+  /* Rests tucked inside the sleeve (right) until the gatefold opens. */
+  transform: translate(calc(-50% + 90px), -50%);
 }
 
 .record::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--accent-dim);
-    transform: translate(-50%, -50%);
-    box-shadow: inset 0 0 0 4px rgba(20, 14, 10, 0.85);
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  transform: translate(-50%, -50%);
+  box-shadow: inset 0 0 0 4px rgba(20, 14, 10, 0.85);
 }
 
 /* Exits the sleeve toward the left, landing mostly over the tracks panel
    (it's fine for it to cover part of the track list/scrollbar there). */
 .gatefold-stage.open .record {
-    transform: translate(calc(-50% - 20px), -50%);
+  transform: translate(calc(-50% - 20px), -50%);
 }
 
 @media (prefers-reduced-motion: reduce) {
-
-    .gate-leaf,
-    .record {
-        transition: none !important;
-    }
+  .gate-leaf,
+  .record {
+    transition: none !important;
+  }
 }
 
 /* Zoom "push-through" transition — played by browse.js when navigating between
@@ -522,47 +523,47 @@
    viewer and fades (.zoom-out), as if the camera dives into the spot that was
    clicked; then the next level zooms up out of that same spot (.zoom-reveal). */
 .browse .card {
-    perspective: 1000px;
-    /* Wider than the default .card so the 640px gatefold has room to breathe */
-    max-width: 760px;
+  perspective: 1000px;
+  /* Wider than the default .card so the 640px gatefold has room to breathe */
+  max-width: 760px;
 }
 
 .nav-section.zoom-reveal {
-    animation: zoomReveal 0.42s cubic-bezier(0.16, 0.84, 0.32, 1);
-    transform-origin: var(--reveal-x, 50%) var(--reveal-y, 50%);
+  animation: zoomReveal 0.42s cubic-bezier(0.16, 0.84, 0.32, 1);
+  transform-origin: var(--reveal-x, 50%) var(--reveal-y, 50%);
 }
 
 /* Outgoing section: enlarges past 1.0 and fades as we "push into" the clicked
    element. `forwards` holds the faded-out end state until browse.js sets
    display:none, avoiding a flash of the section snapping back to full size. */
 .nav-section.zoom-out {
-    animation: zoomOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
-    transform-origin: var(--reveal-x, 50%) var(--reveal-y, 50%);
-    pointer-events: none;
+  animation: zoomOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+  transform-origin: var(--reveal-x, 50%) var(--reveal-y, 50%);
+  pointer-events: none;
 }
 
 @keyframes zoomReveal {
-    from {
-        opacity: 0;
-        transform: scale(0.82);
-    }
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
 
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes zoomOut {
-    from {
-        opacity: 1;
-        transform: scale(1);
-    }
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
 
-    to {
-        opacity: 0;
-        transform: scale(1.35);
-    }
+  to {
+    opacity: 0;
+    transform: scale(1.35);
+  }
 }
 
 /* Honour reduced-motion: drop the scaling/zoom, but keep a gentle opacity
@@ -570,64 +571,71 @@
    popping in instantly). Users with the OS "reduce motion" setting on will see
    this fade instead of the full zoom. */
 @media (prefers-reduced-motion: reduce) {
+  .nav-section.zoom-reveal {
+    animation: fadeReveal 0.25s ease both;
+    transform: none;
+  }
 
-    .nav-section.zoom-reveal {
-        animation: fadeReveal 0.25s ease both;
-        transform: none;
-    }
+  .nav-section.zoom-out {
+    animation: fadeOut 0.18s ease both;
+    transform: none;
+  }
 
-    .nav-section.zoom-out {
-        animation: fadeOut 0.18s ease both;
-        transform: none;
+  @keyframes fadeReveal {
+    from {
+      opacity: 0;
     }
+    to {
+      opacity: 1;
+    }
+  }
 
-    @keyframes fadeReveal {
-        from { opacity: 0; }
-        to   { opacity: 1; }
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
     }
-
-    @keyframes fadeOut {
-        from { opacity: 1; }
-        to   { opacity: 0; }
+    to {
+      opacity: 0;
     }
+  }
 }
 
 /* Breadcrumb base styling lives in site.css (#breadcrumb) — shared across pages */
 #breadcrumb span {
-    color: var(--text);
+  color: var(--text);
 }
 
 /* Result container — lives inside .track-detail on the sleeve; restyled
    into a compact stack (track name, index, waveform, play/download) since
    the breadcrumb above already shows room/wall/shelf/album/track position. */
 #resultContainer {
-    height: 100%;
+  height: 100%;
 }
 
 .browse #result {
-    /* !important needed: resultDisplay.js sets style.display="block" inline
+  /* !important needed: resultDisplay.js sets style.display="block" inline
        once content is populated, which would otherwise beat this rule */
-    display: flex !important;
-    flex-direction: column;
-    height: 100%;
-    /* result.css's margin-top:24px is meant for the search page's layout;
+  display: flex !important;
+  flex-direction: column;
+  height: 100%;
+  /* result.css's margin-top:24px is meant for the search page's layout;
        here it would push content past the panel's bottom edge, getting
        clipped by .cover-right's overflow:hidden. */
-    margin-top: 0;
+  margin-top: 0;
 }
 
 .browse #result > h3,
 .browse #positionInfo {
-    display: none;
+  display: none;
 }
 
 .browse #metadata {
-    order: -2;
-    display: block;
-    background: none;
-    border: none;
-    padding: 0;
-    margin: 0 0 4px;
+  order: -2;
+  display: block;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 0 4px;
 }
 
 .browse #coverImg,
@@ -635,144 +643,144 @@
 .browse .meta-genre,
 .browse .meta-artist,
 .browse .meta-album {
-    display: none;
+  display: none;
 }
 
 .browse .meta-track strong {
-    display: none;
+  display: none;
 }
 
 .browse .meta-track {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--accent);
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .browse #indexDisplay {
-    display: none;
+  display: none;
 }
 
 .browse #waveformContainer {
-    order: 1;
-    flex: 1;
-    width: 92%;
-    margin: 0 auto 10px;
-    min-height: 170px;
+  order: 1;
+  flex: 1;
+  width: 92%;
+  margin: 0 auto 10px;
+  min-height: 170px;
 }
 
 .browse .audio-actions {
-    order: 2;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-top: auto;
+  order: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
 }
 
 .browse .play-row,
 .browse .download-row {
-    margin: 0;
+  margin: 0;
 }
 
 .browse .play-row sub {
-    display: none;
+  display: none;
 }
 
 .browse .audio-actions .btn {
-    padding: 8px 12px;
-    font-size: 12px;
-    min-width: unset !important;
-    white-space: nowrap;
+  padding: 8px 12px;
+  font-size: 12px;
+  min-width: unset !important;
+  white-space: nowrap;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-    .hexagon-svg {
-        width: 250px;
-        height: auto;
-    }
+  .hexagon-svg {
+    width: 250px;
+    height: auto;
+  }
 
-    .shelves-container {
-        max-width: 100%;
-    }
+  .shelves-container {
+    max-width: 100%;
+  }
 
-    .albums-container {
-        padding-top: 22px;
-    }
+  .albums-container {
+    padding-top: 22px;
+  }
 
-    .album-btn {
-        height: 100px;
-    }
+  .album-btn {
+    height: 100px;
+  }
 
-    .gatefold-stage {
-        height: 290px;
-    }
+  .gatefold-stage {
+    height: 290px;
+  }
 
-    .cover-square {
-        width: 160px;
-        height: 290px;
-    }
+  .cover-square {
+    width: 160px;
+    height: 290px;
+  }
 
-    .record {
-        width: 120px;
-        height: 120px;
-        transform: translate(calc(-50% + 50px), -50%);
-    }
+  .record {
+    width: 120px;
+    height: 120px;
+    transform: translate(calc(-50% + 50px), -50%);
+  }
 
-    .gatefold-stage.open .record {
-        transform: translate(calc(-50% - 18px), -50%);
-    }
+  .gatefold-stage.open .record {
+    transform: translate(calc(-50% - 18px), -50%);
+  }
 
-    .track-detail {
-        padding: 12px;
-    }
+  .track-detail {
+    padding: 12px;
+  }
 
-    .browse #waveformContainer {
-        min-height: 110px;
-        width: 96%;
-    }
+  .browse #waveformContainer {
+    min-height: 110px;
+    width: 96%;
+  }
 
-    /* The sleeve is too narrow on mobile to fit Play and Download
+  /* The sleeve is too narrow on mobile to fit Play and Download
        side by side without clipping — stack them and let their labels
        wrap instead of forcing a single line that runs past the edge. */
-    .browse .audio-actions {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 6px;
-    }
+  .browse .audio-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
 
-    .browse .audio-actions .btn {
-        white-space: normal;
-        text-align: center;
-        font-size: 11px;
-        padding: 6px 8px;
-    }
+  .browse .audio-actions .btn {
+    white-space: normal;
+    text-align: center;
+    font-size: 11px;
+    padding: 6px 8px;
+  }
 
-    .browse .meta-track {
-        font-size: 14px;
-    }
+  .browse .meta-track {
+    font-size: 14px;
+  }
 
-    .leaf-face h3 {
-        font-size: 14px;
-    }
+  .leaf-face h3 {
+    font-size: 14px;
+  }
 
-    /* The tracks list can scroll taller than the shrunk mobile gatefold
+  /* The tracks list can scroll taller than the shrunk mobile gatefold
        (see .tracks-container's max-height), so it overflows the stage's
        box — push the subtitle below it instead of letting them collide. */
-    .track-section-subtitle {
-        margin-top: 130px;
-    }
+  .track-section-subtitle {
+    margin-top: 130px;
+  }
 
-    .input-row {
-        flex-direction: column;
-        align-items: stretch;
-    }
+  .input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
 
-    .input-row input[type="text"] {
-        max-width: 100%;
-    }
+  .input-row input[type='text'] {
+    max-width: 100%;
+  }
 }

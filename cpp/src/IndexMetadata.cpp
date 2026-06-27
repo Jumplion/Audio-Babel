@@ -17,7 +17,7 @@ auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_in
     boost::multiprecision::export_bits(index, std::back_inserter(bytes), BITS_PER_BYTE, true);
 
     LibraryPosition position = calculateLibraryPosition(index);
-    return buildMetadataFromBytesAndPosition(bytes, position);
+    return buildMetadataFromBytesAndPosition(bytes, position, IndexNaming::namesForIndex(index));
 }
 
 // String overload: extract metadata directly from a bijective base-64 index string
@@ -33,17 +33,19 @@ auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> 
     boost::multiprecision::export_bits(index, std::back_inserter(bytes), BITS_PER_BYTE, true);
 
     LibraryPosition position = calculateLibraryPosition(index);
-    return buildMetadataFromBytesAndPosition(bytes, position);
+    return buildMetadataFromBytesAndPosition(bytes, position, IndexNaming::namesForIndex(index));
 }
 
-auto IndexMetadata::buildMetadataFromBytesAndPosition(const std::vector<uint8_t>& bytes, const LibraryPosition& position) -> IndexMetadata {
+auto IndexMetadata::buildMetadataFromBytesAndPosition(const std::vector<uint8_t>&  bytes,
+                                                      const LibraryPosition&       position,
+                                                      const IndexNaming::Names&    names) -> IndexMetadata {
     IndexMetadata meta;
     meta.position = position;
 
-    meta.genre  = IndexNaming::genreNameFor(position.room, position.wall);
-    meta.artist = IndexNaming::artistNameFor(position.room, position.wall, position.shelf);
-    meta.album  = IndexNaming::albumNameFor(position.room, position.wall, position.shelf, position.album);
-    meta.track  = IndexNaming::trackNameFor(position.room, position.wall, position.shelf, position.album, position.track);
+    meta.genre  = names.genre;
+    meta.artist = names.artist;
+    meta.album  = names.album;
+    meta.track  = names.track;
 
     meta.cover = IndexMetadata::generateSvgCover(bytes, meta.track);
     return meta;

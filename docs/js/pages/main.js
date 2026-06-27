@@ -181,7 +181,7 @@ function initMetadataSearch() {
       Object.entries(fieldInputs).forEach(([level, inputEl]) => {
         const width = nameWidths[level];
         inputEl.maxLength = width;
-        inputEl.placeholder = `${level[0].toUpperCase()}${level.slice(1)} name (${width} chars)`;
+        inputEl.placeholder = `${level[0].toUpperCase()}${level.slice(1)} name (up to ${width} chars)`;
       });
     })
     .catch((error) => handleError('main.js:initMetadataSearch', error, 'Failed to load library constants'));
@@ -204,30 +204,22 @@ function initMetadataSearch() {
   });
   updateSearchButtonState();
 
-  function renderMetadataResult(wasm, match) {
-    const room = match.room === '' ? '0' : match.room;
-    const genreName = JSON.parse(wasm.module.getGenreNames(match.room))[match.wall];
-    const artistName = JSON.parse(wasm.module.getArtistNames(match.room, match.wall))[match.shelf];
-    const albumName = JSON.parse(wasm.module.getAlbumNames(match.room, match.wall, match.shelf))[match.album];
-    const trackName = JSON.parse(wasm.module.getTrackNames(match.room, match.wall, match.shelf, match.album))[match.track];
+  function renderMetadataResult(result) {
+    const { names, position } = result;
+    const room = position.room === '' ? '0' : position.room;
+    const shortRoom = room.length > 14 ? `${room.slice(0, 14)}…` : room;
 
     const li = document.createElement('li');
     li.className = 'metadata-result-item';
     li.innerHTML = `
       <div class="metadata-result-summary">
-        <span class="metadata-result-names">${escapeHtml(genreName)} / ${escapeHtml(artistName)} / ${escapeHtml(albumName)} / ${escapeHtml(trackName)}</span>
-        <span class="metadata-result-meta">Room ${escapeHtml(room)} &middot; matched at ${escapeHtml(match.level)} level &middot; ${escapeHtml(String(match.indexesAtThisMatch))} index${match.indexesAtThisMatch === 1 ? '' : 'es'} share this match</span>
+        <span class="metadata-result-names">${escapeHtml(names.genre)} / ${escapeHtml(names.artist)} / ${escapeHtml(names.album)} / ${escapeHtml(names.track)}</span>
+        <span class="metadata-result-meta">Room ${escapeHtml(shortRoom)}</span>
       </div>
       <button class="btn" type="button">Find in Library &rarr;</button>
     `;
     li.querySelector('button').addEventListener('click', () => {
-      setFindInLibraryTarget({
-        room: match.room,
-        wall: match.wall,
-        shelf: match.shelf,
-        album: match.album,
-        track: match.track
-      });
+      setFindInLibraryTarget(position);
       window.location.href = './browse.html';
     });
     return li;
@@ -254,8 +246,8 @@ function initMetadataSearch() {
       if (matches.length === 0) {
         statusEl.textContent = 'No matches found.';
       } else {
-        statusEl.textContent = `Found ${matches.length} match${matches.length === 1 ? '' : 'es'}.`;
-        matches.forEach((match) => resultsList.appendChild(renderMetadataResult(wasm, match)));
+        statusEl.textContent = `Found ${matches.length} candidate${matches.length === 1 ? '' : 's'}.`;
+        matches.forEach((match) => resultsList.appendChild(renderMetadataResult(match)));
       }
     } catch (error) {
       statusEl.textContent = '';

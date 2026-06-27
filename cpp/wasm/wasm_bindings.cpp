@@ -33,7 +33,6 @@
 #include <vector>
 
 #include "../include/Index.h"
-#include "../include/IndexFinder.h"
 #include "../include/IndexMetadata.h"
 #include "../include/IndexNaming.h"
 #include "../include/LibraryPosition.h"
@@ -236,7 +235,8 @@ static std::string getLibraryConstantsWrapper() {
     json += jsonNumberField("tracksPerAlbum", LibraryConstants::TRACKS_PER_ALBUM) + ",";
     json += jsonNumberField("albumsPerShelf", LibraryConstants::ALBUMS_PER_SHELF) + ",";
     json += jsonNumberField("shelvesPerWall", LibraryConstants::SHELVES_PER_WALL) + ",";
-    json += jsonNumberField("wallsPerRoom", LibraryConstants::WALLS_PER_ROOM);
+    json += jsonNumberField("wallsPerRoom", LibraryConstants::WALLS_PER_ROOM) + ",";
+    json += jsonNumberField("nameMaxChars", static_cast<long long>(IndexNaming::nameMaxChars()));
     json += "}";
     return json;
 }
@@ -280,50 +280,62 @@ static std::string getTrackNamesWrapper(const std::string& roomStr, int wall, in
 }
 
 /**
- * Search for indexes by a genre/artist/album/track name (see IndexFinder.h).
- * `levelStr` is one of "genre"|"artist"|"album"|"track". Returns a JSON array
- * of match objects: {"room","wall","shelf","album","track","level",
- * "matchedName","representativeIndexBase64","indexesAtThisMatch"}, or a JSON
- * error object on invalid input.
+ * Construct indexes that carry the requested metadata names (see IndexNaming.h).
+ * Each of genre/artist/album/track is either a name to pin down or an empty
+ * string meaning "leave free" (randomized per result). `seed` drives the
+ * per-call randomness so results are reproducible for a given seed. Returns a
+ * JSON array of objects: {"indexBase64","room","wall","shelf","album","track",
+ * "genreName","artistName","albumName","trackName"}, or a JSON error object.
+ *
+ * Unlike the old room-scanning search, this never scans: because the naming
+ * permutation is invertible, the names are turned straight into indexes.
  */
-static std::string findByNameWrapper(const std::string& query, const std::string& levelStr, int maxResults, double maxRoomsToScan) {
-    NameLevel level;
-    if (levelStr == "genre") {
-        level = NameLevel::Genre;
-    } else if (levelStr == "artist") {
-        level = NameLevel::Artist;
-    } else if (levelStr == "album") {
-        level = NameLevel::Album;
-    } else if (levelStr == "track") {
-        level = NameLevel::Track;
-    } else {
-        return makeJsonError("invalid level: " + levelStr);
-    }
-
+static std::string constructByNamesWrapper(const std::string& genre,
+                                           const std::string& artist,
+                                           const std::string& album,
+                                           const std::string& track,
+                                           int                maxResults,
+                                           double             seed) {
     try {
-        FindOptions options;
-        options.level          = level;
-        options.maxResults     = static_cast<size_t>(std::max(0, maxResults));
-        options.maxRoomsToScan = static_cast<uint64_t>(std::max(0.0, maxRoomsToScan));
+        IndexNaming::NameQuery query;
+        if (!genre.empty()) {
+            query.genre = genre;
+        }
+        if (!artist.empty()) {
+            query.artist = artist;
+        }
+        if (!album.empty()) {
+            query.album = album;
+        }
+        if (!track.empty()) {
+            query.track = track;
+        }
 
-        std::vector<IndexMatch> matches = IndexFinder::findByName(query, options);
+        size_t   count = static_cast<size_t>(std::max(0, maxResults));
+        uint64_t s     = static_cast<uint64_t>(seed);
+
+        std::vector<cpp_int> indexes = IndexNaming::constructIndexesForNames(query, count, s);
 
         std::string json = "[";
-        for (size_t i = 0; i < matches.size(); ++i) {
+        for (size_t i = 0; i < indexes.size(); ++i) {
             if (i > 0) {
                 json += ",";
             }
-            const IndexMatch& m = matches[i];
+            const cpp_int&     idx   = indexes[i];
+            LibraryPosition    pos   = AudioBabel::calculateLibraryPosition(idx);
+            IndexNaming::Names names = IndexNaming::namesForIndex(idx);
+
             json += "{";
-            json += jsonStringField("room", m.room) + ",";
-            json += jsonNumberField("wall", m.wall) + ",";
-            json += jsonNumberField("shelf", m.shelf) + ",";
-            json += jsonNumberField("album", m.album) + ",";
-            json += jsonNumberField("track", m.track) + ",";
-            json += jsonStringField("level", levelStr) + ",";
-            json += jsonStringField("matchedName", m.matchedName) + ",";
-            json += jsonStringField("representativeIndexBase64", m.representativeIndexBase64) + ",";
-            json += jsonNumberField("indexesAtThisMatch", static_cast<long long>(m.indexesAtThisMatch));
+            json += jsonStringField("indexBase64", AudioBabel::Utilities::indexToB64(idx)) + ",";
+            json += jsonStringField("room", pos.room) + ",";
+            json += jsonNumberField("wall", pos.wall) + ",";
+            json += jsonNumberField("shelf", pos.shelf) + ",";
+            json += jsonNumberField("album", pos.album) + ",";
+            json += jsonNumberField("track", pos.track) + ",";
+            json += jsonStringField("genreName", names.genre) + ",";
+            json += jsonStringField("artistName", names.artist) + ",";
+            json += jsonStringField("albumName", names.album) + ",";
+            json += jsonStringField("trackName", names.track);
             json += "}";
         }
         json += "]";
@@ -357,6 +369,6 @@ EMSCRIPTEN_BINDINGS(audio_index_module) {
     function("getAlbumNames", &getAlbumNamesWrapper);
     function("getTrackNames", &getTrackNamesWrapper);
 
-    // Cross-room search by name (see IndexFinder.h)
-    function("findByName", &findByNameWrapper);
+    // Construct indexes from metadata names (see IndexNaming.h)
+    function("constructByNames", &constructByNamesWrapper);
 }

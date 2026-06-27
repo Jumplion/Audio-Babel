@@ -24,9 +24,9 @@ const navState = {
     // Cosmetic names for the currently-rendered sibling group at each level,
     // cached as they're fetched so the breadcrumb can show them without an
     // extra WASM round-trip. shelfNames are artist names (shelf level),
-    // matching docs/browse.html's wall=genre/shelf=artist hierarchy. The
+    // matching docs/browse.html's wall=label/shelf=artist hierarchy. The
     // internal field names stay wall/shelf for brevity; user-facing text
-    // (breadcrumb, section headers, hexagon tooltips) shows "Genre"/"Artist".
+    // (breadcrumb, section headers, hexagon tooltips) shows "Label"/"Artist".
     shelfNames: null,
     albumNames: null,
     trackNames: null
@@ -118,7 +118,7 @@ function updateBreadcrumb() {
     if (navState.wall !== null) {
         const link = document.createElement('a');
         link.href = '#';
-        link.textContent = `Genre ${navState.wall}`;
+        link.textContent = `Label ${navState.wall}`;
         link.addEventListener('click', (e) => {
             e.preventDefault();
             goToWall(e);
@@ -368,7 +368,7 @@ function enterRoom(originEvent = null) {
 }
 
 /**
- * Label each wall hexagon segment with its genre name: a native title
+ * Label each wall hexagon segment with its label name: a native title
  * tooltip plus an in-hexagon text label that fades in on hover/focus, the
  * same opacity-reveal treatment .album-number gets for albums (see
  * .wall-genre-label in browse.css). Fire-and-forget — the hexagon is fully
@@ -434,7 +434,7 @@ function renderButtons(containerId, count, className, clickHandler, labelFn = (i
 /**
  * Render the shelves ("longboxes") for the current wall
  * Fetches each shelf's artist name (shelf level, per docs/browse.html's
- * wall=genre/shelf=artist hierarchy) and labels the buttons with it instead
+ * wall=label/shelf=artist hierarchy) and labels the buttons with it instead
  * of a bare index.
  */
 async function renderShelves() {

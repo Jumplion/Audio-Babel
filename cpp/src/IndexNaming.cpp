@@ -1,261 +1,277 @@
 #include "../include/IndexNaming.h"
 
+#include <array>
+#include <boost/multiprecision/cpp_int.hpp>
+#include <cstdint>
+#include <iterator>
 #include <optional>
+#include <random>
+#include <vector>
 
+#include "../include/Constants.h"
 #include "../include/LibraryPosition.h"
 #include "../include/Utilities.h"
 
 namespace AudioBabel::IndexNaming {
 
+namespace mp = boost::multiprecision;
+
 namespace {
 
-    // Per-level salts: arbitrary odd 64-bit constants, mixed in first so they
-    // influence the whole avalanche rather than just nudging the final bits.
-    // Distinct from IndexScramble's constants so the two features' keying
-    // can never alias each other.
-    constexpr uint64_t GENRE_SALT  = 0xC2B2AE3D27D4EB4FULL;
-    constexpr uint64_t ARTIST_SALT = 0x165667B19E3779F9ULL;
-    constexpr uint64_t ALBUM_SALT  = 0x27D4EB2F165667C5ULL;
-    constexpr uint64_t TRACK_SALT  = 0x9E3779B185EBCA87ULL;
+    // Global permutation key for the name-material Feistel. Deliberately a
+    // single fixed constant (not room- or coordinate-keyed): names must be a
+    // universal function of the index alone, so that the same index always
+    // yields the same names and so that names can be inverted into indexes
+    // without first knowing where the index lives. Distinct from the salts
+    // IndexScramble uses so the two features' keying can never alias.
+    constexpr uint64_t NAME_KEY = 0xA24BAED4963EE407ULL;
 
-    // Number of Feistel rounds. Four rounds give full avalanche, matching
-    // IndexScramble's choice for the same reason.
+    // Four rounds give full avalanche, matching IndexScramble's choice.
     constexpr int FEISTEL_ROUNDS = 4;
 
-    // Every real coordinate is multiplied by this before permuting, so the
-    // Feistel domain is wider than the real coordinate count. This buys two
-    // things: (1) avalanche spreads across the *whole* displayed name instead
-    // of leaving high-order, low-entropy zero characters (the real coordinate
-    // counts here are all under 10,000, far short of filling a fixed-width
-    // base64 field on their own), and (2) a free validity check on decode —
-    // a name is only "real" if its decoded value is an exact multiple of this
-    // factor, so typos and foreign-room names are rejected without a
-    // separate checksum field.
-    constexpr uint64_t DECORATION_FACTOR = 4096;
+    using AudioBabel::Utilities::mixIn;
+    using AudioBabel::Utilities::splitmix64;
 
-    auto mixRoom(uint64_t state, const std::string& room) -> uint64_t {
-        for (unsigned char c : room) {
-            AudioBabel::Utilities::mixIn(state, c);
+    // D = number of distinct names per field = count of non-empty base64
+    // strings of length 1..NAME_MAX_CHARS = sum_{L=1..NAME_MAX_CHARS} 64^L.
+    // FULL = D^4 spans every (genre,artist,album,track) name combination.
+    // E = smallest even bit-width with 2^E >= FULL, for the Feistel domain.
+    struct NameSpace {
+        cpp_int  d;    // names per field
+        uint64_t dU;   // d as uint64_t (fits: < 2^49 for NAME_MAX_CHARS=8)
+        cpp_int  full; // d^4
+        size_t   e;    // even bits covering full
+    };
+
+    auto nameSpace() -> const NameSpace& {
+        static const NameSpace ns = [] {
+            cpp_int d = 0;
+            cpp_int p = 1;
+            for (size_t i = 0; i < NAME_MAX_CHARS; ++i) {
+                p *= 64;
+                d += p;
+            }
+            cpp_int full = d * d * d * d;
+
+            // Smallest even e with 2^e >= full.
+            size_t bits = static_cast<size_t>(mp::msb(full));               // floor(log2)
+            size_t pe   = ((cpp_int(1) << bits) == full) ? bits : bits + 1; // ceil(log2)
+            size_t e    = (pe % 2 == 0) ? pe : pe + 1;
+
+            return NameSpace{d, static_cast<uint64_t>(d), full, e};
+        }();
+        return ns;
+    }
+
+    auto lowBitsMask(size_t h) -> cpp_int {
+        return (cpp_int(1) << h) - 1;
+    }
+
+    auto roundKey(uint64_t key, int round) -> uint64_t {
+        uint64_t state = key ^ (0x9E3779B97F4A7C15ULL * (static_cast<uint64_t>(round) + 1));
+        return splitmix64(state);
+    }
+
+    // Keyed diffusing round function over an h-bit half: every output byte
+    // depends on every input byte (forward pass spreads low->high, backward
+    // pass high->low). Need not be invertible — the Feistel structure is.
+    auto roundFunctionBits(const cpp_int& half, size_t h, uint64_t key, const cpp_int& mask) -> cpp_int {
+        const size_t         hbytes = (h + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
+        std::vector<uint8_t> in(hbytes, 0);
+
+        std::vector<uint8_t> raw;
+        mp::export_bits(half, std::back_inserter(raw), BITS_PER_BYTE, true);
+        if (raw.size() <= in.size()) {
+            std::copy(raw.begin(), raw.end(), in.end() - static_cast<std::ptrdiff_t>(raw.size()));
         }
-        return state;
+
+        std::vector<uint8_t> out(hbytes, 0);
+
+        uint64_t fwd = key ^ 0xA0761D6478BD642FULL;
+        for (size_t i = 0; i < hbytes; ++i) {
+            mixIn(fwd, in[i]);
+            out[i] = static_cast<uint8_t>(fwd);
+        }
+
+        uint64_t bwd = key ^ 0xE7037ED1A0B428DBULL;
+        for (size_t i = hbytes; i-- > 0;) {
+            mixIn(bwd, static_cast<uint8_t>(in[i] ^ out[i]));
+            out[i] = static_cast<uint8_t>(out[i] ^ static_cast<uint8_t>(bwd >> 17));
+        }
+
+        cpp_int r = 0;
+        mp::import_bits(r, out.begin(), out.end(), BITS_PER_BYTE, true);
+        return r & mask;
     }
 
-    // Room-only key for one naming level. Deliberately independent of any
-    // ancestor coordinate (wall/shelf/album) — the coordinate itself is folded
-    // into the permuted *value*, not the key. That is what lets a caller
-    // decode a name into its full coordinate knowing only (room, name), with
-    // no need to already know the ancestors.
-    auto levelKey(uint64_t salt, const std::string& room) -> uint64_t {
-        return mixRoom(salt, room);
-    }
-
-    // Per-round key derived from the level key, half-width and round index.
-    auto roundKey(uint64_t key, size_t halfBits, int round) -> uint64_t {
-        uint64_t state =
-            key ^ (0x9E3779B97F4A7C15ULL * (static_cast<uint64_t>(halfBits) + 1)) ^ (0xD1B54A32D192ED03ULL * (static_cast<uint64_t>(round) + 1));
-        return AudioBabel::Utilities::splitmix64(state);
-    }
-
-    // Keyed diffusing round function: half-value -> half-value of the same
-    // bit width. All half-widths used here are well under 32 bits, so a
-    // straightforward byte-wise mixIn chain followed by one splitmix64 step
-    // gives ample avalanche; the Feistel structure (not this function) is
-    // what provides invertibility.
-    auto roundFunction(uint64_t half, size_t halfBits, uint64_t key) -> uint64_t {
-        uint64_t state = key;
-        AudioBabel::Utilities::mixIn(state, static_cast<uint8_t>(half & 0xFFU));
-        AudioBabel::Utilities::mixIn(state, static_cast<uint8_t>((half >> 8) & 0xFFU));
-        AudioBabel::Utilities::mixIn(state, static_cast<uint8_t>((half >> 16) & 0xFFU));
-        uint64_t mixed = AudioBabel::Utilities::splitmix64(state);
-        uint64_t mask  = (halfBits >= 64) ? ~uint64_t(0) : ((uint64_t(1) << halfBits) - 1);
-        return mixed & mask;
-    }
-
-    // Balanced Feistel permutation over [0, 2^bits) (bits even). Inverted by
-    // running the rounds in reverse, exactly like IndexScramble::feistelPow2.
-    auto feistel(uint64_t x, size_t bits, uint64_t key, bool encrypt) -> uint64_t {
-        const size_t   h    = bits / 2;
-        const uint64_t mask = (uint64_t(1) << h) - 1;
-        uint64_t       hi   = (x >> h) & mask;
-        uint64_t       lo   = x & mask;
+    // Balanced big-integer Feistel permutation over [0, 2^e) (e even), inverted
+    // by running the rounds in reverse.
+    auto feistel(const cpp_int& x, size_t e, bool encrypt) -> cpp_int {
+        const size_t  h    = e / 2;
+        const cpp_int mask = lowBitsMask(h);
+        cpp_int       hi   = (x >> h) & mask;
+        cpp_int       lo   = x & mask;
 
         if (encrypt) {
             for (int r = 0; r < FEISTEL_ROUNDS; ++r) {
-                uint64_t f = roundFunction(lo, h, roundKey(key, h, r));
-                uint64_t t = hi ^ f;
-                hi         = lo;
-                lo         = t;
+                cpp_int f = roundFunctionBits(lo, h, roundKey(NAME_KEY, r), mask);
+                cpp_int t = hi ^ f;
+                hi        = lo;
+                lo        = t;
             }
         } else {
             for (int r = FEISTEL_ROUNDS - 1; r >= 0; --r) {
-                uint64_t f = roundFunction(hi, h, roundKey(key, h, r));
-                uint64_t t = lo ^ f;
-                lo         = hi;
-                hi         = t;
+                cpp_int f = roundFunctionBits(hi, h, roundKey(NAME_KEY, r), mask);
+                cpp_int t = lo ^ f;
+                lo        = hi;
+                hi        = t;
             }
         }
         return (hi << h) | lo;
     }
 
-    // Smallest even e with 2^e >= n (n >= 1), so the Feistel splits into two
-    // equal halves and cycle-walking stays under ~4x expansion.
-    auto evenBitsCovering(uint64_t n) -> size_t {
-        size_t bits = 0;
-        while ((uint64_t(1) << bits) < n) {
-            ++bits;
-        }
-        if (bits % 2 != 0) {
-            ++bits;
-        }
-        return bits;
-    }
-
-    // Keyed bijection on [0, domain) built from feistel() + cycle-walking
-    // (Black & Rogaway, "Ciphers with Arbitrary Finite Domains", CT-RSA 2002):
-    // re-apply the power-of-two permutation until the result lands back in
-    // [0, domain), exactly as IndexScramble::scramble()/unscramble() do.
-    auto permuteEncode(uint64_t x, uint64_t domain, uint64_t key) -> uint64_t {
-        size_t   e = evenBitsCovering(domain);
-        uint64_t y = feistel(x, e, key, /*encrypt=*/true);
-        while (y >= domain) {
-            y = feistel(y, e, key, /*encrypt=*/true);
+    // Keyed bijection on [0, full) via feistel() + cycle-walking (Black &
+    // Rogaway, CT-RSA 2002): re-apply the power-of-two permutation until the
+    // result lands back in [0, full).
+    auto permuteEncode(const cpp_int& x) -> cpp_int {
+        const NameSpace& ns = nameSpace();
+        cpp_int          y  = feistel(x, ns.e, /*encrypt=*/true);
+        while (y >= ns.full) {
+            y = feistel(y, ns.e, /*encrypt=*/true);
         }
         return y;
     }
 
-    auto permuteDecode(uint64_t y, uint64_t domain, uint64_t key) -> uint64_t {
-        size_t   e = evenBitsCovering(domain);
-        uint64_t x = feistel(y, e, key, /*encrypt=*/false);
-        while (x >= domain) {
-            x = feistel(x, e, key, /*encrypt=*/false);
+    auto permuteDecode(const cpp_int& y) -> cpp_int {
+        const NameSpace& ns = nameSpace();
+        cpp_int          x  = feistel(y, ns.e, /*encrypt=*/false);
+        while (x >= ns.full) {
+            x = feistel(x, ns.e, /*encrypt=*/false);
         }
         return x;
     }
 
-    // Smallest width w such that 64^w >= n (n >= 1) — the fixed display width
-    // for a level whose expanded domain is n. This is a plain positional
-    // base64 (unlike Utilities::indexToB64's bijective numeration), since
-    // every name at a given level must be the same length.
-    auto digitsCovering(uint64_t n) -> size_t {
-        size_t   w   = 0;
-        uint64_t cap = 1;
-        while (cap < n) {
-            cap *= 64;
-            ++w;
-        }
-        return w;
+    // A field value f in [0, D) renders to a 1..NAME_MAX_CHARS bijective base64
+    // string (f + 1 skips the empty string that value 0 would produce).
+    auto nameForField(const cpp_int& f) -> std::string {
+        return AudioBabel::Utilities::indexToB64(f + 1);
     }
 
-    auto toFixedB64(uint64_t value, size_t width) -> std::string {
-        std::string out(width, AudioBabel::Utilities::BASE64_URL_ALPHA[0]);
-        for (size_t i = width; i-- > 0;) {
-            out[i] = AudioBabel::Utilities::BASE64_URL_ALPHA[value % 64];
-            value /= 64;
-        }
-        return out;
-    }
-
-    auto fromFixedB64(const std::string& s, size_t width) -> std::optional<uint64_t> {
-        if (s.size() != width) {
+    // Parse a field name back to its value, or nullopt if it is not a name this
+    // module could have produced (too long, or an invalid character).
+    auto fieldForName(const std::string& name) -> std::optional<cpp_int> {
+        if (name.empty() || name.size() > NAME_MAX_CHARS) {
             return std::nullopt;
         }
-        uint64_t value = 0;
-        for (char c : s) {
-            int v = AudioBabel::Utilities::base64UrlValue(c);
-            if (v < 0) {
-                return std::nullopt;
-            }
-            value = value * 64 + static_cast<uint64_t>(v);
-        }
-        return value;
-    }
-
-    // One hierarchy level's shape: how many real (undecorated) coordinate
-    // values it spans, and its salt. realCount always spans every ancestor
-    // coordinate this level's name is allowed to vary over (e.g. the artist
-    // level spans wall*shelf, not just shelf), so a name alone determines the
-    // FULL within-room coordinate down to that level — no separate ancestor
-    // names need to be supplied first.
-    struct Level {
-        uint64_t realCount;
-        uint64_t salt;
-    };
-
-    auto genreLevel() -> Level {
-        return {LibraryConstants::WALLS_PER_ROOM, GENRE_SALT};
-    }
-
-    auto artistLevel() -> Level {
-        return {static_cast<uint64_t>(LibraryConstants::WALLS_PER_ROOM) * LibraryConstants::SHELVES_PER_WALL, ARTIST_SALT};
-    }
-
-    auto albumLevel() -> Level {
-        return {static_cast<uint64_t>(LibraryConstants::WALLS_PER_ROOM) * LibraryConstants::SHELVES_PER_WALL * LibraryConstants::ALBUMS_PER_SHELF,
-                ALBUM_SALT};
-    }
-
-    auto trackLevel() -> Level {
-        return {static_cast<uint64_t>(LibraryConstants::WALLS_PER_ROOM) * LibraryConstants::SHELVES_PER_WALL * LibraryConstants::ALBUMS_PER_SHELF *
-                    LibraryConstants::TRACKS_PER_ALBUM,
-                TRACK_SALT};
-    }
-
-    auto encodeSlot(const std::string& room, uint64_t realKey, const Level& level) -> std::string {
-        uint64_t domain    = level.realCount * DECORATION_FACTOR;
-        uint64_t key       = levelKey(level.salt, room);
-        uint64_t expanded  = realKey * DECORATION_FACTOR;
-        uint64_t displayed = permuteEncode(expanded, domain, key);
-        return toFixedB64(displayed, digitsCovering(domain));
-    }
-
-    auto decodeSlot(const std::string& room, const std::string& name, const Level& level) -> std::optional<uint64_t> {
-        uint64_t domain = level.realCount * DECORATION_FACTOR;
-        auto     parsed = fromFixedB64(name, digitsCovering(domain));
-        if (!parsed || *parsed >= domain) {
+        if (!AudioBabel::Utilities::isValidBase64Url(name)) {
             return std::nullopt;
         }
-
-        uint64_t key      = levelKey(level.salt, room);
-        uint64_t expanded = permuteDecode(*parsed, domain, key);
-        if (expanded % DECORATION_FACTOR != 0) {
+        cpp_int value = AudioBabel::Utilities::b64ToIndex(name); // >= 1 for non-empty
+        if (value < 1 || value > nameSpace().d) {
             return std::nullopt;
         }
+        return value - 1;
+    }
 
-        uint64_t realKey = expanded / DECORATION_FACTOR;
-        if (realKey >= level.realCount) {
-            return std::nullopt;
+    // Split a permuted name-material value into its four base-D field digits,
+    // least-significant first: {genre, artist, album, track}.
+    auto splitFields(const cpp_int& scrambled) -> std::array<cpp_int, 4> {
+        const cpp_int&         d = nameSpace().d;
+        std::array<cpp_int, 4> f{};
+        cpp_int                t = scrambled;
+        for (auto& digit : f) {
+            digit = t % d;
+            t /= d;
         }
-        return realKey;
+        return f;
+    }
+
+    // Inverse of splitFields: combine four field digits into name material.
+    auto combineFields(const std::array<cpp_int, 4>& f) -> cpp_int {
+        const cpp_int& d = nameSpace().d;
+        cpp_int        s = 0;
+        for (size_t i = 4; i-- > 0;) {
+            s = s * d + f[i];
+        }
+        return s;
+    }
+
+    // The metadata name an index carries for one Browse sibling slot: name the
+    // representative index at that position (deeper coordinates already 0).
+    auto nameAt(const LibraryPosition& pos, char level) -> std::string {
+        cpp_int index = reconstructIndexFromPosition(pos);
+        Names   names = namesForIndex(index);
+        switch (level) {
+            case 'g':
+                return names.genre;
+            case 'r':
+                return names.artist;
+            case 'b':
+                return names.album;
+            default:
+                return names.track;
+        }
     }
 
 } // namespace
 
-auto genreNameFor(const std::string& room, uint8_t wall) -> std::string {
-    return encodeSlot(room, wall, genreLevel());
+auto nameMaxChars() -> size_t {
+    return NAME_MAX_CHARS;
 }
 
-auto artistNameFor(const std::string& room, uint8_t wall, uint8_t shelf) -> std::string {
-    uint64_t key = static_cast<uint64_t>(wall) * LibraryConstants::SHELVES_PER_WALL + shelf;
-    return encodeSlot(room, key, artistLevel());
+auto namesForIndex(const cpp_int& index) -> Names {
+    cpp_int idx = index < 0 ? cpp_int(0) : index;
+    cpp_int m   = idx % nameSpace().full; // name material (low part)
+    cpp_int s   = permuteEncode(m);
+
+    std::array<cpp_int, 4> f = splitFields(s);
+    Names                  names;
+    names.genre  = nameForField(f[0]);
+    names.artist = nameForField(f[1]);
+    names.album  = nameForField(f[2]);
+    names.track  = nameForField(f[3]);
+    return names;
 }
 
-auto albumNameFor(const std::string& room, uint8_t wall, uint8_t shelf, uint8_t album) -> std::string {
-    uint64_t key = (static_cast<uint64_t>(wall) * LibraryConstants::SHELVES_PER_WALL + shelf) * LibraryConstants::ALBUMS_PER_SHELF + album;
-    return encodeSlot(room, key, albumLevel());
-}
+auto constructIndexesForNames(const NameQuery& query, size_t count, uint64_t seed) -> std::vector<cpp_int> {
+    // Parse every pinned field up front; a single unproducible name means the
+    // whole request has no answers.
+    std::array<std::optional<cpp_int>, 4>                  pinned{};
+    const std::array<const std::optional<std::string>*, 4> inputs = {&query.genre, &query.artist, &query.album, &query.track};
+    for (size_t i = 0; i < 4; ++i) {
+        if (inputs[i]->has_value()) {
+            auto parsed = fieldForName(**inputs[i]);
+            if (!parsed) {
+                return {};
+            }
+            pinned[i] = *parsed;
+        }
+    }
 
-auto trackNameFor(const std::string& room, uint8_t wall, uint8_t shelf, uint8_t album, uint8_t track) -> std::string {
-    uint64_t key = ((static_cast<uint64_t>(wall) * LibraryConstants::SHELVES_PER_WALL + shelf) * LibraryConstants::ALBUMS_PER_SHELF + album) *
-                       LibraryConstants::TRACKS_PER_ALBUM +
-                   track;
-    return encodeSlot(room, key, trackLevel());
+    const NameSpace& ns = nameSpace();
+    std::mt19937_64  rng(seed);
+
+    std::vector<cpp_int> results;
+    results.reserve(count);
+    for (size_t k = 0; k < count; ++k) {
+        std::array<cpp_int, 4> f{};
+        for (size_t i = 0; i < 4; ++i) {
+            f[i] = pinned[i] ? *pinned[i] : cpp_int(rng() % ns.dU);
+        }
+        cpp_int material = permuteDecode(combineFields(f));
+        // High "discriminator" bits make each result a distinct candidate even
+        // when every field is pinned (then only this part varies).
+        cpp_int discriminator = cpp_int(rng());
+        results.push_back(discriminator * ns.full + material);
+    }
+    return results;
 }
 
 auto genreNames(const std::string& room) -> std::vector<std::string> {
     std::vector<std::string> names;
     names.reserve(LibraryConstants::WALLS_PER_ROOM);
     for (uint8_t wall = 0; wall < LibraryConstants::WALLS_PER_ROOM; ++wall) {
-        names.push_back(genreNameFor(room, wall));
+        names.push_back(nameAt(LibraryPosition{room, wall, 0, 0, 0}, 'g'));
     }
     return names;
 }
@@ -264,7 +280,7 @@ auto artistNames(const std::string& room, uint8_t wall) -> std::vector<std::stri
     std::vector<std::string> names;
     names.reserve(LibraryConstants::SHELVES_PER_WALL);
     for (uint8_t shelf = 0; shelf < LibraryConstants::SHELVES_PER_WALL; ++shelf) {
-        names.push_back(artistNameFor(room, wall, shelf));
+        names.push_back(nameAt(LibraryPosition{room, wall, shelf, 0, 0}, 'r'));
     }
     return names;
 }
@@ -273,7 +289,7 @@ auto albumNames(const std::string& room, uint8_t wall, uint8_t shelf) -> std::ve
     std::vector<std::string> names;
     names.reserve(LibraryConstants::ALBUMS_PER_SHELF);
     for (uint8_t album = 0; album < LibraryConstants::ALBUMS_PER_SHELF; ++album) {
-        names.push_back(albumNameFor(room, wall, shelf, album));
+        names.push_back(nameAt(LibraryPosition{room, wall, shelf, album, 0}, 'b'));
     }
     return names;
 }
@@ -282,57 +298,9 @@ auto trackNames(const std::string& room, uint8_t wall, uint8_t shelf, uint8_t al
     std::vector<std::string> names;
     names.reserve(LibraryConstants::TRACKS_PER_ALBUM);
     for (uint8_t track = 0; track < LibraryConstants::TRACKS_PER_ALBUM; ++track) {
-        names.push_back(trackNameFor(room, wall, shelf, album, track));
+        names.push_back(nameAt(LibraryPosition{room, wall, shelf, album, track}, 't'));
     }
     return names;
-}
-
-auto genreSlotFor(const std::string& room, const std::string& name) -> std::optional<uint8_t> {
-    auto realKey = decodeSlot(room, name, genreLevel());
-    if (!realKey) {
-        return std::nullopt;
-    }
-    return static_cast<uint8_t>(*realKey);
-}
-
-auto artistSlotFor(const std::string& room, const std::string& name) -> std::optional<ArtistSlot> {
-    auto realKey = decodeSlot(room, name, artistLevel());
-    if (!realKey) {
-        return std::nullopt;
-    }
-    uint64_t k = *realKey;
-    return ArtistSlot{
-        static_cast<uint8_t>(k / LibraryConstants::SHELVES_PER_WALL),
-        static_cast<uint8_t>(k % LibraryConstants::SHELVES_PER_WALL),
-    };
-}
-
-auto albumSlotFor(const std::string& room, const std::string& name) -> std::optional<AlbumSlot> {
-    auto realKey = decodeSlot(room, name, albumLevel());
-    if (!realKey) {
-        return std::nullopt;
-    }
-    uint64_t k     = *realKey;
-    uint8_t  album = static_cast<uint8_t>(k % LibraryConstants::ALBUMS_PER_SHELF);
-    k /= LibraryConstants::ALBUMS_PER_SHELF;
-    uint8_t shelf = static_cast<uint8_t>(k % LibraryConstants::SHELVES_PER_WALL);
-    uint8_t wall  = static_cast<uint8_t>(k / LibraryConstants::SHELVES_PER_WALL);
-    return AlbumSlot{wall, shelf, album};
-}
-
-auto trackSlotFor(const std::string& room, const std::string& name) -> std::optional<TrackSlot> {
-    auto realKey = decodeSlot(room, name, trackLevel());
-    if (!realKey) {
-        return std::nullopt;
-    }
-    uint64_t k     = *realKey;
-    uint8_t  track = static_cast<uint8_t>(k % LibraryConstants::TRACKS_PER_ALBUM);
-    k /= LibraryConstants::TRACKS_PER_ALBUM;
-    uint8_t album = static_cast<uint8_t>(k % LibraryConstants::ALBUMS_PER_SHELF);
-    k /= LibraryConstants::ALBUMS_PER_SHELF;
-    uint8_t shelf = static_cast<uint8_t>(k % LibraryConstants::SHELVES_PER_WALL);
-    uint8_t wall  = static_cast<uint8_t>(k / LibraryConstants::SHELVES_PER_WALL);
-    return TrackSlot{wall, shelf, album, track};
 }
 
 } // namespace AudioBabel::IndexNaming

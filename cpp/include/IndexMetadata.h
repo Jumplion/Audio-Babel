@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "IndexNaming.h"
 #include "LibraryPosition.h"
 
 namespace AudioBabel {
@@ -17,12 +18,11 @@ namespace AudioBabel {
  * for organizing audio in the "Speaker of Babel" system.
  *
  * @par Metadata Components
- * - **Content Labels**: genre, artist, album, track — each is a deterministic,
- *   decorrelated, pairwise-unique-among-siblings name scoped to exactly one
- *   hierarchy level (genre/wall, artist/shelf, album, track). See IndexNaming
- *   for the generation algorithm; these no longer come from slicing the
- *   index's base64 string, so they stay stable regardless of what's chosen
- *   at deeper levels.
+ * - **Content Labels**: genre, artist, album, track — four deterministic names
+ *   derived from the whole index via a keyed, invertible byte permutation, so
+ *   neighbouring indexes get wildly different names and any desired names can be
+ *   inverted back into indexes that carry them. See IndexNaming for the
+ *   algorithm.
  * - **Cover Art**: SVG image generated from index bytes
  * - **Position**: Hierarchical location (room, wall, shelf, track) in the library
  *
@@ -31,10 +31,10 @@ namespace AudioBabel {
  */
 class IndexMetadata {
    public:
-    std::string genre;  ///< Genre name, scoped to (room, wall) — see IndexNaming::genreNameFor
-    std::string artist; ///< Artist name, scoped to (room, wall, shelf) — see IndexNaming::artistNameFor
-    std::string album;  ///< Album name, scoped to (room, wall, shelf, album) — see IndexNaming::albumNameFor
-    std::string track;  ///< Track name, scoped to (room, wall, shelf, album, track) — see IndexNaming::trackNameFor
+    std::string genre;  ///< Genre name, derived from the whole index — see IndexNaming::namesForIndex
+    std::string artist; ///< Artist name, derived from the whole index — see IndexNaming::namesForIndex
+    std::string album;  ///< Album name, derived from the whole index — see IndexNaming::namesForIndex
+    std::string track;  ///< Track name, derived from the whole index — see IndexNaming::namesForIndex
     std::string cover;  ///< Album cover art (256×256 SVG markup as string)
 
     LibraryPosition position; ///< Hierarchical position in the library (room/wall/shelf/track)
@@ -42,16 +42,16 @@ class IndexMetadata {
     /**
      * @brief Extract metadata from a big integer index.
      *
-     * Computes the index's LibraryPosition, then derives genre/artist/album/track
-     * names from IndexNaming, each scoped to its own hierarchy level.
+     * Computes the index's LibraryPosition (for navigation) and derives the four
+     * genre/artist/album/track names from the index itself via IndexNaming.
      *
      * @param index Big integer index to extract metadata from
      * @return IndexMetadata structure with all fields populated
      *
      * @par Algorithm
      * 1. Export index to bytes (MSB-first), for cover art color only
-     * 2. Compute LibraryPosition from the index
-     * 3. Derive genre/artist/album/track via IndexNaming, from the position fields
+     * 2. Compute LibraryPosition from the index (for the Browse hierarchy)
+     * 3. Derive genre/artist/album/track from the index via IndexNaming::namesForIndex
      * 4. Generate SVG cover from the first bytes and the track name
      *
      * @see extractMetadataFromIndex(const std::string&) for base64 overload
@@ -100,18 +100,22 @@ class IndexMetadata {
 
    private:
     /**
-     * @brief Internal helper to build metadata from index bytes and position.
+     * @brief Internal helper to assemble metadata from precomputed parts.
      *
-     * Derives genre/artist/album/track via IndexNaming from `position`'s
-     * fields, then generates the SVG cover from `bytes` and the track name.
+     * Copies the already-derived genre/artist/album/track `names` (see
+     * IndexNaming::namesForIndex) into the result and generates the SVG cover
+     * from `bytes` and the track name.
      *
      * @param bytes Index bytes (MSB-first), used only for cover art color
      * @param position Already-computed LibraryPosition for this index
+     * @param names Already-derived metadata names for this index
      * @return IndexMetadata with all fields populated
      *
      * @note This is an internal implementation detail shared by both public overloads
      */
-    static auto buildMetadataFromBytesAndPosition(const std::vector<uint8_t>& bytes, const LibraryPosition& position) -> IndexMetadata;
+    static auto buildMetadataFromBytesAndPosition(const std::vector<uint8_t>& bytes,
+                                                  const LibraryPosition&      position,
+                                                  const IndexNaming::Names&   names) -> IndexMetadata;
 };
 
 } // namespace AudioBabel

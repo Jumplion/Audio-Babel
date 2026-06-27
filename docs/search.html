@@ -38,76 +38,118 @@
         <main class="card">
             <h1>Search</h1>
 
-            <section class="search-section">
-                <h2>By Index</h2>
-                <div class="index-input-header">
-                    <label for="searchInput">Enter an index string (A-Z, a-z, 0-9, - and _):</label>
-                    <button class="btn btn-random" id="doRandomGenerate" type="button" title="Generate a random valid index">
-                        <svg class="icon-shuffle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <polyline points="16 3 21 3 21 8"></polyline>
-                            <line x1="4" y1="20" x2="21" y2="3"></line>
-                            <polyline points="21 16 21 21 16 21"></polyline>
-                            <line x1="15" y1="15" x2="21" y2="21"></line>
-                            <line x1="4" y1="4" x2="9" y2="9"></line>
-                        </svg>
-                        Random
-                    </button>
-                </div>
-                <textarea id="searchInput" rows="1" placeholder="Type index here..."></textarea>
-                <p class="search-help">
-                    <small>Only characters A-Z a-z 0-9 - and _ are allowed.</small>
-                </p>
+            <div class="top-controls search-tabs" role="tablist">
+                <button class="btn tab-active" id="tabByIndex" type="button" role="tab" aria-selected="true" aria-controls="byIndexPanel">By Index</button>
+                <button class="btn btn-secondary" id="tabByMetadata" type="button" role="tab" aria-selected="false" aria-controls="byMetadataPanel">By Metadata</button>
+            </div>
 
-                <div class="search-actions">
-                    <button class="btn" id="doSearchGenerate" disabled>Reconstruct</button>
-                    <div class="extract-group">
-                        <input type="file" id="fileInput" accept=".wav,audio/wav" aria-label="Upload a WAV file to populate the index" />
-                        <button class="btn-clear-file" id="clearFileBtn" type="button" title="Remove file" hidden>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
+            <div id="byIndexPanel" class="tab-panel" role="tabpanel">
+                <section class="search-section">
+                    <h2>By Index</h2>
+                    <div class="index-input-header">
+                        <label for="searchInput">Enter an index string (A-Z, a-z, 0-9, - and _):</label>
+                        <button class="btn btn-random" id="doRandomGenerate" type="button" title="Generate a random valid index">
+                            <svg class="icon-shuffle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="16 3 21 3 21 8"></polyline>
+                                <line x1="4" y1="20" x2="21" y2="3"></line>
+                                <polyline points="21 16 21 21 16 21"></polyline>
+                                <line x1="15" y1="15" x2="21" y2="21"></line>
+                                <line x1="4" y1="4" x2="9" y2="9"></line>
                             </svg>
+                            Random
                         </button>
                     </div>
-                </div>
+                    <textarea id="searchInput" rows="1" placeholder="Type index here..."></textarea>
+                    <p class="search-help">
+                        <small>Only characters A-Z a-z 0-9 - and _ are allowed.</small>
+                    </p>
 
-                <details class="advanced-options" id="advancedOptions">
-                    <summary>
-                        <svg class="icon-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                        Advanced Options
-                    </summary>
-                    <div class="advanced-options-content">
-                        <div class="option-field">
-                            <label for="bitDepthSelect">Bit Depth</label>
-                            <select id="bitDepthSelect">
-                                <option value="8">8-bit</option>
-                                <option value="16" selected>16-bit</option>
-                                <option value="32">32-bit</option>
-                            </select>
-                        </div>
-                        <div class="option-field">
-                            <label for="sampleRateSelect">Sample Rate</label>
-                            <select id="sampleRateSelect">
-                                <option value="8000">8,000 Hz</option>
-                                <option value="11025">11,025 Hz</option>
-                                <option value="16000">16,000 Hz</option>
-                                <option value="22050">22,050 Hz</option>
-                                <option value="32000">32,000 Hz</option>
-                                <option value="44100" selected>44,100 Hz</option>
-                                <option value="48000">48,000 Hz</option>
-                                <option value="88200">88,200 Hz</option>
-                                <option value="96000">96,000 Hz</option>
-                                <option value="176400">176,400 Hz</option>
-                                <option value="192000">192,000 Hz</option>
-                            </select>
+                    <div class="search-actions">
+                        <button class="btn" id="doSearchGenerate" disabled>Reconstruct</button>
+                        <div class="extract-group">
+                            <input type="file" id="fileInput" accept=".wav,audio/wav" aria-label="Upload a WAV file to populate the index" />
+                            <button class="btn-clear-file" id="clearFileBtn" type="button" title="Remove file" hidden>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
                         </div>
                     </div>
-                </details>
-            </section>
 
-            <div id="resultContainer"></div>
+                    <details class="advanced-options" id="advancedOptions">
+                        <summary>
+                            <svg class="icon-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                            Advanced Options
+                        </summary>
+                        <div class="advanced-options-content">
+                            <div class="option-field">
+                                <label for="bitDepthSelect">Bit Depth</label>
+                                <select id="bitDepthSelect">
+                                    <option value="8">8-bit</option>
+                                    <option value="16" selected>16-bit</option>
+                                    <option value="32">32-bit</option>
+                                </select>
+                            </div>
+                            <div class="option-field">
+                                <label for="sampleRateSelect">Sample Rate</label>
+                                <select id="sampleRateSelect">
+                                    <option value="8000">8,000 Hz</option>
+                                    <option value="11025">11,025 Hz</option>
+                                    <option value="16000">16,000 Hz</option>
+                                    <option value="22050">22,050 Hz</option>
+                                    <option value="32000">32,000 Hz</option>
+                                    <option value="44100" selected>44,100 Hz</option>
+                                    <option value="48000">48,000 Hz</option>
+                                    <option value="88200">88,200 Hz</option>
+                                    <option value="96000">96,000 Hz</option>
+                                    <option value="176400">176,400 Hz</option>
+                                    <option value="192000">192,000 Hz</option>
+                                </select>
+                            </div>
+                        </div>
+                    </details>
+                </section>
+
+                <div id="resultContainer"></div>
+            </div>
+
+            <div id="byMetadataPanel" class="tab-panel" hidden>
+                <section class="search-section">
+                    <h2>By Metadata</h2>
+                    <p class="search-help">
+                        <small>Fill in any combination of fields below. Names are exact and case-sensitive. Each result is an index built to carry the names you pinned; fields you leave blank (and each result's room) vary from one candidate to the next.</small>
+                    </p>
+
+                    <div class="metadata-field-grid">
+                        <div class="option-field">
+                            <label for="metaGenreInput">Genre</label>
+                            <input type="text" id="metaGenreInput" placeholder="Genre name" autocomplete="off" />
+                        </div>
+                        <div class="option-field">
+                            <label for="metaArtistInput">Artist</label>
+                            <input type="text" id="metaArtistInput" placeholder="Artist name" autocomplete="off" />
+                        </div>
+                        <div class="option-field">
+                            <label for="metaAlbumInput">Album</label>
+                            <input type="text" id="metaAlbumInput" placeholder="Album name" autocomplete="off" />
+                        </div>
+                        <div class="option-field">
+                            <label for="metaTrackInput">Track</label>
+                            <input type="text" id="metaTrackInput" placeholder="Track name" autocomplete="off" />
+                        </div>
+                    </div>
+
+                    <div class="search-actions">
+                        <button class="btn" id="doMetadataSearch" disabled>Search</button>
+                    </div>
+
+                    <div id="metadataSearchStatus" class="search-help" aria-live="polite"></div>
+                    <ul id="metadataResultsList" class="metadata-results-list"></ul>
+                </section>
+            </div>
 
             <footer>
                 <small>Search, generate, or upload an index to reconstruct audio.</small>
@@ -117,7 +159,7 @@
         </main>
     </div>
 
-    <script type="module" src="./js/pages/main.js?v=5"></script>
+    <script type="module" src="./js/pages/main.js?v=6"></script>
     <script type="module">
         import { highlightActiveNav } from './js/ui/nav.js';
         highlightActiveNav('#navContainer');

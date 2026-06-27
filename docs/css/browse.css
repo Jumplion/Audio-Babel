@@ -517,8 +517,10 @@
     }
 }
 
-/* Zoom-in "reveal" transition — played by browse.js when a nav-section
-   (wall/shelf/album/track) is shown, growing out of the spot that was clicked. */
+/* Zoom "push-through" transition — played by browse.js when navigating between
+   nav-sections (wall/shelf/album/track). The section being left zooms toward the
+   viewer and fades (.zoom-out), as if the camera dives into the spot that was
+   clicked; then the next level zooms up out of that same spot (.zoom-reveal). */
 .browse .card {
     perspective: 1000px;
     /* Wider than the default .card so the 640px gatefold has room to breathe */
@@ -528,6 +530,15 @@
 .nav-section.zoom-reveal {
     animation: zoomReveal 0.42s cubic-bezier(0.16, 0.84, 0.32, 1);
     transform-origin: var(--reveal-x, 50%) var(--reveal-y, 50%);
+}
+
+/* Outgoing section: enlarges past 1.0 and fades as we "push into" the clicked
+   element. `forwards` holds the faded-out end state until browse.js sets
+   display:none, avoiding a flash of the section snapping back to full size. */
+.nav-section.zoom-out {
+    animation: zoomOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+    transform-origin: var(--reveal-x, 50%) var(--reveal-y, 50%);
+    pointer-events: none;
 }
 
 @keyframes zoomReveal {
@@ -542,10 +553,42 @@
     }
 }
 
+@keyframes zoomOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: scale(1.35);
+    }
+}
+
+/* Honour reduced-motion: drop the scaling/zoom, but keep a gentle opacity
+   cross-fade so the transition is still perceptible (rather than content
+   popping in instantly). Users with the OS "reduce motion" setting on will see
+   this fade instead of the full zoom. */
 @media (prefers-reduced-motion: reduce) {
 
     .nav-section.zoom-reveal {
-        animation: none !important;
+        animation: fadeReveal 0.25s ease both;
+        transform: none;
+    }
+
+    .nav-section.zoom-out {
+        animation: fadeOut 0.18s ease both;
+        transform: none;
+    }
+
+    @keyframes fadeReveal {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to   { opacity: 0; }
     }
 }
 

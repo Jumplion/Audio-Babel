@@ -36,9 +36,9 @@ auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> 
     return buildMetadataFromBytesAndPosition(bytes, position, IndexNaming::namesForIndex(index));
 }
 
-auto IndexMetadata::buildMetadataFromBytesAndPosition(const std::vector<uint8_t>&  bytes,
-                                                      const LibraryPosition&       position,
-                                                      const IndexNaming::Names&    names) -> IndexMetadata {
+auto IndexMetadata::buildMetadataFromBytesAndPosition(const std::vector<uint8_t>& bytes,
+                                                      const LibraryPosition&      position,
+                                                      const IndexNaming::Names&   names) -> IndexMetadata {
     IndexMetadata meta;
     meta.position = position;
 

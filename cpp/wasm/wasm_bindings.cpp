@@ -290,12 +290,8 @@ static std::string getTrackNamesWrapper(const std::string& roomStr, int wall, in
  * Unlike the old room-scanning search, this never scans: because the naming
  * permutation is invertible, the names are turned straight into indexes.
  */
-static std::string constructByNamesWrapper(const std::string& genre,
-                                           const std::string& artist,
-                                           const std::string& album,
-                                           const std::string& track,
-                                           int                maxResults,
-                                           double             seed) {
+static std::string constructByNamesWrapper(
+    const std::string& genre, const std::string& artist, const std::string& album, const std::string& track, int maxResults, double seed) {
     try {
         IndexNaming::NameQuery query;
         if (!genre.empty()) {

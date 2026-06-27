@@ -37,10 +37,10 @@ namespace {
     // FULL = D^4 spans every (genre,artist,album,track) name combination.
     // E = smallest even bit-width with 2^E >= FULL, for the Feistel domain.
     struct NameSpace {
-        cpp_int  d;     // names per field
-        uint64_t dU;    // d as uint64_t (fits: < 2^49 for NAME_MAX_CHARS=8)
-        cpp_int  full;  // d^4
-        size_t   e;     // even bits covering full
+        cpp_int  d;    // names per field
+        uint64_t dU;   // d as uint64_t (fits: < 2^49 for NAME_MAX_CHARS=8)
+        cpp_int  full; // d^4
+        size_t   e;    // even bits covering full
     };
 
     auto nameSpace() -> const NameSpace& {
@@ -176,7 +176,7 @@ namespace {
     // Split a permuted name-material value into its four base-D field digits,
     // least-significant first: {genre, artist, album, track}.
     auto splitFields(const cpp_int& scrambled) -> std::array<cpp_int, 4> {
-        const cpp_int&        d = nameSpace().d;
+        const cpp_int&         d = nameSpace().d;
         std::array<cpp_int, 4> f{};
         cpp_int                t = scrambled;
         for (auto& digit : f) {
@@ -236,7 +236,7 @@ auto namesForIndex(const cpp_int& index) -> Names {
 auto constructIndexesForNames(const NameQuery& query, size_t count, uint64_t seed) -> std::vector<cpp_int> {
     // Parse every pinned field up front; a single unproducible name means the
     // whole request has no answers.
-    std::array<std::optional<cpp_int>, 4> pinned{};
+    std::array<std::optional<cpp_int>, 4>                  pinned{};
     const std::array<const std::optional<std::string>*, 4> inputs = {&query.genre, &query.artist, &query.album, &query.track};
     for (size_t i = 0; i < 4; ++i) {
         if (inputs[i]->has_value()) {

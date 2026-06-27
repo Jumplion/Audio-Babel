@@ -70,6 +70,6 @@ export async function searchByMetadata(wasm, fields, options = {}) {
   return results.map((r) => ({
     indexBase64: r.indexBase64,
     position: { room: r.room, wall: r.wall, shelf: r.shelf, album: r.album, track: r.track },
-    names: { genre: r.genreName, artist: r.artistName, album: r.albumName, track: r.trackName }
+    names: { genre: r.genreName, artist: r.artistName, album: r.albumName, track: r.trackName },
   }));
 }

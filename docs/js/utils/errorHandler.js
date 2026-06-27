@@ -1,6 +1,6 @@
 /**
  * errorHandler.js
- * 
+ *
  * Centralized error handling utilities for consistent user-facing error messages
  * and developer logging across the application.
  */
@@ -11,7 +11,7 @@
 export const ErrorLevel = {
   INFO: 'info',
   WARNING: 'warning',
-  ERROR: 'error'
+  ERROR: 'error',
 };
 
 /**
@@ -22,7 +22,12 @@ export const ErrorLevel = {
 export function showError(message, level = ErrorLevel.ERROR) {
   // For now, use alert for simplicity
   // Could be enhanced with a custom modal or toast notification
-  const prefix = level === ErrorLevel.WARNING ? '⚠ Warning: ' : level === ErrorLevel.INFO ? 'ℹ Info: ' : '❌ Error: ';
+  const prefix =
+    level === ErrorLevel.WARNING
+      ? '⚠ Warning: '
+      : level === ErrorLevel.INFO
+        ? 'ℹ Info: '
+        : '❌ Error: ';
   alert(prefix + message);
 }
 
@@ -51,9 +56,9 @@ export function logError(context, error, additionalInfo = {}) {
 export function handleError(context, error, userMessage = null, level = ErrorLevel.ERROR) {
   // Log for developers
   logError(context, error);
-  
+
   // Show user-friendly message
-  const message = userMessage || (error?.message || String(error));
+  const message = userMessage || error?.message || String(error);
   showError(message, level);
 }
 

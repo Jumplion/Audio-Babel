@@ -38,7 +38,14 @@ body {
   position: relative;
   min-height: 100vh;
   margin: 0;
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial;
   background: var(--bg-gradient);
   background-attachment: fixed;
   color: var(--text);
@@ -50,7 +57,7 @@ body {
 /* Decorative "vinyl record" rings — fill empty space on short pages, evoke a record shop */
 body::before,
 body::after {
-  content: "";
+  content: '';
   position: fixed;
   border-radius: 50%;
   pointer-events: none;
@@ -62,11 +69,13 @@ body::before {
   right: -10%;
   width: 620px;
   height: 620px;
-  background: repeating-radial-gradient(circle,
-      rgba(217, 172, 94, 0.06) 0px,
-      rgba(217, 172, 94, 0.06) 2px,
-      transparent 3px,
-      transparent 16px);
+  background: repeating-radial-gradient(
+    circle,
+    rgba(217, 172, 94, 0.06) 0,
+    rgba(217, 172, 94, 0.06) 2px,
+    transparent 3px,
+    transparent 16px
+  );
 }
 
 body::after {
@@ -74,11 +83,13 @@ body::after {
   left: -12%;
   width: 520px;
   height: 520px;
-  background: repeating-radial-gradient(circle,
-      rgba(122, 51, 38, 0.07) 0px,
-      rgba(122, 51, 38, 0.07) 2px,
-      transparent 3px,
-      transparent 16px);
+  background: repeating-radial-gradient(
+    circle,
+    rgba(122, 51, 38, 0.07) 0,
+    rgba(122, 51, 38, 0.07) 2px,
+    transparent 3px,
+    transparent 16px
+  );
 }
 
 .site-navbar,
@@ -90,7 +101,7 @@ body::after {
 h1,
 h2,
 h3 {
-  font-family: "Fraunces", Georgia, "Times New Roman", serif;
+  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
 }
 
 h1 {
@@ -157,7 +168,6 @@ small {
   color: var(--muted);
 }
 
-
 /* -----------------------------
     Layout
    ----------------------------- */
@@ -178,7 +188,9 @@ small {
   padding: 40px 32px;
   max-width: 640px;
   width: 100%;
-  box-shadow: var(--shadow-md), inset 0 0 60px rgba(0, 0, 0, 0.18);
+  box-shadow:
+    var(--shadow-md),
+    inset 0 0 60px rgba(0, 0, 0, 0.18);
   backdrop-filter: blur(10px);
 }
 
@@ -194,7 +206,6 @@ small {
   /* ensure centering in flex parent */
   align-items: center;
   justify-content: center;
-
 }
 
 .option {
@@ -226,7 +237,9 @@ small {
 .option.selected {
   background: linear-gradient(90deg, var(--btn), var(--accent));
   color: #2a1c10;
-  box-shadow: 0 4px 16px rgba(184, 118, 58, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 4px 16px rgba(184, 118, 58, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
   border-color: transparent;
 }
@@ -493,7 +506,7 @@ body.light .spinner {
 }
 
 .skeleton::after {
-  content: "";
+  content: '';
   position: absolute;
   left: -150px;
   top: 0;
@@ -582,8 +595,8 @@ body.light .spinner {
 }
 
 /* Form inputs */
-input[type="text"],
-input[type="file"],
+input[type='text'],
+input[type='file'],
 textarea,
 select {
   background: rgba(36, 26, 20, 0.6);
@@ -596,7 +609,7 @@ select {
   transition: all 0.2s ease;
 }
 
-input[type="text"]:focus,
+input[type='text']:focus,
 textarea:focus,
 select:focus {
   outline: none;
@@ -605,12 +618,12 @@ select:focus {
   background: var(--card-hover);
 }
 
-input[type="text"]::placeholder,
+input[type='text']::placeholder,
 textarea::placeholder {
   color: var(--muted);
 }
 
-input[type="file"]::file-selector-button {
+input[type='file']::file-selector-button {
   background: linear-gradient(135deg, var(--btn), var(--accent-dim));
   color: #2a1c10;
   border: none;
@@ -623,7 +636,7 @@ input[type="file"]::file-selector-button {
   transition: all 0.2s ease;
 }
 
-input[type="file"]::file-selector-button:hover {
+input[type='file']::file-selector-button:hover {
   background: linear-gradient(135deg, var(--btn-hover), var(--accent));
 }
 

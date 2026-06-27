@@ -1,20 +1,33 @@
 <section id="result">
   <h3>Index</h3>
   <pre id="indexDisplay"></pre>
-  
+
   <div id="positionInfo">
     <strong>Position in Library:</strong>
     <div id="positionDisplay">Calculating...</div>
     <div class="position-actions">
-      <button id="findInLibraryBtn" class="btn btn-find-in-library" type="button" style="display: none;">Find in Library →</button>
+      <button
+        id="findInLibraryBtn"
+        class="btn btn-find-in-library"
+        type="button"
+        style="display: none"
+      >
+        Find in Library →
+      </button>
     </div>
   </div>
-  
+
   <div id="metadata">
-    <img id="coverImg" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="cover" />
+    <img
+      id="coverImg"
+      src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
+      alt="cover"
+    />
     <div class="metadata-content">
       <div class="meta-field meta-genre"><strong>Genre:</strong> <span id="metaGenre"></span></div>
-      <div class="meta-field meta-artist"><strong>Artist:</strong> <span id="metaArtist"></span></div>
+      <div class="meta-field meta-artist">
+        <strong>Artist:</strong> <span id="metaArtist"></span>
+      </div>
       <div class="meta-field meta-album"><strong>Album:</strong> <span id="metaAlbum"></span></div>
       <div class="meta-field meta-track"><strong>Track:</strong> <span id="metaTrack"></span></div>
     </div>
@@ -24,8 +37,10 @@
   <div id="waveformContainer"></div>
   <div class="audio-actions">
     <div class="play-row">
-      <button id="playPauseBtn" class="btn" style="min-width: 100px;">▶ Play</button>
-      <button class="btn"><a id="downloadLink" href="#" download="reconstructed.wav">Download WAV</a></button>
+      <button id="playPauseBtn" class="btn" style="min-width: 100px">▶ Play</button>
+      <button class="btn">
+        <a id="downloadLink" href="#" download="reconstructed.wav">Download WAV</a>
+      </button>
     </div>
   </div>
 </section>

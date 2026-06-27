@@ -7,7 +7,7 @@ on:
     branches: ["main"]
 
 jobs:
-  clang-format:
+  format:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -17,17 +17,28 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref_name }}
 
-      - name: Apply formatting
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install web lint/format tooling
+        run: npm ci
+
+      - name: Apply clang-format (C++)
         run: |
           find cpp -regextype posix-extended -regex '.*\.(cpp|h|hpp)' -print0 \
             | xargs -0 clang-format -i
+
+      - name: Apply Prettier (JS, HTML, CSS)
+        run: npx prettier --write "docs/**/*.{js,html,css}"
 
       - name: Commit formatting fixes
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "style: apply clang-format"
-          file_pattern: "cpp/**/*.cpp cpp/**/*.h"
+          commit_message: "style: apply clang-format and prettier"
+          file_pattern: "cpp/**/*.cpp cpp/**/*.h docs/**/*.js docs/**/*.html docs/**/*.css"
 
   clang-tidy:
     runs-on: ubuntu-latest
@@ -43,6 +54,29 @@ jobs:
 
       - name: Run clang-tidy
         run: find cpp/src -name '*.cpp' -print0 | xargs -0 clang-tidy -p build
+
+  lint-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install web lint/format tooling
+        run: npm ci
+
+      - name: Run ESLint (JS)
+        run: npx eslint docs/js
+
+      - name: Run Stylelint (CSS)
+        run: npx stylelint "docs/css/**/*.css"
+
+      - name: Run HTMLHint (HTML)
+        run: npx htmlhint "docs/**/*.html"
 
   build-and-test:
     runs-on: ubuntu-latest

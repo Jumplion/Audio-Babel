@@ -7,13 +7,11 @@
  */
 export async function loadFragment(containerSelector, fragmentPath) {
   const container = document.querySelector(containerSelector);
-  if (!container) throw new Error("Container not found: " + containerSelector);
+  if (!container) throw new Error('Container not found: ' + containerSelector);
 
   const resp = await fetch(fragmentPath);
   if (!resp.ok)
-    throw new Error(
-      "Failed to fetch fragment: " + fragmentPath + " (" + resp.status + ")"
-    );
+    throw new Error('Failed to fetch fragment: ' + fragmentPath + ' (' + resp.status + ')');
   const html = await resp.text();
   // Inject the fragment and execute any <script> tags contained within it.
   const tmp = document.createElement('div');

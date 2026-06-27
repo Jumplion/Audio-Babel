@@ -1,7 +1,6 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
+  <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Audio Babel — Browse</title>
@@ -9,163 +8,215 @@
     <link rel="stylesheet" href="./css/navbar.css" />
     <link rel="stylesheet" href="./css/browse.css?v=3" />
     <link rel="stylesheet" href="./css/result.css?v=2" />
-</head>
+  </head>
 
-<body class="browse">
+  <body class="browse">
     <div id="navContainer">
-        <nav class="site-navbar">
-            <div class="nav-inner">
-                <div class="nav-brand"><a href="./index.html">Audio Babel</a></div>
-                <div class="nav-links">
-                    <a href="./browse.html">Browse</a>
-                    <a href="./search.html">Search</a>
-                    <a href="./about.html">About</a>
-                </div>
-            </div>
-        </nav>
+      <nav class="site-navbar">
+        <div class="nav-inner">
+          <div class="nav-brand"><a href="./index.html">Audio Babel</a></div>
+          <div class="nav-links">
+            <a href="./browse.html">Browse</a>
+            <a href="./search.html">Search</a>
+            <a href="./about.html">About</a>
+          </div>
+        </div>
+      </nav>
     </div>
 
     <div class="wrap">
-        <main class="card">
-            <h1>Browse the Record Shop</h1>
-            
-            <p class="browse-intro">
-                Navigate through the infinite Record Shop. Each room contains 4 labels,
-                each label has 5 artists, each artist holds 32 albums, and each album has 15 tracks.
-            </p>
+      <main class="card">
+        <h1>Browse the Record Shop</h1>
 
-            <nav id="breadcrumb" aria-label="Breadcrumb"></nav>
+        <p class="browse-intro">
+          Navigate through the infinite Record Shop. Each room contains 4 labels, each label has 5
+          artists, each artist holds 32 albums, and each album has 15 tracks.
+        </p>
 
-            <!-- Room Selection -->
-            <section id="roomSection" class="nav-section">
-                <h2>Enter a Room</h2>
-                <div class="input-row">
-                    <label for="roomInput">Room Name:</label>
-                    <input type="text" id="roomInput" placeholder="0" maxlength="100" />
-                    <button class="btn" id="enterRoomBtn">Enter</button>
-                </div>
-            </section>
+        <nav id="breadcrumb" aria-label="Breadcrumb"></nav>
 
-            <!-- Wall Selection (Hexagon) -->
-            <section id="wallSection" class="nav-section" style="display: none;">
-                <h2>Select a Label</h2>
-                <div id="hexagonContainer" class="hexagon-container">
-                    <!-- True regular (pointy-top) hexagon, circumradius 90 about centre (110,110).
+        <!-- Room Selection -->
+        <section id="roomSection" class="nav-section">
+          <h2>Enter a Room</h2>
+          <div class="input-row">
+            <label for="roomInput">Room Name:</label>
+            <input type="text" id="roomInput" placeholder="0" maxlength="100" />
+            <button class="btn" id="enterRoomBtn">Enter</button>
+          </div>
+        </section>
+
+        <!-- Wall Selection (Hexagon) -->
+        <section id="wallSection" class="nav-section" style="display: none">
+          <h2>Select a Label</h2>
+          <div id="hexagonContainer" class="hexagon-container">
+            <!-- True regular (pointy-top) hexagon, circumradius 90 about centre (110,110).
                          Outer vertices: 90° apart at radius 90 -> half-width = 90·cos30° = 77.94
                          (so side vertices sit at x = 110 ± 77.94 = 32.06 / 187.94, NOT ±80).
                          Inner hexagon scaled to 0.5 forms a ring split into 6 equal trapezoids,
                          one per outer edge. Four are selectable walls (top-left, top-right,
                          bottom-left, bottom-right); the two vertical side edges are disabled.
                          Segment names render OUTSIDE each segment, linked by a short leader. -->
-                    <svg viewBox="-70 0 360 220" class="hexagon-svg" preserveAspectRatio="xMidYMid meet">
-                        <!-- Full hexagon outline -->
-                        <polygon class="hexagon-outline"
-                            points="110,20 187.94,65 187.94,155 110,200 32.06,155 32.06,65" />
+            <svg viewBox="-70 0 360 220" class="hexagon-svg" preserveAspectRatio="xMidYMid meet">
+              <!-- Full hexagon outline -->
+              <polygon
+                class="hexagon-outline"
+                points="110,20 187.94,65 187.94,155 110,200 32.06,155 32.06,65"
+              />
 
-                        <!-- Inner hexagon (radius 45) marking the inner edge of the ring -->
-                        <polygon class="hexagon-inner"
-                            points="110,65 148.97,87.5 148.97,132.5 110,155 71.03,132.5 71.03,87.5" />
+              <!-- Inner hexagon (radius 45) marking the inner edge of the ring -->
+              <polygon
+                class="hexagon-inner"
+                points="110,65 148.97,87.5 148.97,132.5 110,155 71.03,132.5 71.03,87.5"
+              />
 
-                        <!-- Leader lines linking each wall segment to its off-to-the-side label -->
-                        <g class="wall-leaders">
-                            <line class="wall-leader" data-wall="0" x1="148.97" y1="42.5"  x2="186" y2="42.5" />
-                            <line class="wall-leader" data-wall="1" x1="148.97" y1="177.5" x2="186" y2="177.5" />
-                            <line class="wall-leader" data-wall="2" x1="71.03"  y1="177.5" x2="34"  y2="177.5" />
-                            <line class="wall-leader" data-wall="3" x1="71.03"  y1="42.5"  x2="34"  y2="42.5" />
-                        </g>
+              <!-- Leader lines linking each wall segment to its off-to-the-side label -->
+              <g class="wall-leaders">
+                <line class="wall-leader" data-wall="0" x1="148.97" y1="42.5" x2="186" y2="42.5" />
+                <line
+                  class="wall-leader"
+                  data-wall="1"
+                  x1="148.97"
+                  y1="177.5"
+                  x2="186"
+                  y2="177.5"
+                />
+                <line class="wall-leader" data-wall="2" x1="71.03" y1="177.5" x2="34" y2="177.5" />
+                <line class="wall-leader" data-wall="3" x1="71.03" y1="42.5" x2="34" y2="42.5" />
+              </g>
 
-                        <!-- 6 equal trapezoid ring segments (4 walls + 2 disabled sides) -->
-                        <g id="wallGroup">
-                            <!-- Top-right segment (Wall 0 - Indigo) -->
-                            <polygon class="wall segment" data-wall="0"
-                                points="110,20 187.94,65 148.97,87.5 110,65" />
-                            <text class="wall-genre-label" data-wall="0" x="190" y="42.5" text-anchor="start"></text>
+              <!-- 6 equal trapezoid ring segments (4 walls + 2 disabled sides) -->
+              <g id="wallGroup">
+                <!-- Top-right segment (Wall 0 - Indigo) -->
+                <polygon
+                  class="wall segment"
+                  data-wall="0"
+                  points="110,20 187.94,65 148.97,87.5 110,65"
+                />
+                <text
+                  class="wall-genre-label"
+                  data-wall="0"
+                  x="190"
+                  y="42.5"
+                  text-anchor="start"
+                ></text>
 
-                            <!-- Right side segment (non-selectable) -->
-                            <polygon class="segment segment-disabled"
-                                points="187.94,65 187.94,155 148.97,132.5 148.97,87.5" />
+                <!-- Right side segment (non-selectable) -->
+                <polygon
+                  class="segment segment-disabled"
+                  points="187.94,65 187.94,155 148.97,132.5 148.97,87.5"
+                />
 
-                            <!-- Bottom-right segment (Wall 1 - Forest green) -->
-                            <polygon class="wall segment" data-wall="1"
-                                points="187.94,155 110,200 110,155 148.97,132.5" />
-                            <text class="wall-genre-label" data-wall="1" x="190" y="177.5" text-anchor="start"></text>
+                <!-- Bottom-right segment (Wall 1 - Forest green) -->
+                <polygon
+                  class="wall segment"
+                  data-wall="1"
+                  points="187.94,155 110,200 110,155 148.97,132.5"
+                />
+                <text
+                  class="wall-genre-label"
+                  data-wall="1"
+                  x="190"
+                  y="177.5"
+                  text-anchor="start"
+                ></text>
 
-                            <!-- Bottom-left segment (Wall 2 - Brass gold) -->
-                            <polygon class="wall segment" data-wall="2"
-                                points="110,200 32.06,155 71.03,132.5 110,155" />
-                            <text class="wall-genre-label" data-wall="2" x="30" y="177.5" text-anchor="end"></text>
+                <!-- Bottom-left segment (Wall 2 - Brass gold) -->
+                <polygon
+                  class="wall segment"
+                  data-wall="2"
+                  points="110,200 32.06,155 71.03,132.5 110,155"
+                />
+                <text
+                  class="wall-genre-label"
+                  data-wall="2"
+                  x="30"
+                  y="177.5"
+                  text-anchor="end"
+                ></text>
 
-                            <!-- Left side segment (non-selectable) -->
-                            <polygon class="segment segment-disabled"
-                                points="32.06,155 32.06,65 71.03,87.5 71.03,132.5" />
+                <!-- Left side segment (non-selectable) -->
+                <polygon
+                  class="segment segment-disabled"
+                  points="32.06,155 32.06,65 71.03,87.5 71.03,132.5"
+                />
 
-                            <!-- Top-left segment (Wall 3 - Rosewood) -->
-                            <polygon class="wall segment" data-wall="3"
-                                points="32.06,65 110,20 110,65 71.03,87.5" />
-                            <text class="wall-genre-label" data-wall="3" x="30" y="42.5" text-anchor="end"></text>
-                        </g>
-                    </svg>
+                <!-- Top-left segment (Wall 3 - Rosewood) -->
+                <polygon
+                  class="wall segment"
+                  data-wall="3"
+                  points="32.06,65 110,20 110,65 71.03,87.5"
+                />
+                <text
+                  class="wall-genre-label"
+                  data-wall="3"
+                  x="30"
+                  y="42.5"
+                  text-anchor="end"
+                ></text>
+              </g>
+            </svg>
+          </div>
+        </section>
+
+        <!-- Shelf Selection -->
+        <section id="shelfSection" class="nav-section" style="display: none">
+          <h2>Select an Artist</h2>
+          <div id="shelvesContainer" class="shelves-container">
+            <!-- 5 shelves will be generated here -->
+          </div>
+        </section>
+
+        <!-- Album Selection -->
+        <section id="albumSection" class="nav-section" style="display: none">
+          <h2>Select an Album</h2>
+          <div id="albumsContainer" class="albums-container">
+            <!-- 32 albums will be generated here -->
+          </div>
+        </section>
+
+        <!-- Track Selection -->
+        <section id="trackSection" class="nav-section" style="display: none">
+          <h2>Select a Track</h2>
+
+          <div class="gatefold-stage" id="gatefoldStage">
+            <div class="gatefold-spine"></div>
+            <div class="record" id="record"></div>
+
+            <div class="cover-square cover-right" id="coverRight">
+              <img id="coverArt" class="cover-art" alt="Generated album cover art" />
+              <div class="cover-caption" id="coverCaption"></div>
+
+              <!-- Selected track's info + waveform fade in here, replacing the album art -->
+              <div class="track-detail" id="trackDetail">
+                <div id="resultContainer"></div>
+              </div>
+            </div>
+
+            <div class="cover-square gate-leaf" id="gateLeaf">
+              <div class="leaf-face">
+                <h3>Tracks</h3>
+                <div id="tracksContainer" class="tracks-container">
+                  <!-- 15 tracks will be generated here -->
                 </div>
-            </section>
+              </div>
+            </div>
+          </div>
 
-            <!-- Shelf Selection -->
-            <section id="shelfSection" class="nav-section" style="display: none;">
-                <h2>Select an Artist</h2>
-                <div id="shelvesContainer" class="shelves-container">
-                    <!-- 5 shelves will be generated here -->
-                </div>
-            </section>
-
-            <!-- Album Selection -->
-            <section id="albumSection" class="nav-section" style="display: none;">
-                <h2>Select an Album</h2>
-                <div id="albumsContainer" class="albums-container">
-                    <!-- 32 albums will be generated here -->
-                </div>
-            </section>
-
-            <!-- Track Selection -->
-            <section id="trackSection" class="nav-section" style="display: none;">
-                <h2>Select a Track</h2>
-
-                <div class="gatefold-stage" id="gatefoldStage">
-                    <div class="gatefold-spine"></div>
-                    <div class="record" id="record"></div>
-
-                    <div class="cover-square cover-right" id="coverRight">
-                        <img id="coverArt" class="cover-art" alt="Generated album cover art" />
-                        <div class="cover-caption" id="coverCaption"></div>
-
-                        <!-- Selected track's info + waveform fade in here, replacing the album art -->
-                        <div class="track-detail" id="trackDetail">
-                            <div id="resultContainer"></div>
-                        </div>
-                    </div>
-
-                    <div class="cover-square gate-leaf" id="gateLeaf">
-                        <div class="leaf-face">
-                            <h3>Tracks</h3>
-                            <div id="tracksContainer" class="tracks-container">
-                                <!-- 15 tracks will be generated here -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <p class="track-section-subtitle">
-                    Utilizing <a href="https://wavesurfer.xyz/" target="_blank" rel="noopener">WaveSurfer.js</a> for waveform visualization and playback
-                </p>
-            </section>
-
-        </main>
+          <p class="track-section-subtitle">
+            Utilizing
+            <a href="https://wavesurfer.xyz/" target="_blank" rel="noopener">WaveSurfer.js</a> for
+            waveform visualization and playback
+          </p>
+        </section>
+      </main>
     </div>
 
     <!-- IMPORTANT: main.js must load FIRST to enable client-side API before browse.js makes fetch calls -->
     <script type="module" src="./js/pages/main.js?v=5"></script>
     <script type="module" src="./js/pages/browse.js?v=7"></script>
     <script type="module">
-        import { highlightActiveNav } from './js/ui/nav.js';
-        highlightActiveNav('#navContainer');
+      import { highlightActiveNav } from './js/ui/nav.js';
+      highlightActiveNav('#navContainer');
     </script>
-
-</body>
+  </body>
+</html>

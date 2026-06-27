@@ -3,26 +3,26 @@
  */
 
 .about-card {
-    max-width: 720px;
+  max-width: 720px;
 }
 
 .about-card ul {
-    color: var(--text-dim);
-    padding-left: 20px;
+  color: var(--text-dim);
+  padding-left: 20px;
 }
 
 .about-card li {
-    margin-bottom: 10px;
-    line-height: 1.6;
+  margin-bottom: 10px;
+  line-height: 1.6;
 }
 
 .about-card li b {
-    color: var(--text);
+  color: var(--text);
 }
 
 .about-cta {
-    margin-top: 28px;
-    padding-top: 20px;
-    border-top: 1px solid var(--card-border);
-    color: var(--text-dim);
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--card-border);
+  color: var(--text-dim);
 }

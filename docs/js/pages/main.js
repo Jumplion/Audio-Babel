@@ -5,10 +5,19 @@
  * reconstruct-from-index, generate-random, and upload-WAV actions.
  */
 
-import { generateFromIndex, generateRandom, extractIndexFromWav, attachSearchInputFilter } from './search.js';
+import {
+  generateFromIndex,
+  generateRandom,
+  extractIndexFromWav,
+  attachSearchInputFilter,
+} from './search.js';
 import { handleJsonResponse } from '../core/resultDisplay.js';
 import { getWasmModule } from '../core/wasmModule.js';
-import { computeNameWidths, sanitizeMetadataFieldValue, searchByMetadata } from '../utils/metadataSearch.js';
+import {
+  computeNameWidths,
+  sanitizeMetadataFieldValue,
+  searchByMetadata,
+} from '../utils/metadataSearch.js';
 import { setFindInLibraryTarget } from '../utils/findInLibrary.js';
 import { escapeHtml } from '../utils/dom.js';
 import { handleError } from '../utils/errorHandler.js';
@@ -22,7 +31,7 @@ function getWavOptions() {
   const sampleRateSelect = document.getElementById('sampleRateSelect');
   return {
     bitDepth: bitDepthSelect ? Number(bitDepthSelect.value) : undefined,
-    sampleRate: sampleRateSelect ? Number(sampleRateSelect.value) : undefined
+    sampleRate: sampleRateSelect ? Number(sampleRateSelect.value) : undefined,
   };
 }
 
@@ -103,7 +112,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Generate random index
   const doRandomGenerate = document.getElementById('doRandomGenerate');
   if (doRandomGenerate) {
-    doRandomGenerate.addEventListener('click', () => generateRandom(handleJsonResponse, setLoading, searchInput, getWavOptions()));
+    doRandomGenerate.addEventListener('click', () =>
+      generateRandom(handleJsonResponse, setLoading, searchInput, getWavOptions())
+    );
   }
 
   // Upload WAV file: derive its index and drop it straight into the index input
@@ -140,7 +151,10 @@ document.addEventListener('DOMContentLoaded', () => {
 function initSearchTabs() {
   const tabs = [
     { btn: document.getElementById('tabByIndex'), panel: document.getElementById('byIndexPanel') },
-    { btn: document.getElementById('tabByMetadata'), panel: document.getElementById('byMetadataPanel') }
+    {
+      btn: document.getElementById('tabByMetadata'),
+      panel: document.getElementById('byMetadataPanel'),
+    },
   ];
   if (!tabs.every(({ btn, panel }) => btn && panel)) return;
 
@@ -166,12 +180,13 @@ function initMetadataSearch() {
     genre: document.getElementById('metaGenreInput'),
     artist: document.getElementById('metaArtistInput'),
     album: document.getElementById('metaAlbumInput'),
-    track: document.getElementById('metaTrackInput')
+    track: document.getElementById('metaTrackInput'),
   };
   const searchBtn = document.getElementById('doMetadataSearch');
   const statusEl = document.getElementById('metadataSearchStatus');
   const resultsList = document.getElementById('metadataResultsList');
-  if (!searchBtn || !statusEl || !resultsList || Object.values(fieldInputs).some((el) => !el)) return;
+  if (!searchBtn || !statusEl || !resultsList || Object.values(fieldInputs).some((el) => !el))
+    return;
 
   let nameWidths = null;
   getWasmModule()
@@ -184,7 +199,9 @@ function initMetadataSearch() {
         inputEl.placeholder = `${level[0].toUpperCase()}${level.slice(1)} name (up to ${width} chars)`;
       });
     })
-    .catch((error) => handleError('main.js:initMetadataSearch', error, 'Failed to load library constants'));
+    .catch((error) =>
+      handleError('main.js:initMetadataSearch', error, 'Failed to load library constants')
+    );
 
   const updateSearchButtonState = () => {
     const anyFilled = Object.values(fieldInputs).some((el) => el.value.trim().length > 0);
@@ -232,7 +249,7 @@ function initMetadataSearch() {
       genre: fieldInputs.genre.value.trim(),
       artist: fieldInputs.artist.value.trim(),
       album: fieldInputs.album.value.trim(),
-      track: fieldInputs.track.value.trim()
+      track: fieldInputs.track.value.trim(),
     };
 
     searchBtn.setAttribute('disabled', '');

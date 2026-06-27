@@ -42,8 +42,7 @@ void requireWellFormed(const IndexNaming::Names& n) {
 } // namespace
 
 TEST_CASE("IndexNaming: names are a deterministic function of the index", "[naming][determinism]") {
-    std::vector<cpp_int> samples = {cpp_int(0), cpp_int(1), cpp_int(123456789),
-                                    cpp_int("340282366920938463463374607431768211455")};
+    std::vector<cpp_int> samples = {cpp_int(0), cpp_int(1), cpp_int(123456789), cpp_int("340282366920938463463374607431768211455")};
     for (const auto& idx : samples) {
         auto a = IndexNaming::namesForIndex(idx);
         auto b = IndexNaming::namesForIndex(idx);
@@ -150,14 +149,10 @@ TEST_CASE("IndexNaming: round-trips every producible field name", "[naming][cons
         }
     };
 
-    pinAndCheck([&](IndexNaming::NameQuery& q) { q.genre = target.genre; },
-                [&](const IndexNaming::Names& n) { return n.genre == target.genre; });
-    pinAndCheck([&](IndexNaming::NameQuery& q) { q.artist = target.artist; },
-                [&](const IndexNaming::Names& n) { return n.artist == target.artist; });
-    pinAndCheck([&](IndexNaming::NameQuery& q) { q.album = target.album; },
-                [&](const IndexNaming::Names& n) { return n.album == target.album; });
-    pinAndCheck([&](IndexNaming::NameQuery& q) { q.track = target.track; },
-                [&](const IndexNaming::Names& n) { return n.track == target.track; });
+    pinAndCheck([&](IndexNaming::NameQuery& q) { q.genre = target.genre; }, [&](const IndexNaming::Names& n) { return n.genre == target.genre; });
+    pinAndCheck([&](IndexNaming::NameQuery& q) { q.artist = target.artist; }, [&](const IndexNaming::Names& n) { return n.artist == target.artist; });
+    pinAndCheck([&](IndexNaming::NameQuery& q) { q.album = target.album; }, [&](const IndexNaming::Names& n) { return n.album == target.album; });
+    pinAndCheck([&](IndexNaming::NameQuery& q) { q.track = target.track; }, [&](const IndexNaming::Names& n) { return n.track == target.track; });
 }
 
 TEST_CASE("IndexNaming: batch accessors return per-slot names of the right width and count", "[naming][browse]") {
@@ -190,7 +185,7 @@ TEST_CASE("IndexNaming: batch accessors return per-slot names of the right width
 TEST_CASE("IndexNaming: a browse slot's name matches that index's own metadata", "[naming][browse][consistency]") {
     // The representative-index name a batch accessor shows for a track slot must
     // equal the name namesForIndex gives for that exact reconstructed index.
-    std::string room = "Consist";
+    std::string room   = "Consist";
     auto        tracks = IndexNaming::trackNames(room, 2, 3, 4);
     for (uint8_t t = 0; t < tracks.size(); ++t) {
         cpp_int idx = reconstructIndexFromPosition(LibraryPosition{room, 2, 3, 4, t});

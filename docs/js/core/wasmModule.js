@@ -1,9 +1,9 @@
 /**
  * wasmModule.js
- * 
+ *
  * Shared singleton WASM module instance.
  * Eliminates duplication of WASM initialization code across multiple files.
- * 
+ *
  * Usage:
  *   import { getWasmModule } from './wasmModule.js';
  *   const wasm = await getWasmModule();
@@ -20,11 +20,11 @@ let wasmInstance = null;
  * @returns {Promise<IndexWasm>} Initialized WASM module instance
  */
 export async function getWasmModule() {
-    if (!wasmInstance) {
-        wasmInstance = new IndexWasm();
-        await wasmInstance.initialize();
-    }
-    return wasmInstance;
+  if (!wasmInstance) {
+    wasmInstance = new IndexWasm();
+    await wasmInstance.initialize();
+  }
+  return wasmInstance;
 }
 
 console.info('✅ wasmModule.js loaded - shared WASM singleton ready');

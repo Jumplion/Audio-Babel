@@ -1,48 +1,46 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Audio Babel</title>
+    <link rel="stylesheet" href="./css/site.css" />
+    <link rel="stylesheet" href="./css/navbar.css" />
+    <link rel="stylesheet" href="./css/index.css" />
+  </head>
 
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Audio Babel</title>
-  <link rel="stylesheet" href="./css/site.css" />
-  <link rel="stylesheet" href="./css/navbar.css" />
-  <link rel="stylesheet" href="./css/index.css" />
-</head>
-
-<body class="home">
-  <div id="navContainer">
-    <nav class="site-navbar">
-      <div class="nav-inner">
-        <div class="nav-brand"><a href="./index.html">Audio Babel</a></div>
-        <div class="nav-links">
-          <a href="./browse.html">Browse</a>
-          <a href="./search.html">Search</a>
-          <a href="./about.html">About</a>
+  <body class="home">
+    <div id="navContainer">
+      <nav class="site-navbar">
+        <div class="nav-inner">
+          <div class="nav-brand"><a href="./index.html">Audio Babel</a></div>
+          <div class="nav-links">
+            <a href="./browse.html">Browse</a>
+            <a href="./search.html">Search</a>
+            <a href="./about.html">About</a>
+          </div>
         </div>
-      </div>
-    </nav>
-  </div>
-  <div class="wrap home">
-    <main class="card hero-card">
-      <div class="vinyl-decor" aria-hidden="true"></div>
-      <h1>Audio Babel</h1>
-      <div class="sub muted">...an infinite record shop of every possible sound...</div>
+      </nav>
+    </div>
+    <div class="wrap home">
+      <main class="card hero-card">
+        <div class="vinyl-decor" aria-hidden="true"></div>
+        <h1>Audio Babel</h1>
+        <div class="sub muted">...an infinite record shop of every possible sound...</div>
 
-      <div class="index-links options">
-        <a class="option" href="./browse.html">Browse the Shelves</a>
-        <a class="option" href="./search.html">Search the Stacks</a>
-      </div>
+        <div class="index-links options">
+          <a class="option" href="./browse.html">Browse the Shelves</a>
+          <a class="option" href="./search.html">Search the Stacks</a>
+        </div>
 
-      <p class="hero-about-link"><a href="./about.html">What is this place? &rarr;</a></p>
-    </main>
-  </div>
+        <p class="hero-about-link"><a href="./about.html">What is this place? &rarr;</a></p>
+      </main>
+    </div>
 
-  <script type="module">
-    import { highlightActiveNav } from './js/ui/nav.js';
-    highlightActiveNav('#navContainer');
-  </script>
-  <script type="module" src="./js/pages/main.js?v=5"></script>
-</body>
-
+    <script type="module">
+      import { highlightActiveNav } from './js/ui/nav.js';
+      highlightActiveNav('#navContainer');
+    </script>
+    <script type="module" src="./js/pages/main.js?v=5"></script>
+  </body>
 </html>

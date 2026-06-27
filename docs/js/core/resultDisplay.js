@@ -67,7 +67,8 @@ function resolveCosmeticName(namesJson, index) {
  * @returns {Promise<Object>} Fragment helper object with get/getAll methods
  */
 export async function ensureResultFrag() {
-  if (!resultFrag) resultFrag = await loadFragment('#resultContainer', './components/result.html?v=3');
+  if (!resultFrag)
+    resultFrag = await loadFragment('#resultContainer', './components/result.html?v=3');
   return resultFrag;
 }
 
@@ -177,15 +178,24 @@ export async function handleJsonResponse(j, originalIndexB64) {
       }
 
       // Truncate room display if it's too long
-      const room = position.room === "" ? "0" : position.room;
+      const room = position.room === '' ? '0' : position.room;
       const roomDisplay = truncateString(room, 20, 8);
 
       // Resolve the cosmetic Genre/Artist/Album/Track names for this position,
       // using the same per-level naming calls the Browse page uses.
       const genreName = resolveCosmeticName(wasm.module.getGenreNames(room), position.wall);
-      const artistName = resolveCosmeticName(wasm.module.getArtistNames(room, position.wall), position.shelf);
-      const albumName = resolveCosmeticName(wasm.module.getAlbumNames(room, position.wall, position.shelf), position.album);
-      const trackName = resolveCosmeticName(wasm.module.getTrackNames(room, position.wall, position.shelf, position.album), position.track);
+      const artistName = resolveCosmeticName(
+        wasm.module.getArtistNames(room, position.wall),
+        position.shelf
+      );
+      const albumName = resolveCosmeticName(
+        wasm.module.getAlbumNames(room, position.wall, position.shelf),
+        position.album
+      );
+      const trackName = resolveCosmeticName(
+        wasm.module.getTrackNames(room, position.wall, position.shelf, position.album),
+        position.track
+      );
 
       positionDisplay.innerHTML = `
         <div class="position-grid">
@@ -217,7 +227,7 @@ export async function handleJsonResponse(j, originalIndexB64) {
               wall: position.wall,
               shelf: position.shelf,
               album: position.album,
-              track: position.track
+              track: position.track,
             });
             window.location.href = './browse.html';
           };

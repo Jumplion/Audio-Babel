@@ -23,7 +23,7 @@ const VALID_BASE64_URL_CHAR = /[A-Za-z0-9_-]/;
 
 // Default random index length range (characters), chosen for a reasonable
 // demo duration without configurable "advanced options".
-const RANDOM_MIN_CHARS = 65536;   // ~64 KB
+const RANDOM_MIN_CHARS = 65536; // ~64 KB
 const RANDOM_MAX_CHARS = 1048576; // ~1 MB
 
 /**
@@ -78,7 +78,8 @@ export async function generateRandom(handleJsonResponse, setLoading, inputEl, wa
   try {
     setLoading(true);
 
-    const length = RANDOM_MIN_CHARS + Math.floor(Math.random() * (RANDOM_MAX_CHARS - RANDOM_MIN_CHARS + 1));
+    const length =
+      RANDOM_MIN_CHARS + Math.floor(Math.random() * (RANDOM_MAX_CHARS - RANDOM_MIN_CHARS + 1));
     const randomIndices = new Uint8Array(length);
     // crypto.getRandomValues caps out at 65536 bytes per call, but our
     // random indices can be up to 1 MB — fill it in chunks.

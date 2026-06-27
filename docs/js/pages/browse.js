@@ -206,19 +206,26 @@ function hideTrackDetail() {
     panel.style.display = 'none';
 }
 
-/**
- * Play the zoom-in reveal animation on a freshly-shown section.
- * If `originEvent` carries click coordinates, the animation's transform-origin
- * is set to that point so the new section appears to grow out of whatever was
- * just clicked (the wall segment / shelf / album button); otherwise it zooms
- * in from its own center (e.g. keyboard submission, breadcrumb back-nav).
- * @param {HTMLElement} el - Section element to animate
- * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
- * @param {string|null} [variant] - Optional animation variant class (e.g. 'album-open')
- */
-function triggerZoomReveal(el, originEvent = null, variant = null) {
-    if (!el) return;
+// How long the outgoing section's zoom-out plays before it's hidden and the
+// incoming section zooms in. Must match the .zoom-out animation duration in
+// browse.css (0.2s) so the swap lands as the fade-out completes.
+const OUTGOING_ZOOM_MS = 200;
 
+// Holds the pending swap timer for an in-flight push-through transition so a
+// rapid follow-up navigation can cancel it instead of stranding a section
+// mid-zoom.
+let revealTimer = null;
+
+/**
+ * Point a section's animation transform-origin at the spot that was clicked.
+ * Maps the click's viewport coordinates into the element's own box (0–100%) so
+ * the zoom appears to emanate from / dive into whatever was just clicked (the
+ * wall segment / shelf / album button). With no click coordinates (keyboard
+ * submission, breadcrumb back-nav) the origin is cleared, defaulting to center.
+ * @param {HTMLElement} el - Section element being animated
+ * @param {MouseEvent|null} originEvent - Click event that triggered the navigation
+ */
+function setRevealOrigin(el, originEvent) {
     if (originEvent && typeof originEvent.clientX === 'number') {
         const rect = el.getBoundingClientRect();
         const x = rect.width ? ((originEvent.clientX - rect.left) / rect.width) * 100 : 50;
@@ -229,12 +236,40 @@ function triggerZoomReveal(el, originEvent = null, variant = null) {
         el.style.removeProperty('--reveal-x');
         el.style.removeProperty('--reveal-y');
     }
+}
+
+/**
+ * Play the zoom-in reveal animation on a freshly-shown section, growing it out
+ * of the clicked point (see setRevealOrigin).
+ * @param {HTMLElement} el - Section element to animate
+ * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
+ * @param {string|null} [variant] - Optional animation variant class (e.g. 'album-open')
+ */
+function triggerZoomReveal(el, originEvent = null, variant = null) {
+    if (!el) return;
+    setRevealOrigin(el, originEvent);
 
     // Restart the animation even if it's already mid-flight (e.g. rapid clicks)
-    el.classList.remove('zoom-reveal', 'album-open');
+    el.classList.remove('zoom-reveal', 'zoom-out', 'album-open');
     void el.offsetWidth; // force reflow
     el.classList.add('zoom-reveal');
     if (variant) el.classList.add(variant);
+}
+
+/**
+ * Play the zoom-out animation on the section being left, so it enlarges toward
+ * the viewer and fades — the "push into the clicked element" half of the
+ * transition. Origin is the same clicked point as the incoming zoom-in.
+ * @param {HTMLElement} el - Section element being hidden
+ * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
+ */
+function triggerZoomOut(el, originEvent = null) {
+    if (!el) return;
+    setRevealOrigin(el, originEvent);
+
+    el.classList.remove('zoom-reveal', 'zoom-out', 'album-open');
+    void el.offsetWidth; // force reflow
+    el.classList.add('zoom-out');
 }
 
 /**
@@ -244,18 +279,50 @@ function triggerZoomReveal(el, originEvent = null, variant = null) {
  */
 function showSection(sectionId, originEvent = null) {
     const sections = ['roomSection', 'wallSection', 'shelfSection', 'albumSection', 'trackSection'];
-    sections.forEach(id => {
-        const el = $(id);
-        if (!el) return;
 
-        const wasVisible = el.style.display === 'block';
-        const willBeVisible = (id === sectionId);
-        el.style.display = willBeVisible ? 'block' : 'none';
+    // Cancel any in-flight push-through so rapid navigation doesn't leave a
+    // half-zoomed section behind.
+    if (revealTimer) {
+        clearTimeout(revealTimer);
+        revealTimer = null;
+    }
 
-        if (willBeVisible && !wasVisible && Object.prototype.hasOwnProperty.call(REVEAL_VARIANTS, id)) {
-            triggerZoomReveal(el, originEvent, REVEAL_VARIANTS[id]);
+    const canAnimate = (id) => Object.prototype.hasOwnProperty.call(REVEAL_VARIANTS, id);
+    const target = $(sectionId);
+
+    // The animatable section currently on screen that we're leaving (if any).
+    const outgoing = sections
+        .map(id => $(id))
+        .find(el => el && el.id !== sectionId && el.style.display === 'block');
+
+    // Hide every non-target section and reveal the target with its zoom-in.
+    const finishSwap = () => {
+        sections.forEach(id => {
+            const el = $(id);
+            if (!el || id === sectionId) return;
+            el.style.display = 'none';
+            el.classList.remove('zoom-reveal', 'zoom-out', 'album-open');
+        });
+        if (target) {
+            target.style.display = 'block';
+            if (canAnimate(sectionId)) {
+                triggerZoomReveal(target, originEvent, REVEAL_VARIANTS[sectionId]);
+            }
         }
-    });
+    };
+
+    // Full push-through only when both ends animate (e.g. label→artist→album→
+    // track). Otherwise (initial load, room form, reduced fallbacks) swap at
+    // once so there's no needless delay.
+    if (outgoing && canAnimate(outgoing.id) && canAnimate(sectionId)) {
+        triggerZoomOut(outgoing, originEvent);
+        revealTimer = setTimeout(() => {
+            revealTimer = null;
+            finishSwap();
+        }, OUTGOING_ZOOM_MS);
+    } else {
+        finishSwap();
+    }
 
     // Clean up the result handler (wavesurfer instance) when leaving track
     // section, since its info panel is the only place results are shown now

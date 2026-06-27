@@ -7,7 +7,7 @@
     <title>Audio Babel — Browse</title>
     <link rel="stylesheet" href="./css/site.css" />
     <link rel="stylesheet" href="./css/navbar.css" />
-    <link rel="stylesheet" href="./css/browse.css?v=2" />
+    <link rel="stylesheet" href="./css/browse.css?v=3" />
     <link rel="stylesheet" href="./css/result.css?v=2" />
 </head>
 
@@ -50,44 +50,59 @@
             <section id="wallSection" class="nav-section" style="display: none;">
                 <h2>Select a Label</h2>
                 <div id="hexagonContainer" class="hexagon-container">
-                    <svg viewBox="0 0 220 220" class="hexagon-svg">
+                    <!-- True regular (pointy-top) hexagon, circumradius 90 about centre (110,110).
+                         Outer vertices: 90° apart at radius 90 -> half-width = 90·cos30° = 77.94
+                         (so side vertices sit at x = 110 ± 77.94 = 32.06 / 187.94, NOT ±80).
+                         Inner hexagon scaled to 0.5 forms a ring split into 6 equal trapezoids,
+                         one per outer edge. Four are selectable walls (top-left, top-right,
+                         bottom-left, bottom-right); the two vertical side edges are disabled.
+                         Segment names render OUTSIDE each segment, linked by a short leader. -->
+                    <svg viewBox="-70 0 360 220" class="hexagon-svg" preserveAspectRatio="xMidYMid meet">
                         <!-- Full hexagon outline -->
-                        <polygon class="hexagon-outline" points="110,20 190,65 190,155 110,200 30,155 30,65" />
-                        
-                        <!-- Inner hexagon for segment boundaries (scaled to 55% = thinner trapezoids) -->
-                        <!-- Original: 110,70 150,90 150,130 110,150 70,130 70,90 -->
-                        <!-- Scaled 55%: inner radius ~44 units from center -->
-                        <polygon class="hexagon-inner" points="110,55 165,80 165,140 110,165 55,140 55,80" />
-                        
-                        <!-- 6 trapezoid segments (thinner with larger inner hexagon) -->
+                        <polygon class="hexagon-outline"
+                            points="110,20 187.94,65 187.94,155 110,200 32.06,155 32.06,65" />
+
+                        <!-- Inner hexagon (radius 45) marking the inner edge of the ring -->
+                        <polygon class="hexagon-inner"
+                            points="110,65 148.97,87.5 148.97,132.5 110,155 71.03,132.5 71.03,87.5" />
+
+                        <!-- Leader lines linking each wall segment to its off-to-the-side label -->
+                        <g class="wall-leaders">
+                            <line class="wall-leader" data-wall="0" x1="148.97" y1="42.5"  x2="186" y2="42.5" />
+                            <line class="wall-leader" data-wall="1" x1="148.97" y1="177.5" x2="186" y2="177.5" />
+                            <line class="wall-leader" data-wall="2" x1="71.03"  y1="177.5" x2="34"  y2="177.5" />
+                            <line class="wall-leader" data-wall="3" x1="71.03"  y1="42.5"  x2="34"  y2="42.5" />
+                        </g>
+
+                        <!-- 6 equal trapezoid ring segments (4 walls + 2 disabled sides) -->
                         <g id="wallGroup">
-                            <!-- Top segment (Wall 0 - Blue) -->
+                            <!-- Top-right segment (Wall 0 - Indigo) -->
                             <polygon class="wall segment" data-wall="0"
-                                points="110,20 190,65 165,80 110,55 55,80 30,65" />
-                            <text class="wall-genre-label" data-wall="0" x="110" y="61"></text>
+                                points="110,20 187.94,65 148.97,87.5 110,65" />
+                            <text class="wall-genre-label" data-wall="0" x="190" y="42.5" text-anchor="start"></text>
 
-                            <!-- Top-right segment (non-selectable) -->
+                            <!-- Right side segment (non-selectable) -->
                             <polygon class="segment segment-disabled"
-                                points="190,65 190,155 165,140 165,80" />
+                                points="187.94,65 187.94,155 148.97,132.5 148.97,87.5" />
 
-                            <!-- Bottom-right segment (Wall 1 - Green) -->
+                            <!-- Bottom-right segment (Wall 1 - Forest green) -->
                             <polygon class="wall segment" data-wall="1"
-                                points="190,155 110,200 110,165 165,140" />
-                            <text class="wall-genre-label" data-wall="1" x="144" y="165"></text>
+                                points="187.94,155 110,200 110,155 148.97,132.5" />
+                            <text class="wall-genre-label" data-wall="1" x="190" y="177.5" text-anchor="start"></text>
 
-                            <!-- Bottom segment (Wall 2 - Orange) -->
+                            <!-- Bottom-left segment (Wall 2 - Brass gold) -->
                             <polygon class="wall segment" data-wall="2"
-                                points="110,200 30,155 55,140 110,165" />
-                            <text class="wall-genre-label" data-wall="2" x="76" y="165"></text>
+                                points="110,200 32.06,155 71.03,132.5 110,155" />
+                            <text class="wall-genre-label" data-wall="2" x="30" y="177.5" text-anchor="end"></text>
 
-                            <!-- Bottom-left segment (non-selectable) -->
+                            <!-- Left side segment (non-selectable) -->
                             <polygon class="segment segment-disabled"
-                                points="30,155 30,65 55,80 55,140" />
+                                points="32.06,155 32.06,65 71.03,87.5 71.03,132.5" />
 
-                            <!-- Top-left segment (Wall 3 - Purple) -->
+                            <!-- Top-left segment (Wall 3 - Rosewood) -->
                             <polygon class="wall segment" data-wall="3"
-                                points="30,65 110,20 110,55 55,80" />
-                            <text class="wall-genre-label" data-wall="3" x="76" y="55"></text>
+                                points="32.06,65 110,20 110,65 71.03,87.5" />
+                            <text class="wall-genre-label" data-wall="3" x="30" y="42.5" text-anchor="end"></text>
                         </g>
                     </svg>
                 </div>

@@ -33,10 +33,11 @@
  *
  * scramble() = lengthSpread( contentScramble( index ) ):
  *
- *  - contentScramble() runs a keyed Feistel network *within the index's own
- *    band* (length-preserving). It scatters neighbours: two payloads that
- *    differ only in their last sample land far apart, with different sample
- *    values throughout. This is applied to every index.
+ *  - contentScramble() applies a keyed XOR stream *within the index's own
+ *    band* (length-preserving). Each band has exactly B^L = 2^(16L) elements,
+ *    so XOR with a pseudorandom mask is a valid bijection. The stream is keyed
+ *    on (seed, L) via splitmix64. XOR is self-inverse, so scramble and
+ *    unscramble call the same function. This is applied to every index.
  *
  *  - lengthSpread() is a keyed involution that swaps the block of "short"
  *    indices [1, 2^P) (the PREFIX, all of band <= P/16) with a set of TARGET
@@ -56,12 +57,14 @@
  * durations jump across the whole 100 ms .. 15 s range and whose contents are
  * unrelated, while every index still decodes to exactly one payload and back.
  *
- * @section feistel Why Feistel
- * A Feistel network is a bijection for ANY round function and is inverted simply
- * by running its rounds in reverse, so neither contentScramble() nor the
- * per-target value permutation needs a modular inverse; both directions are
- * linear in the band width. The length-spread swap is an involution, so it needs
- * no inverse at all.
+ * @section feistel Why XOR stream / Why Feistel for lengthSpread
+ * contentScramble() uses an XOR stream: each band has exactly 2^(16L) elements,
+ * so XOR with a pseudorandom mask is a length-preserving bijection and is its
+ * own inverse — no modular inverse or round reversal needed.
+ * lengthSpread() still uses a Feistel network internally for the per-target
+ * value permutation: a Feistel is a bijection for ANY round function and is
+ * inverted by running rounds in reverse. The length-spread swap itself is an
+ * involution, so it needs no inverse at all.
  *
  * @section references References
  * - Feistel networks: https://en.wikipedia.org/wiki/Feistel_cipher

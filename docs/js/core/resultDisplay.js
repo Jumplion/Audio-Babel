@@ -458,7 +458,10 @@ export async function handleJsonResponse(j, originalIndexB64) {
     }
   }
 
-  await renderSimilarTracks(frag, j);
-
   if (resultEl) resultEl.style.display = 'block';
+
+  // Fire-and-forget: similar tracks generate after the main result is visible.
+  renderSimilarTracks(frag, j).catch((error) => {
+    console.error('Error rendering similar tracks:', error);
+  });
 }

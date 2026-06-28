@@ -109,7 +109,7 @@ The index integer is divided by 9,600. The quotient identifies the room (base64-
 
 ## Optional Index Scrambling
 
-By default, similar payloads land at numerically nearby indices, so a short, casually-typed index decodes to only a few samples of near-silence. An optional, reversible scramble (a keyed Feistel permutation applied per length-tier) scatters neighbors across the space so short indices yield a wide, interesting range of audio lengths, while keeping the index↔payload mapping a perfect bijection. It's a compile-time toggle (`AUDIOBABEL_SCRAMBLE`); see [`docs/INDEX_FORMAT.md`](docs/INDEX_FORMAT.md) for the full algorithm.
+By default, similar payloads land at numerically nearby indices, and because the index uses bijective base-65536 numeration, any short index (every browseable library position, or a casually-typed one) decodes to only one or two samples of near-silence. A reversible scramble fixes this with two keyed bijections: a per-band Feistel permutation that scatters neighbors' contents, and a length-spread involution that maps short indices onto a wide range of distinct, log-spaced durations (100 ms to 15 s by default) — so browsing consecutive positions yields clips that vary widely in both length and content, while the index↔payload mapping stays a perfect bijection. It's a compile-time toggle (`AUDIOBABEL_SCRAMBLE`), **enabled in the shipped WASM build**; see [`docs/INDEX_FORMAT.md`](docs/INDEX_FORMAT.md) for the full algorithm.
 
 ## Building the Project
 

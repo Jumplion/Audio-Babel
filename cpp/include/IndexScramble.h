@@ -6,56 +6,66 @@
 
 /**
  * @file IndexScramble.h
- * @brief Optional, reversible pseudo-random placement of indices.
+ * @brief Optional, reversible placement of indices that also diversifies the
+ *        decoded audio LENGTH of short indices.
  *
  * By default the index of a payload sits numerically next to the indices of
  * very similar payloads, so neighbouring "library" positions hold near-identical
- * audio. This module applies a keyed, reversible permutation so that neighbours
- * are scattered across the space while the mapping stays a perfect bijection.
+ * audio, and — because the index uses bijective base-65536 numeration — any
+ * *small* index decodes to only one or two samples of near-silence. Browsing the
+ * early library positions therefore yields a stream of indistinguishable,
+ * sub-millisecond clips even though the index strings look different.
  *
- * @section Algorithm (keyed Feistel permutation, per tier)
- * Every index lives in a length-band: an L-sample payload maps to an integer in
- * [S_L, S_{L+1}) where S_L = (B^L - 1)/(B - 1) and the band width is exactly
- * B^L = 2^(16L).
+ * This module applies a keyed, reversible permutation that fixes both problems
+ * while keeping the index<->payload mapping a perfect bijection:
+ *   1. a per-band content scramble so neighbouring payloads no longer share
+ *      almost all of their samples, and
+ *   2. a length-spreading swap so that *short* indices decode to a wide, varied
+ *      range of durations instead of all collapsing to near-silence (or, as the
+ *      previous tier design did, all collapsing to a single ~1-second length).
  *
- * Length-bands are grouped into TIERS, each a contiguous run of bands capped at
- * a target audio duration. The tier boundaries (in seconds) are a compile-time
- * list, AUDIOBABEL_SCRAMBLE_TIER_SECONDS (default 1s, 5s, 10s, 15s, 4 tiers);
- * overriding it changes both the number of tiers and where they fall, e.g.
- * `-DAUDIOBABEL_SCRAMBLE_TIER_SECONDS="{2, 30}"` for two tiers capped at 2s and
- * 30s. See kTierMaxSamples in the .cpp for the derived per-tier sample caps.
- * Keep the top tier small: each Feistel round's cost scales with the tier's
- * byte width, so a much larger top tier (e.g. the previous 240s default) costs
- * multiple seconds per scramble()/unscramble() call.
- * Instead of permuting within one band, scramble() permutes across the whole
- * tier domain [S_lo, S_hi): it subtracts the tier's low end to get a value in
- * [0, N), runs it through a keyed Feistel network (4 rounds, balanced halves)
- * defined on the smallest even-bit power-of-two domain 2^e >= N, and cycle-walks
- * (re-applies the permutation until the result is back in [0, N)) so the domain
- * size need not be a power of two. Because each extra sample multiplies a band's
- * size by B, a tier's top band holds ~(1 - 1/B) of the tier, so a short index
- * almost always lands near the tier's maximum length — short user input now
- * yields a wide, interesting range of audio lengths instead of near-silence.
- * Payloads longer than the last tier keep the original per-band permutation.
+ * @section algorithm Algorithm
  *
+ * An L-sample payload maps to an integer in the length-"band"
+ * [S_L, S_{L+1}) where S_L = (B^L - 1)/(B - 1) and B = 65536. The band index L
+ * is exactly the decoded sample count, so changing an index's band changes its
+ * audio length.
+ *
+ * scramble() = lengthSpread( contentScramble( index ) ):
+ *
+ *  - contentScramble() runs a keyed Feistel network *within the index's own
+ *    band* (length-preserving). It scatters neighbours: two payloads that
+ *    differ only in their last sample land far apart, with different sample
+ *    values throughout. This is applied to every index.
+ *
+ *  - lengthSpread() is a keyed involution that swaps the block of "short"
+ *    indices [1, 2^P) (the PREFIX, all of band <= P/16) with a set of TARGET
+ *    slots that are spread across T distinct, well-separated bands ranging from
+ *    a short minimum (default 100 ms) up to a long maximum (default 15 s). A
+ *    short index i is decomposed as i-1 = o*T + j: the sub-band index j selects
+ *    one of the T target lengths (after a bit-reversal so that numerically
+ *    adjacent indices land on *far-apart* durations, not neighbouring ones), and
+ *    o is run through a keyed Feistel over [0, 2^(P-log2 T)) to choose the
+ *    sample values within that band. Because the map is a fixed pairing between
+ *    two equal-size disjoint sets, it is its own inverse and trivially a
+ *    bijection; the displaced TARGET indices map back down into the short block.
+ *    Indices that are neither in the PREFIX nor a TARGET slot pass through
+ *    unchanged (their length is already non-trivial).
+ *
+ * Net effect: browsing consecutive library positions now yields clips whose
+ * durations jump across the whole 100 ms .. 15 s range and whose contents are
+ * unrelated, while every index still decodes to exactly one payload and back.
+ *
+ * @section feistel Why Feistel
  * A Feistel network is a bijection for ANY round function and is inverted simply
- * by running the rounds in reverse — so unscramble() needs no modular inverse and
- * both directions are O(tier width). Cycle-walking preserves the bijection on
- * [0, N), the permutation never leaves the tier, 0 maps to 0, and every integer
- * maps to a valid integer, so the bijection and "nothing is ever rejected"
- * invariants still hold. The mapping is NOT length-preserving inside a tier: a
- * given length still has exactly as many indices as before (every payload, down
- * to 3 samples, remains reachable), but which indices land on it are scattered
- * across the tier.
- *
- * (An earlier design used an affine map y -> (a*y + c) mod 2^(16L); it was
- * replaced because undoing it needs a big-integer modular inverse, which made
- * decoding take seconds on multi-MB clips. Feistel is O(N) both ways.)
+ * by running its rounds in reverse, so neither contentScramble() nor the
+ * per-target value permutation needs a modular inverse; both directions are
+ * linear in the band width. The length-spread swap is an involution, so it needs
+ * no inverse at all.
  *
  * @section references References
  * - Feistel networks: https://en.wikipedia.org/wiki/Feistel_cipher
- * - Cycle-walking: Black & Rogaway, "Ciphers with Arbitrary Finite Domains"
- *   (CT-RSA 2002), https://www.cs.ucdavis.edu/~rogaway/papers/subset.pdf
+ * - Bijective numeration: https://en.wikipedia.org/wiki/Bijective_numeration
  *
  * @section toggle Toggling
  * The pure scramble()/unscramble() functions are always available. Whether the
@@ -75,16 +85,34 @@ using boost::multiprecision::cpp_int;
 #    define AUDIOBABEL_SCRAMBLE_SEED 0x9E3779B97F4A7C15ULL
 #endif
 
-/// Tier boundaries in seconds, brace-initializer-list form. Defines both the
-/// number of tiers and where they fall; must be non-empty and strictly
-/// increasing (enforced by static_assert in IndexScramble.cpp). Override at
-/// build time to experiment, e.g. -DAUDIOBABEL_SCRAMBLE_TIER_SECONDS="{2, 30}".
-/// Kept short on purpose: each Feistel round processes a half as wide as the
-/// whole tier, so cost grows with the top tier's size (a 240s top tier cost
-/// multiple seconds per call; 15s keeps it well under a second).
-#ifndef AUDIOBABEL_SCRAMBLE_TIER_SECONDS
-#    define AUDIOBABEL_SCRAMBLE_TIER_SECONDS \
-        { 1, 5, 10, 15 }
+/// Shortest and longest decoded duration (milliseconds, at DEFAULT_SAMPLE_RATE)
+/// that the length-spread maps short indices onto. Every "short" index lands on
+/// one of AUDIOBABEL_SCRAMBLE_LENGTH_COUNT distinct, log-spaced lengths between
+/// these two bounds, so the pair sets the variety of browse/short-index audio.
+/// MIN must be > 0 and < MAX (enforced by static_assert in IndexScramble.cpp),
+/// and MIN's sample count must exceed the diversified prefix's band range so the
+/// PREFIX and TARGET sets stay disjoint (also static_asserted).
+#ifndef AUDIOBABEL_SCRAMBLE_MIN_MS
+#    define AUDIOBABEL_SCRAMBLE_MIN_MS 100
+#endif
+#ifndef AUDIOBABEL_SCRAMBLE_MAX_MS
+#    define AUDIOBABEL_SCRAMBLE_MAX_MS 15000
+#endif
+
+/// log2 of the number of distinct target lengths a short index can land on.
+/// Must be < AUDIOBABEL_SCRAMBLE_PREFIX_BITS. Default 8 => 256 distinct lengths
+/// spread log-uniformly across [MIN_MS, MAX_MS].
+#ifndef AUDIOBABEL_SCRAMBLE_LENGTH_COUNT_LOG2
+#    define AUDIOBABEL_SCRAMBLE_LENGTH_COUNT_LOG2 8
+#endif
+
+/// Indices in [1, 2^PREFIX_BITS) are treated as "short" and length-diversified;
+/// this comfortably covers every browseable library position and any casually
+/// typed short index. PREFIX_BITS minus LENGTH_COUNT_LOG2 must be even (it is the
+/// Feistel domain width for the per-target value permutation) — both enforced by
+/// static_assert in IndexScramble.cpp.
+#ifndef AUDIOBABEL_SCRAMBLE_PREFIX_BITS
+#    define AUDIOBABEL_SCRAMBLE_PREFIX_BITS 256
 #endif
 
 #ifdef AUDIOBABEL_SCRAMBLE
@@ -99,9 +127,9 @@ inline constexpr bool kScrambleEnabledByDefault = false;
  * @brief Keyed, reversible permutation of a non-negative index.
  * @param index Non-negative stored index value.
  * @param seed  Key selecting the permutation.
- * @return The scrambled index. It stays within the same tier as the input, so
- *         the decoded length may change but is bounded by that tier's maximum
- *         (indices longer than the last tier keep their exact length).
+ * @return The scrambled index. A short input (band <= PREFIX_BITS/16) is moved
+ *         to one of the spread target lengths (100 ms .. 15 s by default);
+ *         longer inputs keep their length but have their content scattered.
  */
 auto scramble(const cpp_int& index, uint64_t seed) -> cpp_int;
 

@@ -156,76 +156,75 @@ milliseconds end to end.
 
 By default, similar payloads map to numerically nearby indices, so neighbouring
 "library" positions hold near-identical audio, and a **short** index (the kind a
-user is likely to type) decodes to only a few samples of near-silence. An
-**optional, reversible** scramble can be enabled to scatter neighbours across the
-space — and to give short inputs a wide, interesting range of audio lengths —
-while keeping the mapping a perfect bijection.
+user is likely to type, and every browseable library position) decodes to only
+one or two samples of near-silence. An **optional, reversible** scramble can be
+enabled to scatter neighbours across the space — and to give short inputs a wide,
+varied range of audio *lengths* — while keeping the mapping a perfect bijection.
 
-### Length tiers
+The scramble is `lengthSpread(contentScramble(index))`, two keyed bijections:
 
-Length-bands are grouped into contiguous **tiers**, each capped at a target
-decoded duration at 44100 Hz. The default tier table is:
+### Content scramble (length-preserving)
 
-| Tier | Max duration | Max samples |
-|------|--------------|-------------|
-| 1    | 1s           | 44,100      |
-| 2    | 5s           | 220,500     |
-| 3    | 10s          | 441,000     |
-| 4    | 15s          | 661,500     |
+`contentScramble()` runs a 4-round **Feistel network** *within the index's own
+length-band* (it subtracts the band repunit `S_L`, permutes the in-band value,
+and adds `S_L` back). A Feistel network is a bijection for any round function and
+is undone by running the rounds in reverse, so no modular inverse is needed and
+both directions are O(band width). This scatters neighbours: two payloads that
+differ only in their last sample now have unrelated sample values throughout. It
+does **not** change the band, so by itself it preserves decoded length.
 
-Tier *i* covers all sample counts from the previous tier's cap + 1 up to its own
-cap (tier 1 starts at 1 sample). Payloads longer than 15s (tier 4) keep the
-original length-preserving permutation.
+### Length spread (diversifies short-index duration)
 
-The tier table is deliberately short: each Feistel round's cost scales with the
-*tier's* byte width (not the input's), so a much larger top tier costs multiple
-seconds per `scramble()`/`unscramble()` call — an earlier 240s/11-tier default
-measured multiple seconds per call in the top few tiers.
+A `B = 65536` bijective-numeration index puts almost all small integers in tiny
+bands, so without this step every short index would still decode to near-silence.
+`lengthSpread()` is a keyed **involution** that swaps the block of short indices
+`[1, 2^P)` (the *prefix*, `P = 256` bits by default — every browseable position
+and any casually typed index) with a set of *target* slots scattered across `T`
+distinct, log-spaced bands from a short minimum (default **100 ms**) up to a long
+maximum (default **15 s**):
 
-The tier durations (and how many tiers there are) are a compile-time setting,
-`AUDIOBABEL_SCRAMBLE_TIER_SECONDS` in `cpp/include/IndexScramble.h` — a
-brace-initializer list of seconds, e.g. the default `{1, 5, 10, 15}`. Override
-it at build time (`-DAUDIOBABEL_SCRAMBLE_TIER_SECONDS="{2, 30}"`) to use a
-different number of tiers or different cutoffs; it must be non-empty and
-strictly increasing, which is enforced by `static_assert` in
-`cpp/src/IndexScramble.cpp`. There is no runtime setting for this — it is
-baked into the binary, like the scramble seed.
+1. The short index `i` is first run through a Feistel over the whole prefix
+   domain `[0, 2^P)` so that even *structured* inputs (e.g. browse indices, which
+   step by a fixed stride) spread evenly rather than cycling through a couple of
+   lengths.
+2. The mixed value is split as `o·T + j`. The sub-index `j` (bit-reversed, so
+   numerically adjacent indices land on *far-apart* durations) selects one of the
+   `T` target lengths; `o` is run through a second Feistel over
+   `[0, 2^(P − log2 T))` to choose the sample values within that band.
 
-### Keyed permutation across a tier
+Because the map is a fixed pairing between two equal-size, disjoint sets, it is
+its own inverse and trivially a bijection; the displaced *target* indices map
+back down into the short block. Indices that are neither in the prefix nor a
+target slot (already a non-trivial length) pass through unchanged.
 
-For an index whose band falls in a tier, the scramble subtracts the tier's low
-end `S_lo` to get a value `y` in `[0, N)` (where `N = S_hi − S_lo` is the tier
-width), then permutes `y` with a 4-round **Feistel network** built over the
-smallest even-bit power-of-two domain `2^e ≥ N`, keyed by a seed and the tier
-index. Because `N` need not be a power of two, the result is **cycle-walked**
-(the permutation is re-applied until the value lands back in `[0, N)`); choosing
-an even `e` with `2^e < 4N` keeps that to ~1 extra step on average. A Feistel
-network is a bijection for any round function and is undone by running the rounds
-in reverse, so both directions are **O(tier width)** — no modular inverse is
-needed.
-
-Because each extra sample multiplies a band's size by `B = 65536`, a tier's top
-band holds `~(1 − 1/B)` of the whole tier. So a short index almost always lands
-near the tier's **maximum** length: a typed 13-character index now yields ~1
-second of audio rather than a handful of samples.
+The bounds and resolution are compile-time settings in
+`cpp/include/IndexScramble.h`: `AUDIOBABEL_SCRAMBLE_MIN_MS` /
+`AUDIOBABEL_SCRAMBLE_MAX_MS` (default `100` / `15000`),
+`AUDIOBABEL_SCRAMBLE_LENGTH_COUNT_LOG2` (default `8` ⇒ 256 distinct lengths), and
+`AUDIOBABEL_SCRAMBLE_PREFIX_BITS` (default `256`). Their consistency
+(min < max, disjoint prefix/target bands, even Feistel domains) is enforced by
+`static_assert` in `cpp/src/IndexScramble.cpp`.
 
 ### Invariants
 
-- The permutation never leaves its tier, `0 → 0`, and every index still decodes
-  (nothing is rejected) — the bijection holds.
-- It is **not** length-preserving inside a tier: the decoded length may change,
-  but is bounded by the tier's cap. Every length still has exactly as many
-  indices mapping to it as before (a tier maps onto itself), so short audio —
-  even a 3-sample payload — remains fully reachable; it is just astronomically
-  unlikely to be produced from a casually chosen index.
-- Cost scales with the **tier width**, not the input size, so even a short
-  tier-1 input does ~1 second's worth of permutation work (a few ms); a 15s
-  tier-4 index does proportionally more (still sub-second).
+- `0 → 0`, and every index still decodes (nothing is rejected) — the bijection
+  holds. Both stages are bijections, so their composition is too.
+- Short audio — even a 3-sample payload — remains fully reachable; encoding it
+  still produces a valid (scattered, much larger) index that decodes back
+  exactly. It is just astronomically unlikely to be produced from a casually
+  chosen index.
+- Browsing consecutive library positions now yields clips whose **durations** jump
+  across the whole 100 ms .. 15 s range and whose **contents** are unrelated,
+  instead of a stream of indistinguishable sub-millisecond near-silence.
+- Cost scales with the chosen *target* band, so a short index does at most ~15 s
+  worth of permutation work (tens of ms); most land on much shorter bands and
+  cost proportionally less.
 
 The seed is effectively part of the format: changing it (or toggling the
 scramble) changes every index. The feature is controlled by the compile-time
 flag `AUDIOBABEL_SCRAMBLE` (optionally `AUDIOBABEL_SCRAMBLE_SEED`), with a runtime
-override available for testing. See `cpp/include/IndexScramble.h`.
+override available for testing, and is **enabled in the shipped WASM build**. See
+`cpp/include/IndexScramble.h`.
 
 ## Reference Implementation
 

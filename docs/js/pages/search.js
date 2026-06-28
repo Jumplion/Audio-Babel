@@ -93,13 +93,13 @@ export async function generateRandom(handleJsonResponse, setLoading, inputEl, wa
       indexString += BASE64_URL_ALPHABET[randomIndices[i] % BASE64_URL_ALPHABET.length];
     }
 
+    await renderIndex(indexString, handleJsonResponse, wavOptions);
+
     if (inputEl) {
       inputEl.value = indexString;
       // Re-run the same filter/autosize/button-state listeners that fire on user input.
       inputEl.dispatchEvent(new Event('input'));
     }
-
-    await renderIndex(indexString, handleJsonResponse, wavOptions);
   } catch (error) {
     handleError('search.js:generateRandom', error, error.message);
   } finally {

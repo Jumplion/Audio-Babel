@@ -3,7 +3,7 @@ import { getWasmModule } from '../core/wasmModule.js';
 import { buildResultForIndex } from '../utils/resultBuilder.js';
 import { indexToBase64 } from '../utils/base64.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
-import { handleJsonResponse, cleanupResultHandler } from '../core/resultDisplay.js?v=3';
+import { handleJsonResponse, cleanupResultHandler } from '../core/resultDisplay.js?v=4';
 import { filterToBase64UrlChars } from '../utils/validationUtils.js';
 import { consumeFindInLibraryTarget } from '../utils/findInLibrary.js';
 

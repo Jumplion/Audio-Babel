@@ -61,6 +61,12 @@ set(WASM_BINDINGS
 # Create WASM library
 add_executable(index ${INDEX_SOURCES} ${WASM_BINDINGS})
 
+# Bake in the reversible index scramble for the shipped web app. Without this the
+# bijective base-65536 index leaves short indices (every browseable library
+# position) decoding to one or two samples of near-silence; the scramble spreads
+# them across a wide range of varied, much longer clips. See IndexScramble.h.
+target_compile_definitions(index PRIVATE AUDIOBABEL_SCRAMBLE)
+
 # Link with embind
 if(EMSCRIPTEN)
     set_target_properties(index PROPERTIES

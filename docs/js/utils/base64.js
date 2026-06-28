@@ -22,6 +22,20 @@ export function bytesToBase64Chunked(bytes, chunkSize = 0x8000) {
 }
 
 /**
+ * Decode a standard base64 string into raw bytes.
+ * @param {string} base64 - Standard (non-URL-safe) base64 string
+ * @returns {Uint8Array} Decoded bytes
+ */
+export function base64ToBytes(base64) {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
  * Convert a room number to a bijective base64 string (no padding).
  * Used for encoding room numbers in the library hierarchy.
  *

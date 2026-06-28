@@ -1,9 +1,10 @@
 #include "IndexScramble.h"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <iterator>
-#include <memory>
 #include <vector>
 
 #include "Constants.h"
@@ -58,6 +59,8 @@ namespace {
 
     // Apply (or invert) the keyed Feistel permutation over the band value `y`,
     // represented as exactly 2L bytes (most-significant first). Halves are L bytes.
+    // This is the length-preserving "content scramble": it permutes the sample
+    // values within one band without changing the band (decoded length).
     auto feistel(const cpp_int& y, size_t L, uint64_t seed, bool encrypt) -> cpp_int {
         std::vector<uint8_t> raw;
         mp::export_bits(y, std::back_inserter(raw), BITS_PER_BYTE, true);
@@ -100,72 +103,24 @@ namespace {
         return result;
     }
 
-    // --- Tiered cross-band scramble ---------------------------------------------
-    // See IndexScramble.h for why tiers exist. feistel() above stays inside one
-    // length-band; the functions below instead permute across a whole tier (a
-    // contiguous run of bands), bounded by kTierMaxSamples.
-    //
-    // Tier i (1-based) covers sample counts (kTierMaxSamples[i-2], kTierMaxSamples[i-1]]
-    // with the first tier starting at 1 sample. Anything longer than the last entry
-    // keeps the original length-preserving feistel().
-
-    // Tier boundaries in seconds, configurable at compile time via
-    // AUDIOBABEL_SCRAMBLE_TIER_SECONDS (see IndexScramble.h). Defaults to 4 tiers
-    // at 1, 5, 10, 15 seconds. The array size is derived from the macro itself
-    // (via the raw C array below) so overriding the macro with a different
-    // number of tiers doesn't require also updating a hardcoded size here.
-    constexpr uint64_t                        kTierSecondsRaw[] = AUDIOBABEL_SCRAMBLE_TIER_SECONDS;
-    constexpr size_t                          kNumTiers         = std::size(kTierSecondsRaw);
-    constexpr std::array<uint64_t, kNumTiers> kTierSeconds      = [] {
-        std::array<uint64_t, kNumTiers> a{};
-        for (size_t i = 0; i < kNumTiers; ++i) {
-            a[i] = kTierSecondsRaw[i];
+    // contentScramble: apply the length-preserving per-band Feistel to a full
+    // index (subtract the band's repunit, permute the in-band value, add it back).
+    auto contentScramble(const cpp_int& index, uint64_t seed, bool encrypt) -> cpp_int {
+        if (index <= 0) {
+            return cpp_int(0);
         }
-        return a;
-    }();
-
-    template <typename Container>
-    constexpr auto isStrictlyIncreasing(const Container& values) -> bool {
-        constexpr size_t N    = std::tuple_size<std::decay_t<Container>>::value;
-        auto             data = values.data();
-        for (size_t i = 1; i < N; ++i) {
-            if (!(*(data + i - 1) < *(data + i))) {
-                return false;
-            }
-        }
-        return true;
+        size_t  L = bandIndex(index);
+        cpp_int S = repunit(L);
+        cpp_int y = index - S; // in [0, B^L)
+        return S + feistel(y, L, seed, encrypt);
     }
 
-    static_assert(isStrictlyIncreasing(kTierSeconds), "AUDIOBABEL_SCRAMBLE_TIER_SECONDS must be non-empty and strictly increasing");
+    // --- Power-of-two Feistel (used to pick sample values within a target band) -
 
-    template <typename Container>
-    auto secondsToMaxSamples(const Container& seconds) -> std::array<uint32_t, std::tuple_size<std::decay_t<Container>>::value> {
-        constexpr size_t        N = std::tuple_size<std::decay_t<Container>>::value;
-        std::array<uint32_t, N> result{};
-        for (size_t i = 0; i < N; ++i) {
-            result[i] = static_cast<uint32_t>(seconds[i]) * DEFAULT_SAMPLE_RATE;
-        }
-        return result;
-    }
-
-    // Per-tier maximum sample count at DEFAULT_SAMPLE_RATE, derived from kTierSeconds.
-    const auto kTierMaxSamples = secondsToMaxSamples(kTierSeconds);
-
-    // Tier (1-based) containing sample-band L, or 0 if L is beyond the last tier
-    // (those keep the legacy length-preserving scramble). L is assumed >= 1.
-    auto tierForBand(size_t L) -> size_t {
-        for (size_t i = 0; i < kTierMaxSamples.size(); ++i) {
-            if (L <= kTierMaxSamples[i]) {
-                return i + 1;
-            }
-        }
-        return 0;
-    }
-
-    // Per-round key for the tiered Feistel. Distinct mixing constants keep these
-    // keys disjoint from the per-band roundKey() used by the legacy path.
-    auto tierRoundKey(uint64_t seed, uint64_t tier, int round) -> uint64_t {
-        uint64_t state = seed ^ (0xD6E8FEB86659FD93ULL * (tier + 1)) ^ (0xA0761D6478BD642FULL * (static_cast<uint64_t>(round) + 1));
+    // Per-round key for the power-of-two Feistel. Distinct mixing constants keep
+    // these keys disjoint from the per-band roundKey() used by contentScramble.
+    auto subRoundKey(uint64_t seed, uint64_t subkey, int round) -> uint64_t {
+        uint64_t state = seed ^ (0xD6E8FEB86659FD93ULL * (subkey + 1)) ^ (0xA0761D6478BD642FULL * (static_cast<uint64_t>(round) + 1));
         return splitmix64(state);
     }
 
@@ -177,8 +132,6 @@ namespace {
     // h-bit keyed diffusing round function built on the byte-oriented roundFunction.
     // The h-bit half is laid out in ceil(h/8) bytes (most-significant first) and the
     // result is masked back to h bits, so it maps an h-bit value to an h-bit value.
-    // `mask` is the caller's already-computed lowBitsMask(h), passed in so the
-    // (otherwise identical) mask isn't rebuilt on every one of the four rounds.
     auto roundFunctionBits(const cpp_int& half, size_t h, uint64_t key, const cpp_int& mask) -> cpp_int {
         const size_t         hbytes = (h + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
         std::vector<uint8_t> in(hbytes, 0);
@@ -197,8 +150,8 @@ namespace {
 
     // Keyed balanced Feistel permutation over [0, 2^e) (e even), built from big
     // integers so the domain need not be byte-aligned. Halves are e/2 bits each.
-    // Inverted by running the rounds in reverse, exactly like feistel().
-    auto feistelPow2(const cpp_int& z, size_t e, uint64_t seed, uint64_t tier, bool encrypt) -> cpp_int {
+    // Inverted by running the rounds in reverse.
+    auto feistelPow2(const cpp_int& z, size_t e, uint64_t seed, uint64_t subkey, bool encrypt) -> cpp_int {
         const size_t  h    = e / 2;
         const cpp_int mask = lowBitsMask(h);
         cpp_int       hi   = (z >> h) & mask;
@@ -206,14 +159,14 @@ namespace {
 
         if (encrypt) {
             for (int r = 0; r < FEISTEL_ROUNDS; ++r) {
-                cpp_int f = roundFunctionBits(lo, h, tierRoundKey(seed, tier, r), mask);
+                cpp_int f = roundFunctionBits(lo, h, subRoundKey(seed, subkey, r), mask);
                 cpp_int t = hi ^ f;
                 hi        = lo;
                 lo        = t;
             }
         } else {
             for (int r = FEISTEL_ROUNDS - 1; r >= 0; --r) {
-                cpp_int f = roundFunctionBits(hi, h, tierRoundKey(seed, tier, r), mask);
+                cpp_int f = roundFunctionBits(hi, h, subRoundKey(seed, subkey, r), mask);
                 cpp_int t = lo ^ f;
                 lo        = hi;
                 hi        = t;
@@ -222,101 +175,144 @@ namespace {
         return (hi << h) | lo;
     }
 
-    // Geometry of a tier: low end Lo (a repunit), width N, and the even bit-width e
-    // of the smallest power-of-two domain covering N (so the Feistel splits evenly
-    // and cycle-walking stays under ~4x expansion).
-    struct TierGeometry {
-        cpp_int  lo;
-        cpp_int  n;
-        size_t   e;
-        uint64_t tier;
-    };
+    // --- Length-spread configuration -------------------------------------------
+    // See IndexScramble.h for the full description. The length-spread swaps the
+    // short-index PREFIX [1, 2^kPrefixBits) with a set of TARGET slots scattered
+    // across kLengthCount distinct, log-spaced bands in [kMinSamples, kMaxSamples].
 
-    auto computeTierGeometry(size_t tier) -> TierGeometry {
-        const uint32_t highBand = kTierMaxSamples[tier - 1];
-        const uint32_t lowBand  = (tier == 1) ? 1U : (kTierMaxSamples[tier - 2] + 1U);
+    constexpr uint32_t kMinSamples = static_cast<uint32_t>(static_cast<uint64_t>(AUDIOBABEL_SCRAMBLE_MIN_MS) * DEFAULT_SAMPLE_RATE / 1000);
+    constexpr uint32_t kMaxSamples = static_cast<uint32_t>(static_cast<uint64_t>(AUDIOBABEL_SCRAMBLE_MAX_MS) * DEFAULT_SAMPLE_RATE / 1000);
 
-        cpp_int lo = repunit(lowBand);      // S_lowBand
-        cpp_int hi = repunit(highBand + 1); // S_(highBand+1), exclusive upper end
-        cpp_int n  = hi - lo;
+    constexpr size_t kLengthCountLog2 = AUDIOBABEL_SCRAMBLE_LENGTH_COUNT_LOG2;
+    constexpr size_t kLengthCount     = static_cast<size_t>(1) << kLengthCountLog2;
+    constexpr size_t kPrefixBits      = AUDIOBABEL_SCRAMBLE_PREFIX_BITS;
+    constexpr size_t kSubBits         = kPrefixBits - kLengthCountLog2; // Feistel width for in-target value
 
-        // Smallest even e with 2^e >= n.
-        size_t bits = static_cast<size_t>(mp::msb(n));               // floor(log2 n)
-        size_t p    = ((cpp_int(1) << bits) == n) ? bits : bits + 1; // ceil(log2 n)
-        size_t e    = (p % 2 == 0) ? p : p + 1;
+    // Subkey for the whole-prefix mixing Feistel. Held well clear of the per-band
+    // subkeys [0, kLengthCount) so the two key streams never coincide.
+    constexpr uint64_t kPrefixSubkey = 0x5052454649583A31ULL; // "PREFIX:1"
 
-        return TierGeometry{lo, n, e, static_cast<uint64_t>(tier)};
+    // Highest band a PREFIX index can occupy: n < 2^kPrefixBits implies
+    // bandIndex(n) <= kPrefixBits/16 + 1. The smallest target length must exceed
+    // that so PREFIX and TARGET sets are disjoint (the swap stays an involution).
+    constexpr size_t kMaxPrefixBand = (kPrefixBits / DEFAULT_BIT_DEPTH) + 1;
+
+    static_assert(kPrefixBits > kLengthCountLog2, "AUDIOBABEL_SCRAMBLE_PREFIX_BITS must exceed LENGTH_COUNT_LOG2");
+    static_assert(kPrefixBits % 2 == 0, "AUDIOBABEL_SCRAMBLE_PREFIX_BITS must be even (whole-prefix Feistel domain)");
+    static_assert(kSubBits % 2 == 0, "AUDIOBABEL_SCRAMBLE_PREFIX_BITS - LENGTH_COUNT_LOG2 must be even (Feistel domain)");
+    static_assert(kMinSamples > 0, "AUDIOBABEL_SCRAMBLE_MIN_MS must be > 0");
+    static_assert(kMinSamples < kMaxSamples, "AUDIOBABEL_SCRAMBLE_MIN_MS must be < AUDIOBABEL_SCRAMBLE_MAX_MS");
+    static_assert(kMinSamples > kMaxPrefixBand,
+                  "Smallest target length must exceed the diversified prefix band range (raise MIN_MS or lower PREFIX_BITS)");
+
+    // kLengthCount distinct target bands (sample counts), log-spaced across
+    // [kMinSamples, kMaxSamples], ascending and strictly increasing. Built once.
+    auto targetBands() -> const std::array<uint32_t, kLengthCount>& {
+        static const std::array<uint32_t, kLengthCount> table = [] {
+            std::array<uint32_t, kLengthCount> a{};
+            const double                       ratio = static_cast<double>(kMaxSamples) / static_cast<double>(kMinSamples);
+            uint32_t                           prev  = 0;
+            for (size_t k = 0; k < kLengthCount; ++k) {
+                double frac = (kLengthCount == 1) ? 0.0 : static_cast<double>(k) / static_cast<double>(kLengthCount - 1);
+                auto   v    = static_cast<uint32_t>(std::llround(static_cast<double>(kMinSamples) * std::pow(ratio, frac)));
+                if (k == kLengthCount - 1) {
+                    v = kMaxSamples; // pin the top so MAX_MS is hit exactly
+                }
+                if (v <= prev) {
+                    v = prev + 1; // enforce strictly increasing / distinct
+                }
+                a[k] = v;
+                prev = v;
+            }
+            return a;
+        }();
+        return table;
     }
 
-    // tierGeometry() is pure (depends only on the fixed tier boundaries, never
-    // on seed or index), but rebuilding it involves a big-integer subtraction
-    // over the whole tier width — cache it per tier instead of redoing that
-    // work on every scramble()/unscramble() call.
-    auto tierGeometry(size_t tier) -> const TierGeometry& {
-        static std::array<std::unique_ptr<TierGeometry>, kTierMaxSamples.size()> cache{};
-        auto&                                                                    slot = cache[tier - 1];
-        if (!slot) {
-            slot = std::make_unique<TierGeometry>(computeTierGeometry(tier));
+    // Position of band L in targetBands() (ascending), or -1 if L is not a target.
+    auto targetIndexOfBand(size_t L) -> int {
+        const auto& t  = targetBands();
+        auto        it = std::lower_bound(t.begin(), t.end(), static_cast<uint32_t>(L));
+        if (it != t.end() && *it == static_cast<uint32_t>(L)) {
+            return static_cast<int>(it - t.begin());
         }
-        return *slot;
+        return -1;
+    }
+
+    // Reverse the low kLengthCountLog2 bits of v. Used so numerically adjacent
+    // short indices select FAR-apart target lengths instead of neighbouring ones.
+    auto bitReverse(uint64_t v) -> uint64_t {
+        uint64_t r = 0;
+        for (size_t i = 0; i < kLengthCountLog2; ++i) {
+            r = (r << 1) | (v & 1U);
+            v >>= 1;
+        }
+        return r;
+    }
+
+    // Keyed involution that swaps the short-index PREFIX with the spread TARGET
+    // slots (see IndexScramble.h). Being a fixed pairing of two equal-size,
+    // disjoint sets, it is its own inverse, so scramble and unscramble both call
+    // it directly.
+    auto lengthSpread(const cpp_int& index, uint64_t seed) -> cpp_int {
+        if (index <= 0) {
+            return cpp_int(0);
+        }
+
+        const cpp_int prefixSize = cpp_int(1) << kPrefixBits; // 2^P
+        const cpp_int subSize    = cpp_int(1) << kSubBits;    // 2^(P - log2 T), the per-target value domain
+
+        // Case A: a short PREFIX index [1, 1 + 2^P) -> a spread TARGET slot.
+        if (index < cpp_int(1) + prefixSize) {
+            cpp_int r = index - 1; // in [0, 2^P)
+            // Mix the whole value first so STRUCTURED inputs (e.g. browse indices,
+            // which step by a fixed stride) still spread evenly across lengths
+            // instead of cycling through a couple of values of the low bits.
+            cpp_int rp  = feistelPow2(r, kPrefixBits, seed, kPrefixSubkey, /*encrypt=*/true);
+            auto    j   = static_cast<uint64_t>(rp & ((cpp_int(1) << kLengthCountLog2) - 1)); // rp mod T
+            cpp_int o   = rp >> kLengthCountLog2;                                             // rp / T, in [0, 2^kSubBits)
+            size_t  p   = static_cast<size_t>(bitReverse(j));                                 // spread adjacent j across bands
+            size_t  L   = targetBands()[p];
+            cpp_int off = feistelPow2(o, kSubBits, seed, p, /*encrypt=*/true); // in [0, 2^kSubBits) < B^L
+            return repunit(L) + off;
+        }
+
+        // Case B: a TARGET slot -> back down into the PREFIX block.
+        size_t L = bandIndex(index);
+        int    p = targetIndexOfBand(L);
+        if (p >= 0) {
+            cpp_int off = index - repunit(L); // in-band offset
+            if (off < subSize) {              // exactly the slots the spread uses
+                cpp_int  o  = feistelPow2(off, kSubBits, seed, static_cast<size_t>(p), /*encrypt=*/false);
+                uint64_t j  = bitReverse(static_cast<uint64_t>(p));
+                cpp_int  rp = (o << kLengthCountLog2) | cpp_int(j);
+                cpp_int  r  = feistelPow2(rp, kPrefixBits, seed, kPrefixSubkey, /*encrypt=*/false);
+                return r + 1;
+            }
+        }
+
+        // Case C: already a non-trivial length -> unchanged.
+        return index;
     }
 
 } // namespace
 
 auto scramble(const cpp_int& index, uint64_t seed) -> cpp_int {
     if (index <= 0) {
-        return cpp_int(0); // 0 (and only 0) lives in band L == 0
+        return cpp_int(0); // 0 (and only 0) is the empty payload; keep it fixed
     }
-    size_t L = bandIndex(index);
-    if (L == 0) {
-        return index;
-    }
-
-    size_t tier = tierForBand(L);
-    if (tier == 0) {
-        // Very long payloads keep the original length-preserving permutation.
-        cpp_int S = repunit(L);
-        cpp_int y = index - S; // in [0, 2^(16L))
-        return S + feistel(y, L, seed, /*encrypt=*/true);
-    }
-
-    // Tiered path: permute across the whole tier so neighbouring lengths spread
-    // out and short inputs reach the tier's (much larger) maximum length.
-    const TierGeometry& g = tierGeometry(tier);
-    cpp_int             z = index - g.lo; // in [0, N)
-    cpp_int             y = feistelPow2(z, g.e, seed, g.tier, /*encrypt=*/true);
-    // Cycle-walking (Black & Rogaway, "Ciphers with Arbitrary Finite Domains",
-    // CT-RSA 2002): re-apply the power-of-two bijection until the result lands
-    // back in [0, N); see IndexScramble.h "References" for the paper.
-    while (y >= g.n) { // cycle-walk back into [0, N)
-        y = feistelPow2(y, g.e, seed, g.tier, /*encrypt=*/true);
-    }
-    return g.lo + y;
+    // Scatter neighbours within the band, then spread short indices across lengths.
+    cpp_int content = contentScramble(index, seed, /*encrypt=*/true);
+    return lengthSpread(content, seed);
 }
 
 auto unscramble(const cpp_int& index, uint64_t seed) -> cpp_int {
     if (index <= 0) {
         return cpp_int(0);
     }
-    size_t L = bandIndex(index);
-    if (L == 0) {
-        return index;
-    }
-
-    size_t tier = tierForBand(L);
-    if (tier == 0) {
-        cpp_int S  = repunit(L);
-        cpp_int y2 = index - S;
-        return S + feistel(y2, L, seed, /*encrypt=*/false);
-    }
-
-    const TierGeometry& g = tierGeometry(tier);
-    cpp_int             y = index - g.lo; // in [0, N)
-    cpp_int             z = feistelPow2(y, g.e, seed, g.tier, /*encrypt=*/false);
-    while (z >= g.n) { // cycle-walk back into [0, N)
-        z = feistelPow2(z, g.e, seed, g.tier, /*encrypt=*/false);
-    }
-    return g.lo + z;
+    // Undo in reverse: lengthSpread is an involution, then invert the content scramble.
+    cpp_int content = lengthSpread(index, seed);
+    return contentScramble(content, seed, /*encrypt=*/false);
 }
 
 auto config() -> Config& {

@@ -2,9 +2,10 @@
  * @file test_scramble.cpp
  * @brief Tests for the optional reversible index scramble.
  *
- * Covers the pure transform (bijection, inverse, 0->0, scatter) and the toggle
- * wired into the encode/decode pipeline (round-trip preserved, output differs
- * from the unscrambled index when enabled, core untouched when disabled).
+ * Covers the pure transform (bijection, inverse, 0->0, neighbour scatter) and
+ * the length-spread that gives short indices a wide, varied range of decoded
+ * durations, plus the toggle wired into the encode/decode pipeline (round-trip
+ * preserved, output differs when enabled, core untouched when disabled).
  */
 
 #include <Index.h>
@@ -33,6 +34,12 @@ struct ScrambleGuard {
     }
 };
 
+// The default length-spread bounds (AUDIOBABEL_SCRAMBLE_MIN_MS / MAX_MS = 100 ms
+// / 15 s at 44100 Hz). Short indices decode to a length inside [kMinFrames,
+// kMaxFrames]; mirrored here so the tests don't reach into the .cpp internals.
+constexpr size_t kMinFrames = 100UL * DEFAULT_SAMPLE_RATE / 1000;   // 4410
+constexpr size_t kMaxFrames = 15000UL * DEFAULT_SAMPLE_RATE / 1000; // 661500
+
 } // namespace
 
 TEST_CASE("Scramble: pure transform is an exact bijection", "[scramble][bijection]") {
@@ -41,11 +48,8 @@ TEST_CASE("Scramble: pure transform is an exact bijection", "[scramble][bijectio
     REQUIRE(IndexScramble::scramble(0, seed) == 0);
     REQUIRE(IndexScramble::unscramble(0, seed) == 0);
 
-    // Each round-trip now permutes across a whole length-tier (the tier-1 domain
-    // for these small values is ~88 KB), so this is intentionally a few hundred
-    // iterations rather than thousands — still a thorough bijection fuzz.
     std::mt19937_64 rng(2026);
-    for (int t = 0; t < 50; ++t) {
+    for (int t = 0; t < 200; ++t) {
         // Random non-negative integer of a random bit width.
         size_t  bits = rng() % 800;
         cpp_int n    = 0;
@@ -147,31 +151,76 @@ auto indexInBand(size_t band, uint32_t jitter) -> cpp_int {
 
 } // namespace
 
-TEST_CASE("Scramble: short indices spread into a much longer length tier", "[scramble][tier]") {
+TEST_CASE("Scramble: short indices spread across a wide, varied range of lengths", "[scramble][spread]") {
     const uint64_t seed = 0xD15EA5E5EEDULL;
 
-    // A handful of short indices (a few samples each) of the kind a user might
-    // type. Decoding runs unscramble() internally, so this is the user-facing
-    // "type a short index, hear something interesting" path. Tier 1 caps at
-    // 44100 samples (1s @ 44.1 kHz); the top band holds ~(1 - 1/B) of the tier,
-    // so each one should land near that cap rather than at a few samples.
-    ScrambleGuard on(true, seed);
-    for (cpp_int small : {cpp_int(1), cpp_int(7), cpp_int(12345), cpp_int("99999999")}) {
+    // The user-facing "type a short index, hear something interesting" path:
+    // decoding runs unscramble() internally. Every short index must land within
+    // the spread bounds (100 ms .. 15 s), and across a handful of them we should
+    // see genuine variety, not one repeated length.
+    ScrambleGuard    on(true, seed);
+    std::set<size_t> distinctFrames;
+    size_t           minSeen = kMaxFrames + 1;
+    size_t           maxSeen = 0;
+    for (cpp_int small : {cpp_int(1), cpp_int(2), cpp_int(7), cpp_int(42), cpp_int(12345), cpp_int(9600), cpp_int(19200), cpp_int("99999999")}) {
         auto   decoded = Index::decode(small);
         size_t frames  = decoded.size() / 2;
         INFO("short index = " << small << " -> frames = " << frames);
-        REQUIRE(frames >= 40000); // within the tier-1 (1s) cap
-        REQUIRE(frames <= 44100);
+        REQUIRE(frames >= kMinFrames);
+        REQUIRE(frames <= kMaxFrames);
+        distinctFrames.insert(frames);
+        minSeen = std::min(minSeen, frames);
+        maxSeen = std::max(maxSeen, frames);
     }
+
+    // Variety, not a single collapsed length (the old tier design produced one
+    // length for every short index).
+    REQUIRE(distinctFrames.size() >= 6);
+    // The spread genuinely reaches both short and long ends of the range.
+    REQUIRE(minSeen < DEFAULT_SAMPLE_RATE);     // at least one clip well under 1 s
+    REQUIRE(maxSeen > 4 * DEFAULT_SAMPLE_RATE); // at least one clip over 4 s
 }
 
-TEST_CASE("Scramble: a 3-sample payload is still represented and exact", "[scramble][tier][roundtrip]") {
+TEST_CASE("Scramble: numerically adjacent short indices get different lengths", "[scramble][spread]") {
+    const uint64_t seed = 0xBEEF;
+    ScrambleGuard  on(true, seed);
+
+    // Adjacent indices (as produced by stepping through library positions) must
+    // not all decode to the same duration. Count how many consecutive pairs
+    // differ in length across a small sweep.
+    size_t prevFrames = 0;
+    int    differing  = 0;
+    for (int i = 1; i <= 32; ++i) {
+        size_t frames = Index::decode(cpp_int(i)).size() / 2;
+        if (i > 1 && frames != prevFrames) {
+            ++differing;
+        }
+        prevFrames = frames;
+    }
+    // The vast majority of adjacent pairs should differ in length.
+    REQUIRE(differing >= 24);
+}
+
+TEST_CASE("Scramble: the full set of target lengths is reachable", "[scramble][spread][bijection]") {
+    const uint64_t seed = 0x1234ABCDULL;
+
+    // Stepping through enough short indices should exercise the whole spread of
+    // distinct target bands, confirming the length-selector is well distributed.
+    std::set<size_t> bands;
+    for (int i = 1; i <= 4000; ++i) {
+        bands.insert(bandOf(IndexScramble::scramble(cpp_int(i), seed)));
+    }
+    // 256 distinct target lengths by default; we should see nearly all of them.
+    REQUIRE(bands.size() >= 200);
+}
+
+TEST_CASE("Scramble: a 3-sample payload is still represented and exact", "[scramble][spread][roundtrip]") {
     const uint64_t seed = 0xA11CE;
     ScrambleGuard  on(true, seed);
 
     // The bijection still has room for tiny payloads; encoding one produces a
     // valid (scattered, much larger) index that decodes back to exactly 3
-    // samples. Nothing about tiering removes short audio from the codomain.
+    // samples. Nothing about length-spreading removes short audio from the codomain.
     auto bytes = makePayload({1234, 0, 65535});
     auto index = Index::encode(bytes); // scrambled / "public" index
     auto back  = Index::decode(index);
@@ -179,58 +228,18 @@ TEST_CASE("Scramble: a 3-sample payload is still represented and exact", "[scram
     REQUIRE(back == bytes);
 }
 
-TEST_CASE("Scramble: tiered permutation is a bijection and stays within its tier", "[scramble][tier][bijection]") {
-    const uint64_t seed = 0xBADC0FFEE0DDF00DULL;
-
-    // One representative band inside each of the non-tier-1 tiers (<=5s, <=10s,
-    // <=15s). scramble()/unscramble() must round-trip, and the scrambled index
-    // must stay inside the same tier's length bounds.
-    struct Case {
-        size_t band;
-        size_t tierLow;
-        size_t tierHigh;
-    };
-    const std::vector<Case> cases = {
-        {150000, 44101, 220500},  // tier 2 (<=5s)
-        {300000, 220501, 441000}, // tier 3 (<=10s)
-        {500000, 441001, 661500}  // tier 4 (<=15s)
-    };
-
-    for (const auto& c : cases) {
-        cpp_int n = indexInBand(c.band, 4242);
-        INFO("band ~= " << c.band);
-        REQUIRE(bandOf(n) >= c.tierLow);
-        REQUIRE(bandOf(n) <= c.tierHigh);
-
-        cpp_int s = IndexScramble::scramble(n, seed);
-        REQUIRE(IndexScramble::unscramble(s, seed) == n);
-
-        // Length changed (scattered) but is still bounded by the same tier.
-        size_t sBand = bandOf(s);
-        REQUIRE(sBand >= c.tierLow);
-        REQUIRE(sBand <= c.tierHigh);
-    }
-}
-
-TEST_CASE("Scramble: distinct indices in a tier never collide", "[scramble][tier][bijection][injective]") {
+TEST_CASE("Scramble: distinct short indices never collide", "[scramble][bijection][injective]") {
     // A true bijection cannot map two different inputs to the same output.
-    // Sample distinct indices from the same band (well within tier 1) and
-    // confirm every scrambled output is unique. With a domain of ~2^(16*44100)
-    // values, any observed collision would indicate a real bug, not bad luck —
-    // 200 draws is already overwhelming evidence and keeps this test's runtime
-    // bounded (each tier-1 call processes a ~44KB Feistel half, so iterations
-    // aren't free).
     const uint64_t    seed = 0x1357246ULL;
     std::set<cpp_int> outputs;
-    for (uint32_t i = 0; i < 200; ++i) {
-        cpp_int n = indexInBand(10, i); // band well inside tier 1
-        cpp_int s = IndexScramble::scramble(n, seed);
+    for (uint32_t i = 1; i < 500; ++i) {
+        cpp_int s = IndexScramble::scramble(cpp_int(i), seed);
         INFO("i = " << i);
         REQUIRE(outputs.insert(s).second); // false if s was already present
     }
 }
 
-TEST_CASE("Scramble: smallest payload lengths (0, 1, 2 samples) round-trip exactly", "[scramble][tier][roundtrip]") {
+TEST_CASE("Scramble: smallest payload lengths (0, 1, 2 samples) round-trip exactly", "[scramble][spread][roundtrip]") {
     const uint64_t seed = 0xFEED5EEDULL;
     ScrambleGuard  on(true, seed);
 
@@ -244,17 +253,30 @@ TEST_CASE("Scramble: smallest payload lengths (0, 1, 2 samples) round-trip exact
     }
 }
 
-TEST_CASE("Scramble: payloads beyond the last tier keep exact length", "[scramble][tier][legacy]") {
-    // The last tier caps at 661,500 samples (15s). Anything longer keeps the
-    // original per-band permutation, so length must be preserved exactly, just
-    // like the un-tiered scramble did before tiering existed.
+TEST_CASE("Scramble: indices longer than the spread maximum keep exact length", "[scramble][spread][legacy]") {
+    // The length-spread only moves SHORT indices. Anything already longer than
+    // the spread's maximum target (661,500 samples / 15 s) keeps its band, so
+    // its decoded length is preserved exactly — only its content is scattered.
     const uint64_t seed = 0xC0DEC0DEULL;
-    size_t         L    = 661500 + 50; // just past the last tier
+    size_t         L    = kMaxFrames + 5000; // comfortably past the spread maximum
     cpp_int        n    = indexInBand(L, 777);
     REQUIRE(bandOf(n) == L);
 
     cpp_int s = IndexScramble::scramble(n, seed);
-    REQUIRE(bandOf(s) == L); // length-preserving, as before tiering
+    REQUIRE(bandOf(s) == L); // length-preserving for long inputs
+    REQUIRE(IndexScramble::unscramble(s, seed) == n);
+}
+
+TEST_CASE("Scramble: a mid-length index between the targets keeps its length", "[scramble][spread][bijection]") {
+    // An index whose band is neither short (spread prefix) nor an exact target
+    // band passes through length-unchanged, with only its content scrambled.
+    const uint64_t seed = 0xBADC0FFEE0DDF00DULL;
+    size_t         L    = 1000; // 1000 samples: not a prefix, not a target band
+    cpp_int        n    = indexInBand(L, 4242);
+    REQUIRE(bandOf(n) == L);
+
+    cpp_int s = IndexScramble::scramble(n, seed);
+    REQUIRE(bandOf(s) == L);
     REQUIRE(IndexScramble::unscramble(s, seed) == n);
 }
 

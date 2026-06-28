@@ -175,20 +175,27 @@
 /* WaveSurfer.js waveform visualization container */
 #waveformContainer {
   margin-top: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
   padding: 0;
   background: rgba(15, 11, 8, 0.8);
   border: 1px solid var(--card-border);
   border-radius: 8px;
-  overflow: hidden;
   box-shadow: var(--shadow-sm);
-  min-height: 120px;
+  height: 190px;
   cursor: pointer;
-  /* Indicate clickability for play/pause */
 }
 
 /* Override WaveSurfer.js default styles */
 #waveformContainer wave {
   overflow: hidden !important;
-  border-radius: 8px;
+}
+
+#waveformDuration {
+  display: none;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: right;
+  opacity: 0.75;
+  margin: 0 2px 10px;
 }

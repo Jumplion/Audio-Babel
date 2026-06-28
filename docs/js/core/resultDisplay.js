@@ -12,6 +12,7 @@ import { escapeHtml, downloadBlob } from '../utils/dom.js';
 import { openIndexInNewTab } from './indexViewer.js';
 import { setFindInLibraryTarget } from '../utils/findInLibrary.js';
 import WaveSurfer from 'https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.esm.js';
+import Timeline from 'https://unpkg.com/wavesurfer.js@7/dist/plugins/timeline.esm.js';
 
 let resultFrag = null;
 let wavesurferInstance = null;
@@ -309,11 +310,31 @@ export async function handleJsonResponse(j, originalIndexB64) {
           barWidth: 2,
           barRadius: 3,
           cursorWidth: 2,
-          height: 120,
+          height: 160,
           barGap: 1,
-          normalize: false, // Don't normalize - show actual amplitudes
-          interact: true, // Enable interaction for playback control
-          dragToSeek: true, // Allow seeking by clicking/dragging
+          normalize: true,
+          interact: true,
+          dragToSeek: true,
+          plugins: [
+            Timeline.create({
+              height: 22,
+              style: { color: 'rgba(207, 138, 72, 0.55)', fontSize: '10px' },
+            }),
+          ],
+        });
+
+        // Show total duration once waveform is ready (register before loadBlob to avoid race)
+        wavesurferInstance.on('ready', () => {
+          const dur = wavesurferInstance.getDuration();
+          const durationEl = frag.get('#waveformDuration');
+          if (durationEl && dur) {
+            const formatted =
+              dur < 60
+                ? `${Math.round(dur * 10) / 10}s`
+                : `${Math.round(dur / 60)}m${Math.round(dur % 60)}s`;
+            durationEl.textContent = `${formatted}`;
+            durationEl.style.display = 'block';
+          }
         });
 
         // Load the audio blob

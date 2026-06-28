@@ -60,7 +60,7 @@
   padding: 20px;
 
   /* Configurable hexagon properties */
-  --hex-size: 300px;
+  --hex-size: 525px;
   --hex-center: 110;
   --hex-inner-scale: 0.55;
   /* Adjust this to make trapezoids thinner (0.5-0.7 recommended) */
@@ -159,20 +159,14 @@
   filter: brightness(1.2);
 }
 
-/* Genre/label name, shown off to the side of its segment (text-anchor is set
-   per-element in the markup so left labels grow leftward, right ones rightward).
-   Always visible so every segment is identified; the matching label brightens
-   when its wall is hovered/focused. */
+/* Genre/label name, centered inside its segment. Always visible so every
+   segment is identified; brightens slightly on hover. */
 .wall-genre-label {
   dominant-baseline: middle;
-  font-size: 12px;
-  font-weight: 600;
-  fill: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  fill: rgba(255, 255, 255, 0.82);
   pointer-events: none;
-  /* stroke behind the glyphs keeps them legible over the card background */
-  paint-order: stroke;
-  stroke: rgba(16, 11, 7, 0.85);
-  stroke-width: 3;
   transition: fill 0.18s ease;
 }
 
@@ -699,10 +693,6 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .hexagon-svg {
-    width: 250px;
-    height: auto;
-  }
 
   .shelves-container {
     max-width: 100%;

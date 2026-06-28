@@ -11,6 +11,19 @@
   padding-left: 20px;
 }
 
+/* Math formulas (KaTeX, or the raw "$...$" source if it hasn't rendered yet)
+   are unbreakable runs — let them scroll within their own box on narrow
+   screens instead of pushing the whole page wider. */
+.about-card p {
+  overflow-wrap: anywhere;
+}
+
+.about-card .katex-display,
+.about-card .katex {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 .about-card li {
   margin-bottom: 10px;
   line-height: 1.6;

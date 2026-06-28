@@ -74,15 +74,18 @@ function setLoading(on) {
   if (on) {
     if (spinner) spinner.style.display = 'inline-block';
     if (msg) msg.textContent = 'Loading...';
-    controls.forEach((c) => c && c.classList.add('disabled'));
+    controls.forEach((c) => c && c.setAttribute('disabled', ''));
     if (resultContainer) resultContainer.classList.add('skeleton');
     if (loadingOverlay) loadingOverlay.classList.add('active');
   } else {
     if (spinner) spinner.style.display = 'none';
     if (msg) msg.textContent = 'Ready';
-    controls.forEach((c) => c && c.classList.remove('disabled'));
+    controls.forEach((c) => c && c.removeAttribute('disabled'));
     if (resultContainer) resultContainer.classList.remove('skeleton');
     if (loadingOverlay) loadingOverlay.classList.remove('active');
+    // Re-evaluate the search button's own disabled-when-empty rule
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.dispatchEvent(new Event('input'));
   }
 }
 

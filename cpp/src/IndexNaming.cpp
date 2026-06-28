@@ -65,9 +65,9 @@ namespace {
     // Sample a cpp_int uniformly in [0, d) using enough random bits to keep
     // modulo bias negligible (32 extra bits → bias < 2^-32).
     auto sampleBelow(std::mt19937_64& rng, const cpp_int& d) -> cpp_int {
-        size_t bits  = static_cast<size_t>(mp::msb(d)) + 1;
-        size_t words = (bits + 32 + 63) / 64;
-        cpp_int r    = 0;
+        size_t  bits  = static_cast<size_t>(mp::msb(d)) + 1;
+        size_t  words = (bits + 32 + 63) / 64;
+        cpp_int r     = 0;
         for (size_t w = 0; w < words; ++w) {
             r = (r << 64) | cpp_int(rng());
         }

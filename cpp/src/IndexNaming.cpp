@@ -37,10 +37,9 @@ namespace {
     // FULL = D^4 spans every (genre,artist,album,track) name combination.
     // E = smallest even bit-width with 2^E >= FULL, for the Feistel domain.
     struct NameSpace {
-        cpp_int  d;    // names per field
-        uint64_t dU;   // d as uint64_t (fits: < 2^49 for NAME_MAX_CHARS=8)
-        cpp_int  full; // d^4
-        size_t   e;    // even bits covering full
+        cpp_int d;    // names per field
+        cpp_int full; // d^4
+        size_t  e;    // even bits covering full
     };
 
     auto nameSpace() -> const NameSpace& {
@@ -58,9 +57,21 @@ namespace {
             size_t pe   = ((cpp_int(1) << bits) == full) ? bits : bits + 1; // ceil(log2)
             size_t e    = (pe % 2 == 0) ? pe : pe + 1;
 
-            return NameSpace{d, static_cast<uint64_t>(d), full, e};
+            return NameSpace{d, full, e};
         }();
         return ns;
+    }
+
+    // Sample a cpp_int uniformly in [0, d) using enough random bits to keep
+    // modulo bias negligible (32 extra bits → bias < 2^-32).
+    auto sampleBelow(std::mt19937_64& rng, const cpp_int& d) -> cpp_int {
+        size_t bits  = static_cast<size_t>(mp::msb(d)) + 1;
+        size_t words = (bits + 32 + 63) / 64;
+        cpp_int r    = 0;
+        for (size_t w = 0; w < words; ++w) {
+            r = (r << 64) | cpp_int(rng());
+        }
+        return r % d;
     }
 
     auto lowBitsMask(size_t h) -> cpp_int {
@@ -251,17 +262,28 @@ auto constructIndexesForNames(const NameQuery& query, size_t count, uint64_t see
     const NameSpace& ns = nameSpace();
     std::mt19937_64  rng(seed);
 
+    // Discriminator must be large enough to produce indexes that yield
+    // meaningful audio. Target ~65536 base64 chars (6 bits each = 393216 bits).
+    // discWords = ceil((targetBits - bits(FULL)) / 64), minimum 1.
+    static const size_t TARGET_INDEX_BITS = 65536 * 6;
+    const size_t        fullBits          = static_cast<size_t>(mp::msb(ns.full)) + 1;
+    const size_t        discBits          = TARGET_INDEX_BITS > fullBits ? TARGET_INDEX_BITS - fullBits : 1;
+    const size_t        discWords         = (discBits + 63) / 64;
+
     std::vector<cpp_int> results;
     results.reserve(count);
     for (size_t k = 0; k < count; ++k) {
         std::array<cpp_int, 4> f{};
         for (size_t i = 0; i < 4; ++i) {
-            f[i] = pinned[i] ? *pinned[i] : cpp_int(rng() % ns.dU);
+            f[i] = pinned[i] ? *pinned[i] : sampleBelow(rng, ns.d);
         }
         cpp_int material = permuteDecode(combineFields(f));
         // High "discriminator" bits make each result a distinct candidate even
-        // when every field is pinned (then only this part varies).
-        cpp_int discriminator = cpp_int(rng());
+        // when every field is pinned. Generated with enough bits for long audio.
+        cpp_int discriminator = 0;
+        for (size_t w = 0; w < discWords; ++w) {
+            discriminator = (discriminator << 64) | cpp_int(rng());
+        }
         results.push_back(discriminator * ns.full + material);
     }
     return results;

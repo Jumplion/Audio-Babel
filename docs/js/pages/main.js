@@ -188,6 +188,7 @@ function initMetadataSearch() {
   const searchBtn = document.getElementById('doMetadataSearch');
   const statusEl = document.getElementById('metadataSearchStatus');
   const resultsList = document.getElementById('metadataResultsList');
+  const moreBtn = document.getElementById('metadataMoreBtn');
   if (!searchBtn || !statusEl || !resultsList || Object.values(fieldInputs).some((el) => !el))
     return;
 
@@ -199,7 +200,6 @@ function initMetadataSearch() {
       Object.entries(fieldInputs).forEach(([level, inputEl]) => {
         const width = nameWidths[level];
         inputEl.maxLength = width;
-        inputEl.placeholder = `${level[0].toUpperCase()}${level.slice(1)} name (up to ${width} chars)`;
       });
     })
     .catch((error) =>
@@ -245,7 +245,7 @@ function initMetadataSearch() {
     return li;
   }
 
-  async function runMetadataSearch() {
+  async function runMetadataSearch(append = false) {
     if (searchBtn.hasAttribute('disabled')) return;
 
     const fields = {
@@ -256,18 +256,23 @@ function initMetadataSearch() {
     };
 
     searchBtn.setAttribute('disabled', '');
-    statusEl.textContent = 'Searching…';
-    resultsList.innerHTML = '';
+    if (!append) {
+      statusEl.textContent = 'Searching…';
+      resultsList.innerHTML = '';
+      if (moreBtn) moreBtn.style.display = 'none';
+    }
 
     try {
       const wasm = await getWasmModule();
       const matches = await searchByMetadata(wasm, fields, { maxResults: 10 });
 
-      if (matches.length === 0) {
+      if (matches.length === 0 && !append) {
         statusEl.textContent = 'No matches found.';
       } else {
-        statusEl.textContent = `Found ${matches.length} candidate${matches.length === 1 ? '' : 's'}.`;
+        const total = resultsList.children.length + matches.length;
+        statusEl.textContent = `Found ${total} candidate${total === 1 ? '' : 's'}.`;
         matches.forEach((match) => resultsList.appendChild(renderMetadataResult(match)));
+        if (moreBtn) moreBtn.style.display = matches.length === 0 ? 'none' : 'block';
       }
     } catch (error) {
       statusEl.textContent = '';
@@ -277,5 +282,6 @@ function initMetadataSearch() {
     }
   }
 
-  searchBtn.addEventListener('click', runMetadataSearch);
+  searchBtn.addEventListener('click', () => runMetadataSearch(false));
+  if (moreBtn) moreBtn.addEventListener('click', () => runMetadataSearch(true));
 }

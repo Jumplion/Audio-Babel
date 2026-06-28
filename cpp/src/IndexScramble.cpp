@@ -28,13 +28,6 @@ namespace {
     using AudioBabel::Utilities::repunit;
     using AudioBabel::Utilities::splitmix64;
 
-    // Per-round key derived from the seed, band and round index.
-    auto roundKey(uint64_t seed, size_t L, int round) -> uint64_t {
-        uint64_t state =
-            seed ^ (0x9E3779B97F4A7C15ULL * (static_cast<uint64_t>(L) + 1)) ^ (0xD1B54A32D192ED03ULL * (static_cast<uint64_t>(round) + 1));
-        return splitmix64(state);
-    }
-
     // Keyed diffusing round function: half-block -> half-block of the same length.
     // Each output byte depends on every input byte (forward pass spreads low->high,
     // backward pass spreads high->low). It need not be invertible — the Feistel
@@ -57,62 +50,39 @@ namespace {
         return out;
     }
 
-    // Apply (or invert) the keyed Feistel permutation over the band value `y`,
-    // represented as exactly 2L bytes (most-significant first). Halves are L bytes.
-    // This is the length-preserving "content scramble": it permutes the sample
-    // values within one band without changing the band (decoded length).
-    auto feistel(const cpp_int& y, size_t L, uint64_t seed, bool encrypt) -> cpp_int {
-        std::vector<uint8_t> raw;
-        mp::export_bits(y, std::back_inserter(raw), BITS_PER_BYTE, true);
-
-        std::vector<uint8_t> bytes(2 * L, 0); // left-pad to the full band width
-        if (raw.size() <= bytes.size()) {
-            std::copy(raw.begin(), raw.end(), bytes.end() - static_cast<std::ptrdiff_t>(raw.size()));
-        }
-
-        std::vector<uint8_t> hi(bytes.begin(), bytes.begin() + static_cast<std::ptrdiff_t>(L));
-        std::vector<uint8_t> lo(bytes.begin() + static_cast<std::ptrdiff_t>(L), bytes.end());
-
-        if (encrypt) {
-            for (int r = 0; r < FEISTEL_ROUNDS; ++r) {
-                std::vector<uint8_t> f = roundFunction(lo, roundKey(seed, L, r));
-                for (size_t i = 0; i < L; ++i) {
-                    uint8_t t = static_cast<uint8_t>(hi[i] ^ f[i]);
-                    hi[i]     = lo[i];
-                    lo[i]     = t;
-                }
-            }
-        } else {
-            for (int r = FEISTEL_ROUNDS - 1; r >= 0; --r) {
-                std::vector<uint8_t> f = roundFunction(hi, roundKey(seed, L, r));
-                for (size_t i = 0; i < L; ++i) {
-                    uint8_t t = static_cast<uint8_t>(lo[i] ^ f[i]);
-                    lo[i]     = hi[i];
-                    hi[i]     = t;
-                }
-            }
-        }
-
-        std::vector<uint8_t> outBytes;
-        outBytes.reserve(2 * L);
-        outBytes.insert(outBytes.end(), hi.begin(), hi.end());
-        outBytes.insert(outBytes.end(), lo.begin(), lo.end());
-
-        cpp_int result = 0;
-        mp::import_bits(result, outBytes.begin(), outBytes.end(), BITS_PER_BYTE, true);
-        return result;
-    }
-
-    // contentScramble: apply the length-preserving per-band Feistel to a full
-    // index (subtract the band's repunit, permute the in-band value, add it back).
-    auto contentScramble(const cpp_int& index, uint64_t seed, bool encrypt) -> cpp_int {
+    // contentScramble: length-preserving XOR-stream permutation within the index's
+    // band. Each band has exactly B^L = 2^(16L) elements, so XOR is a valid
+    // bijection. The keystream is derived from (seed, L) via splitmix64 in counter
+    // mode (one step per 8 bytes). XOR is self-inverse, so scramble and unscramble
+    // call the same function.
+    auto contentScramble(const cpp_int& index, uint64_t seed) -> cpp_int {
         if (index <= 0) {
             return cpp_int(0);
         }
         size_t  L = bandIndex(index);
         cpp_int S = repunit(L);
-        cpp_int y = index - S; // in [0, B^L)
-        return S + feistel(y, L, seed, encrypt);
+        cpp_int y = index - S; // in [0, 2^(16L))
+
+        std::vector<uint8_t> raw;
+        mp::export_bits(y, std::back_inserter(raw), BITS_PER_BYTE, true);
+
+        std::vector<uint8_t> bytes(2 * L, 0);
+        if (raw.size() <= bytes.size()) {
+            std::copy(raw.begin(), raw.end(), bytes.end() - static_cast<std::ptrdiff_t>(raw.size()));
+        }
+
+        uint64_t state = seed ^ (0x9E3779B97F4A7C15ULL * (static_cast<uint64_t>(L) + 1));
+        for (size_t i = 0; i < bytes.size(); i += 8) {
+            uint64_t ks    = splitmix64(state);
+            size_t   chunk = std::min(static_cast<size_t>(8), bytes.size() - i);
+            for (size_t j = 0; j < chunk; ++j) {
+                bytes[i + j] ^= static_cast<uint8_t>(ks >> (j * 8));
+            }
+        }
+
+        cpp_int result = 0;
+        mp::import_bits(result, bytes.begin(), bytes.end(), BITS_PER_BYTE, true);
+        return S + result;
     }
 
     // --- Power-of-two Feistel (used to pick sample values within a target band) -
@@ -301,8 +271,7 @@ auto scramble(const cpp_int& index, uint64_t seed) -> cpp_int {
     if (index <= 0) {
         return cpp_int(0); // 0 (and only 0) is the empty payload; keep it fixed
     }
-    // Scatter neighbours within the band, then spread short indices across lengths.
-    cpp_int content = contentScramble(index, seed, /*encrypt=*/true);
+    cpp_int content = contentScramble(index, seed);
     return lengthSpread(content, seed);
 }
 
@@ -310,9 +279,8 @@ auto unscramble(const cpp_int& index, uint64_t seed) -> cpp_int {
     if (index <= 0) {
         return cpp_int(0);
     }
-    // Undo in reverse: lengthSpread is an involution, then invert the content scramble.
     cpp_int content = lengthSpread(index, seed);
-    return contentScramble(content, seed, /*encrypt=*/false);
+    return contentScramble(content, seed);
 }
 
 auto config() -> Config& {

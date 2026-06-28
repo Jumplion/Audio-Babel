@@ -23,7 +23,7 @@ const VALID_BASE64_URL_CHAR = /[A-Za-z0-9_-]/;
 
 // Default random index length range (characters), chosen for a reasonable
 // demo duration without configurable "advanced options".
-const RANDOM_MIN_CHARS = 65536;  // ~64 KB  → ~0.5s of audio
+const RANDOM_MIN_CHARS = 65536; // ~64 KB  → ~0.5s of audio
 const RANDOM_MAX_CHARS = 131072; // ~128 KB → ~1.1s of audio
 
 /**

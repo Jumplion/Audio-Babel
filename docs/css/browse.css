@@ -606,6 +606,59 @@
   height: 100%;
 }
 
+/* Loading animation — equalizer bars that pulse while the track is generating */
+.track-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+}
+
+.track-loading-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 64px;
+}
+
+.track-loading-bars span {
+  display: block;
+  width: 6px;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent);
+  animation: barPulse 1s ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+.track-loading-bars span:nth-child(1) { height: 30%; animation-delay: 0s; }
+.track-loading-bars span:nth-child(2) { height: 60%; animation-delay: 0.1s; }
+.track-loading-bars span:nth-child(3) { height: 90%; animation-delay: 0.2s; }
+.track-loading-bars span:nth-child(4) { height: 50%; animation-delay: 0.3s; }
+.track-loading-bars span:nth-child(5) { height: 75%; animation-delay: 0.15s; }
+.track-loading-bars span:nth-child(6) { height: 45%; animation-delay: 0.25s; }
+.track-loading-bars span:nth-child(7) { height: 85%; animation-delay: 0.05s; }
+
+@keyframes barPulse {
+  0%, 100% { transform: scaleY(0.25); opacity: 0.5; }
+  50%       { transform: scaleY(1);    opacity: 1; }
+}
+
+.track-loading-text {
+  font-size: 13px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track-loading-bars span {
+    animation: none;
+    transform: scaleY(0.6);
+    opacity: 0.7;
+  }
+}
+
 .browse #result {
   /* !important needed: resultDisplay.js sets style.display="block" inline
        once content is populated, which would otherwise beat this rule */

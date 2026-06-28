@@ -11,8 +11,7 @@ import { getWasmModule } from './wasmModule.js';
 import { escapeHtml, downloadBlob } from '../utils/dom.js';
 import { openIndexInNewTab } from './indexViewer.js';
 import { setFindInLibraryTarget } from '../utils/findInLibrary.js';
-import { base64ToBytes } from '../utils/base64.js';
-import { parseWavFile } from '../utils/wavUtils.js';
+import { createWavFile } from '../utils/wavUtils.js';
 import { buildResultForIndex } from '../utils/resultBuilder.js';
 import WaveSurfer from 'https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.esm.js';
 import Timeline from 'https://unpkg.com/wavesurfer.js@7/dist/plugins/timeline.esm.js';
@@ -154,8 +153,20 @@ function makeIndexClickable(indexDisplay, fullIndex) {
 }
 
 /**
- * Displays a JSON response containing audio metadata and WAV data.
- * @param {Object} j - JSON response object with metadata and wavBase64 properties
+ * Build a WAV Blob directly from raw PCM bytes, skipping any base64 conversion.
+ * Used for both waveform loading and lazy download — the same Blob serves both.
+ * @param {Uint8Array} pcm
+ * @param {number} sampleRate
+ * @param {number} bitDepth
+ * @param {number} numChannels
+ * @returns {Blob}
+ */
+const pcmToWavBlob = (pcm, sampleRate, bitDepth, numChannels) =>
+  createWavFile(pcm, sampleRate, bitDepth, numChannels);
+
+/**
+ * Displays a JSON response containing audio metadata and PCM data.
+ * @param {Object} j - Result object from buildResultForIndex
  * @param {string} [originalIndexB64] - Optional original index string to display
  */
 export async function handleJsonResponse(j, originalIndexB64) {
@@ -280,24 +291,30 @@ export async function handleJsonResponse(j, originalIndexB64) {
   }
 
   // audio
-  if (j.wavBase64) {
-    const ab = base64ToBytes(j.wavBase64);
-    const blob = new Blob([ab], { type: 'audio/wav' });
-    const url = URL.createObjectURL(blob);
-    const downloadLink = frag.get('#downloadLink');
-    if (downloadLink) downloadLink.href = url;
+  if (j.pcm) {
+    const { sampleRate = DEFAULT_SAMPLE_RATE, bitDepth = DEFAULT_BIT_DEPTH, numChannels = DEFAULT_NUM_CHANNELS } = j;
 
-    // Generate waveform visualization with WaveSurfer.js
+    // Build the WAV Blob once from raw PCM — no base64 step.
+    // The same Blob feeds both WaveSurfer and the download link.
+    const wavBlob = pcmToWavBlob(j.pcm, sampleRate, bitDepth, numChannels);
+
+    const downloadLink = frag.get('#downloadLink');
+    if (downloadLink) {
+      downloadLink.href = '#';
+      downloadLink.onclick = (e) => {
+        e.preventDefault();
+        downloadBlob(wavBlob, 'reconstructed.wav');
+      };
+    }
+
     const waveformContainer = frag.get('#waveformContainer');
     if (waveformContainer) {
       try {
-        // Destroy previous instance if it exists
         if (wavesurferInstance) {
           wavesurferInstance.destroy();
           wavesurferInstance = null;
         }
 
-        // Create new WaveSurfer instance with playback controls
         wavesurferInstance = WaveSurfer.create({
           container: waveformContainer,
           waveColor: '#cf8a48',
@@ -319,7 +336,6 @@ export async function handleJsonResponse(j, originalIndexB64) {
           ],
         });
 
-        // Show total duration once waveform is ready (register before loadBlob to avoid race)
         wavesurferInstance.on('ready', () => {
           const dur = wavesurferInstance.getDuration();
           const durationEl = frag.get('#waveformDuration');
@@ -328,44 +344,26 @@ export async function handleJsonResponse(j, originalIndexB64) {
               dur < 60
                 ? `${Math.round(dur * 10) / 10}s`
                 : `${Math.round(dur / 60)}m${Math.round(dur % 60)}s`;
-            durationEl.textContent = `${formatted}`;
+            durationEl.textContent = formatted;
             durationEl.style.display = 'block';
           }
         });
 
-        // Load the audio blob
-        await wavesurferInstance.loadBlob(blob);
+        await wavesurferInstance.loadBlob(wavBlob);
 
-        // Set up play/pause button
         const playPauseBtn = frag.get('#playPauseBtn');
         if (playPauseBtn) {
-          // Update button text based on playback state
           const updateButton = () => {
-            if (wavesurferInstance.isPlaying()) {
-              playPauseBtn.textContent = '⏸ Pause';
-            } else {
-              playPauseBtn.textContent = '▶ Play';
-            }
+            playPauseBtn.textContent = wavesurferInstance.isPlaying() ? '⏸ Pause' : '▶ Play';
           };
-
-          // Button click handler
-          playPauseBtn.onclick = () => {
-            wavesurferInstance.playPause();
-          };
-
-          // Listen to play/pause events to update button
+          playPauseBtn.onclick = () => wavesurferInstance.playPause();
           wavesurferInstance.on('play', updateButton);
           wavesurferInstance.on('pause', updateButton);
           wavesurferInstance.on('finish', updateButton);
-
-          // Initialize button state
           updateButton();
         }
 
-        // Add click to play/pause functionality on waveform
-        wavesurferInstance.on('interaction', () => {
-          wavesurferInstance.playPause();
-        });
+        wavesurferInstance.on('interaction', () => wavesurferInstance.playPause());
       } catch (error) {
         console.error('Error generating waveform with WaveSurfer.js:', error);
       }

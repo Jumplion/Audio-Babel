@@ -762,8 +762,13 @@ async function generateAndDisplayTrack() {
   // Clean up any existing result state before generating new one
   cleanupResultHandler();
 
-  // Show a more descriptive loading message
-  container.innerHTML = '<p>Generating track... This may take a moment for longer audio.</p>';
+  container.innerHTML =
+    '<div class="track-loading">' +
+    '<div class="track-loading-bars">' +
+    '<span></span><span></span><span></span><span></span><span></span><span></span><span></span>' +
+    '</div>' +
+    '<p class="track-loading-text">Generating track…</p>' +
+    '</div>';
 
   try {
     console.log('Starting track generation for position:', {

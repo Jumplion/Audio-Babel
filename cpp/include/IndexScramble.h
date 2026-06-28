@@ -89,6 +89,8 @@ using boost::multiprecision::cpp_int;
 /// that the length-spread maps short indices onto. Every "short" index lands on
 /// one of AUDIOBABEL_SCRAMBLE_LENGTH_COUNT distinct, log-spaced lengths between
 /// these two bounds, so the pair sets the variety of browse/short-index audio.
+/// Indices outside the PREFIX range (large hand-typed or search-result indices)
+/// are unaffected and decode to whatever length the bijection gives them.
 /// MIN must be > 0 and < MAX (enforced by static_assert in IndexScramble.cpp),
 /// and MIN's sample count must exceed the diversified prefix's band range so the
 /// PREFIX and TARGET sets stay disjoint (also static_asserted).
@@ -96,7 +98,7 @@ using boost::multiprecision::cpp_int;
 #    define AUDIOBABEL_SCRAMBLE_MIN_MS 100
 #endif
 #ifndef AUDIOBABEL_SCRAMBLE_MAX_MS
-#    define AUDIOBABEL_SCRAMBLE_MAX_MS 15000
+#    define AUDIOBABEL_SCRAMBLE_MAX_MS 5000
 #endif
 
 /// log2 of the number of distinct target lengths a short index can land on.

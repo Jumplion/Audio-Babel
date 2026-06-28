@@ -16,7 +16,8 @@ namespace mp = boost::multiprecision;
 
 namespace {
 
-    constexpr int FEISTEL_ROUNDS = 1;
+    // Number of Feistel rounds. Four rounds give full avalanche across the band.
+    constexpr int FEISTEL_ROUNDS = 4;
 
     // bandIndex()/repunit() (length recovery and the base-B repunit) and
     // mixIn()/splitmix64() (the avalanche bit mixer) are shared with Index's

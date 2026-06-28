@@ -47,7 +47,7 @@ namespace IndexNaming {
     /// Maximum display width, in base64 characters, of a single metadata field
     /// name. Names range from 1 to this many characters. Configurable — change
     /// it and the per-field name space (and UI hints) follow automatically.
-    constexpr size_t NAME_MAX_CHARS = 8;
+    constexpr size_t NAME_MAX_CHARS = 16;
 
     /// The four metadata names of one index.
     struct Names {

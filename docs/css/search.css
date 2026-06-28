@@ -213,20 +213,39 @@
 }
 
 .search .metadata-field-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-top: 6px;
 }
 
 .search .metadata-field-grid .option-field {
-  flex: 1 1 140px;
-  min-width: 140px;
+  min-width: 0;
 }
 
 .search .metadata-field-grid input[type='text'] {
   width: 100%;
   box-sizing: border-box;
+}
+
+.search .metadata-more-btn {
+  display: block;
+  margin: 14px auto 0;
+  background: none;
+  border: 1px solid rgba(217, 172, 94, 0.35);
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 7px 22px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 0.03em;
+}
+
+.search .metadata-more-btn:hover {
+  border-color: rgba(217, 172, 94, 0.65);
+  color: var(--text);
+  background: rgba(217, 172, 94, 0.06);
 }
 
 .search #metadataSearchStatus:empty {

@@ -28,14 +28,14 @@ export async function buildResultForIndex(wasm, indexBase64, wavOptions = {}) {
     numChannels = DEFAULT_NUM_CHANNELS,
   } = wavOptions;
 
-  const metadataJson = wasm.module.getMetadata(indexBase64);
-  const metadata = JSON.parse(metadataJson);
-  if (metadata.error) {
-    throw new Error(metadata.error);
-  }
+  const decoded = wasm.module.decodeIndex(indexBase64);
+  if (!decoded) throw new Error('Failed to decode index');
 
-  const pcmData = wasm.reconstructAudioFromIndex(indexBase64);
-  const wavBase64 = await wasm.samplesToWavBase64(pcmData, sampleRate, bitDepth, numChannels);
+  const metadata = JSON.parse(decoded.metadataJson);
+  if (metadata.error) throw new Error(metadata.error);
 
-  return { indexBase64, metadata, wavBase64 };
+  const position = JSON.parse(decoded.positionJson);
+  const wavBase64 = await wasm.samplesToWavBase64(decoded.pcm, sampleRate, bitDepth, numChannels);
+
+  return { indexBase64, metadata, position, wavBase64 };
 }

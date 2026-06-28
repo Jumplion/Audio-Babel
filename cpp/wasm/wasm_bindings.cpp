@@ -154,6 +154,52 @@ static emscripten::val reconstructAudioWrapper(const std::string& base64Index) {
 }
 
 /**
+ * Decode a base64 index in one pass: b64ToIndex is called exactly once, then
+ * metadata, position, and PCM are all derived from the same cpp_int.
+ * Returns a JS object {metadataJson, positionJson, pcm: Uint8Array}, or null on error.
+ */
+static emscripten::val decodeIndexWrapper(const std::string& base64Index) {
+    try {
+        cpp_int index = AudioBabel::Utilities::b64ToIndex(base64Index);
+
+        // Metadata + position in one call (calculateLibraryPosition runs once inside).
+        IndexMetadata meta = IndexMetadata::extractMetadataFromIndex(index);
+
+        std::string metaJson = "{";
+        metaJson += jsonStringField("genre", meta.genre) + ",";
+        metaJson += jsonStringField("artist", meta.artist) + ",";
+        metaJson += jsonStringField("album", meta.album) + ",";
+        metaJson += jsonStringField("track", meta.track) + ",";
+        metaJson += jsonStringField("cover", meta.cover);
+        metaJson += "}";
+
+        const LibraryPosition& pos     = meta.position;
+        std::string            posJson = "{";
+        posJson += jsonStringField("room", pos.room) + ",";
+        posJson += jsonNumberField("wall", pos.wall) + ",";
+        posJson += jsonNumberField("shelf", pos.shelf) + ",";
+        posJson += jsonNumberField("album", pos.album) + ",";
+        posJson += jsonNumberField("track", pos.track);
+        posJson += "}";
+
+        // PCM — Index::decode runs unscramble internally.
+        std::vector<uint8_t> samples = Index::decode(index);
+        emscripten::val      pcmView = emscripten::val(emscripten::typed_memory_view(samples.size(), samples.data()));
+        emscripten::val      pcm     = emscripten::val::global("Uint8Array").new_(pcmView);
+
+        emscripten::val result = emscripten::val::object();
+        result.set("metadataJson", emscripten::val(metaJson));
+        result.set("positionJson", emscripten::val(posJson));
+        result.set("pcm", pcm);
+        return result;
+
+    } catch (const std::exception& e) {
+        std::cerr << "[decodeIndexWrapper] Exception: " << e.what() << std::endl;
+        return emscripten::val::null();
+    }
+}
+
+/**
  * Calculate library position from a base64 index.
  * Returns JSON: {"room":"base64", "wall":N, "shelf":N, "album":N, "track":N}
  */
@@ -349,6 +395,7 @@ EMSCRIPTEN_BINDINGS(audio_index_module) {
     // Expose utility functions (using std::string wrappers)
     function("getMetadata", &getMetadataWrapper);
     function("reconstructAudio", &reconstructAudioWrapper);
+    function("decodeIndex", &decodeIndexWrapper);
     function("calculatePosition", &calculatePositionWrapper);
     function("reconstructIndex", &reconstructIndexWrapper);
     function("encodeIndex", &encodeIndexWrapper);

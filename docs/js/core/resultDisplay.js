@@ -153,7 +153,6 @@ function makeIndexClickable(indexDisplay, fullIndex) {
   return newIndexDisplay;
 }
 
-
 /**
  * Displays a JSON response containing audio metadata and WAV data.
  * @param {Object} j - JSON response object with metadata and wavBase64 properties

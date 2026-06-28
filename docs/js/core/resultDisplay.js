@@ -292,7 +292,11 @@ export async function handleJsonResponse(j, originalIndexB64) {
 
   // audio
   if (j.pcm) {
-    const { sampleRate = DEFAULT_SAMPLE_RATE, bitDepth = DEFAULT_BIT_DEPTH, numChannels = DEFAULT_NUM_CHANNELS } = j;
+    const {
+      sampleRate = DEFAULT_SAMPLE_RATE,
+      bitDepth = DEFAULT_BIT_DEPTH,
+      numChannels = DEFAULT_NUM_CHANNELS,
+    } = j;
 
     // Build the WAV Blob once from raw PCM — no base64 step.
     // The same Blob feeds both WaveSurfer and the download link.

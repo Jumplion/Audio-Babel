@@ -62,6 +62,17 @@ inline auto repunit(size_t L) -> boost::multiprecision::cpp_int {
     if (L == 0) {
         return boost::multiprecision::cpp_int(0);
     }
+    // Memoize the most recent band. Both directions request the same L
+    // back-to-back — encode()/decode() compute repunit(L), then
+    // contentScramble() immediately asks for repunit(L) again for the same
+    // band — so a single-entry cache turns two O(N) builds into one. repunit is
+    // a pure function of L, so caching by L is always correct; L == 0 returns
+    // above, so the 0 sentinel never aliases a real entry.
+    static thread_local size_t                         cachedL = 0;
+    static thread_local boost::multiprecision::cpp_int cached;
+    if (L == cachedL) {
+        return cached;
+    }
     constexpr size_t     sampleBytes = DEFAULT_BIT_DEPTH / BITS_PER_BYTE;
     std::vector<uint8_t> bytes(L * sampleBytes, 0);
     for (size_t i = 0; i < L; ++i) {
@@ -69,6 +80,8 @@ inline auto repunit(size_t L) -> boost::multiprecision::cpp_int {
     }
     boost::multiprecision::cpp_int s = 0;
     boost::multiprecision::import_bits(s, bytes.begin(), bytes.end(), BITS_PER_BYTE, true);
+    cachedL = L;
+    cached  = s;
     return s;
 }
 

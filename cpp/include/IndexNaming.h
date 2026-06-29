@@ -13,28 +13,13 @@ namespace AudioBabel {
  * @namespace IndexNaming
  * @brief Deterministic, byte-derived metadata names for an audio index.
  *
- * The four metadata fields (genre/artist/album/track) are derived directly
- * from the index itself, NOT from its library coordinates. The construction:
- *
- *  1. Split the index into a low "name material" part (index mod FULL, where
- *     FULL = D^4 and D is the number of distinct names per field) and a high
- *     "discriminator" part (index / FULL) — the latter is what differentiates
- *     two indexes that happen to share all four names.
- *  2. Run the name material through one keyed, invertible big-integer Feistel
- *     permutation over [0, FULL). This gives avalanche, so neighbouring indexes
- *     (differing by 1) produce wildly different names, and it stays a perfect
- *     bijection so the step is reversible.
- *  3. Decompose the permuted value into four base-D digits, one per field, and
- *     render each as a 1..NAME_MAX_CHARS bijective base64 string.
- *
- * The properties this gives:
- *  - Deterministic: the names are a pure function of the index.
- *  - Overlapping allowed: many indexes share the same name material (hence the
- *    same names); their high discriminator bits differ.
- *  - Neighbours differ wildly: the Feistel avalanche scatters adjacent indexes.
- *  - Constructible, not searchable: because every step is invertible, a desired
- *    set of names can be turned straight into concrete indexes carrying them
- *    (see constructIndexesForNames) — no scanning required.
+ * The four metadata fields (genre/artist/album/track) are derived directly from
+ * the index itself (NOT its library coordinates) via one keyed, invertible
+ * big-integer Feistel permutation over the "name material" low part of the index.
+ * This makes the names deterministic, scatters neighbouring indexes wildly, and —
+ * because every step is invertible — lets a desired set of names be turned
+ * straight into concrete indexes carrying them (constructIndexesForNames), with no
+ * search. See cpp/include/README.md for the full construction and properties.
  *
  * The batch accessors below feed the Browse UI, which navigates by library
  * coordinate. Since a name is a property of a whole index, each accessor names

@@ -25,7 +25,8 @@ namespace {
     // round). Distinct mixing constants keep these keys disjoint from the
     // power-of-two sub-Feistel keys (subRoundKey) used by lengthSpread.
     auto contentRoundKey(uint64_t seed, size_t L, int round) -> uint64_t {
-        uint64_t state = seed ^ (0x9E3779B97F4A7C15ULL * (static_cast<uint64_t>(L) + 1)) ^ (0xD1B54A32D192ED03ULL * (static_cast<uint64_t>(round) + 1));
+        uint64_t state =
+            seed ^ (0x9E3779B97F4A7C15ULL * (static_cast<uint64_t>(L) + 1)) ^ (0xD1B54A32D192ED03ULL * (static_cast<uint64_t>(round) + 1));
         return splitmix64(state);
     }
 
@@ -43,8 +44,7 @@ namespace {
         size_t  L  = bandIndex(index);
         cpp_int S  = repunit(L);
         cpp_int y  = index - S; // in [0, 2^(16L))
-        cpp_int yp = feistelPow2(
-            y, L * DEFAULT_BIT_DEPTH, [&](int round) { return contentRoundKey(seed, L, round); }, encrypt);
+        cpp_int yp = feistelPow2(y, L * DEFAULT_BIT_DEPTH, [&](int round) { return contentRoundKey(seed, L, round); }, encrypt);
         return S + yp;
     }
 

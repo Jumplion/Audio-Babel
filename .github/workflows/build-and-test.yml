@@ -102,3 +102,55 @@ jobs:
       - name: Run unit tests
         working-directory: build
         run: ctest --output-on-failure
+
+  performance:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Boost headers
+        run: sudo apt-get update && sudo apt-get install -y libboost-dev
+
+      - name: Cache CMake FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: ${{ runner.os }}-cmake-deps-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build performance benchmarks
+        run: cmake --build build -j$(nproc) --target performance_benchmarks
+
+      - name: Run performance benchmarks
+        working-directory: build
+        run: ./performance_benchmarks
+
+      # Warn-only by design: a noisy shared runner is not a reliable basis for
+      # blocking merges yet. The comparator's own exit code (0 ok / 1
+      # regression / 2 tool error) is downgraded to a visible ::warning::
+      # annotation here rather than failing the job. Revisit once the
+      # tolerance/baseline have proven stable across enough runs.
+      - name: Compare against performance baseline (warn-only)
+        run: |
+          set +e
+          node tools/node/compare-benchmarks.mjs \
+            --current build/performance_results.json \
+            --baseline cpp/perf/baseline.json \
+            --format markdown \
+            --summary-out "$GITHUB_STEP_SUMMARY"
+          status=$?
+          if [ "$status" -eq 1 ]; then
+            echo "::warning::Performance regression(s) detected against cpp/perf/baseline.json — see job summary for details. This check is warn-only and does not block merge."
+          elif [ "$status" -eq 2 ]; then
+            echo "::warning::Performance comparison tool failed to run (usage/IO error) — see logs above."
+          fi
+          exit 0

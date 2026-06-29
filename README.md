@@ -25,6 +25,8 @@ Every unique audio file maps to exactly one index, and every index maps to exact
 | `cpp/wasm/` | Emscripten WASM build; outputs to `docs/wasm/` |
 | `docs/` | Static web app (GitHub Pages) |
 | `tools/powershell/`, `tools/bash/` | Build/test/run scripts (PowerShell, Bash) |
+| `tools/node/` | Dependency-free Node scripts for performance regression detection |
+| `cpp/perf/` | Committed performance baseline (`baseline.json`) and JSON schema doc |
 
 ## How an Index Is Generated from Audio
 
@@ -141,6 +143,8 @@ This creates the `build/` directory and compiles:
 | `build/audiolib.lib` or `build/libaudiolib.a` (toolchain-dependent) | Static library |
 | `build/tests_catch2.exe` (Windows) / `build/tests_catch2` (Linux) | Unit tests |
 | `build/performance_benchmarks.exe` (Windows) / `build/performance_benchmarks` (Linux) | Performance benchmarks |
+| `build/performance_results.txt` | Human-readable benchmark report |
+| `build/performance_results.json` | Machine-readable benchmark report (regression detection input) |
 
 ### Running Tests
 
@@ -150,6 +154,70 @@ This creates the `build/` directory and compiles:
 ```
 
 Tests use Catch2 v3 and cover base64 encoding/decoding, index generation/reconstruction, WAV parsing, metadata extraction, library position calculation, and end-to-end integration.
+
+### Performance Benchmarks and Regression Detection
+
+`performance_benchmarks` times the performance-critical paths — index
+generation/reconstruction, library position math, metadata extraction,
+`IndexScramble`, base64 encoding, and WAV file I/O — and writes two reports:
+`build/performance_results.txt` (human-readable) and
+`build/performance_results.json` (machine-readable; schema documented in
+[`cpp/perf/results-schema.md`](cpp/perf/results-schema.md)).
+
+**Running locally:**
+
+```bash
+./tools/bash/run_performance.sh           # build, run, print results
+./tools/bash/run_performance.sh compare    # also compare against the committed baseline
+```
+
+```powershell
+.\tools\powershell\run_performance.ps1            # build, run, print results
+.\tools\powershell\run_performance.ps1 -Compare   # also compare against the committed baseline
+```
+
+Always run in Release mode — Debug builds produce noisy, unrepresentative
+timings.
+
+**Regression detection:** [`cpp/perf/baseline.json`](cpp/perf/baseline.json)
+is a committed snapshot of `performance_results.json` from a known-good run.
+`tools/node/compare-benchmarks.mjs` (plain Node, no dependencies) compares a
+fresh run against it per-benchmark:
+
+```bash
+node tools/node/compare-benchmarks.mjs                      # text output, exit 0/1/2
+node tools/node/compare-benchmarks.mjs --format markdown     # for step summaries / PRs
+node tools/node/compare-benchmarks.mjs --tolerance 30        # override the baseline's tolerance
+```
+
+A benchmark is flagged as a regression when its current median exceeds the
+baseline median by more than the tolerance (default **20%** — shared CI
+runners commonly show 10-30% run-to-run variance for CPU-bound work, so a
+tighter tolerance would mostly produce false-positive noise). Exit codes: `0`
+no regressions, `1` regression(s) found, `2` usage/IO error.
+
+**CI policy — warn-only:** the `performance` job in
+[`build-and-test.yml`](.github/workflows/build-and-test.yml) runs the
+benchmarks and posts a comparison table to the job's step summary on every
+PR, but it **always exits successfully**, even when regressions are flagged
+(visible via a `::warning::` annotation and a summary banner instead of a
+failed check). This is intentional during initial rollout: GitHub's shared
+runners are noisy enough that a hard-fail gate risked blocking unrelated PRs
+on flaky timing rather than real regressions. Once the tolerance and baseline
+have proven reliable across enough runs, this should be revisited and
+tightened to hard-fail.
+
+**Updating the baseline** (after an intentional, justified performance
+change):
+
+```bash
+node tools/node/update-baseline.mjs --build
+```
+
+This builds and runs the benchmarks in Release mode, prints an old-vs-new
+diff for every benchmark, and writes the new `cpp/perf/baseline.json` — it
+does not commit anything. Review the diff, then `git add`/commit the updated
+baseline with a justification for the change.
 
 ### Manual CMake Build
 

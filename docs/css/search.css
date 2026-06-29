@@ -90,7 +90,7 @@
 .search #fileInput {
   min-width: 0;
   max-width: 100%;
-  display: block
+  display: block;
 }
 
 .search .extract-group .btn-clear-file {

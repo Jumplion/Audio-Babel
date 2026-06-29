@@ -79,8 +79,7 @@ namespace {
     // Name-material Feistel over [0, 2^e): thin wrapper around the shared
     // Utilities::feistelPow2 driver, keyed by the fixed global NAME_KEY.
     auto feistel(const cpp_int& x, size_t e, bool encrypt) -> cpp_int {
-        return feistelPow2(
-            x, e, [](int round) { return roundKey(NAME_KEY, round); }, encrypt);
+        return feistelPow2(x, e, [](int round) { return roundKey(NAME_KEY, round); }, encrypt);
     }
 
     // Keyed bijection on [0, full) via feistel() + cycle-walking (Black &

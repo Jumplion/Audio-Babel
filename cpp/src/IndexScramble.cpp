@@ -73,8 +73,7 @@ namespace {
     // Per-band Feistel over [0, 2^e): thin wrapper around the shared
     // Utilities::feistelPow2 driver, supplying this module's keyed round keys.
     auto feistelBand(const cpp_int& z, size_t e, uint64_t seed, uint64_t subkey, bool encrypt) -> cpp_int {
-        return feistelPow2(
-            z, e, [&](int round) { return subRoundKey(seed, subkey, round); }, encrypt);
+        return feistelPow2(z, e, [&](int round) { return subRoundKey(seed, subkey, round); }, encrypt);
     }
 
     // --- Length-spread configuration -------------------------------------------

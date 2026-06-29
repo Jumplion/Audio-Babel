@@ -157,8 +157,10 @@ inline auto feistelDiffuse(const std::vector<uint8_t>& in, uint64_t key) -> std:
 // h-bit keyed round function built on feistelDiffuse: the h-bit half is laid out
 // in ceil(h/8) bytes (most-significant first) and the result is masked back to h
 // bits, so it maps an h-bit value to an h-bit value.
-inline auto feistelRoundBits(const boost::multiprecision::cpp_int& half, size_t h, uint64_t key, const boost::multiprecision::cpp_int& mask)
-    -> boost::multiprecision::cpp_int {
+inline auto feistelRoundBits(const boost::multiprecision::cpp_int& half,
+                             size_t                                h,
+                             uint64_t                              key,
+                             const boost::multiprecision::cpp_int& mask) -> boost::multiprecision::cpp_int {
     const size_t         hbytes = (h + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
     std::vector<uint8_t> in(hbytes, 0);
 
@@ -178,8 +180,7 @@ inline auto feistelRoundBits(const boost::multiprecision::cpp_int& half, size_t 
 // integers so the domain need not be byte-aligned. Halves are e/2 bits each.
 // `roundKey(r)` supplies each round's key; inverted by running rounds in reverse.
 template <typename RoundKeyFn>
-inline auto feistelPow2(const boost::multiprecision::cpp_int& x, size_t e, RoundKeyFn&& roundKey, bool encrypt)
-    -> boost::multiprecision::cpp_int {
+inline auto feistelPow2(const boost::multiprecision::cpp_int& x, size_t e, RoundKeyFn&& roundKey, bool encrypt) -> boost::multiprecision::cpp_int {
     using boost::multiprecision::cpp_int;
     const size_t  h    = e / 2;
     const cpp_int mask = lowBitsMask(h);

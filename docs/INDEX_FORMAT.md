@@ -181,7 +181,7 @@ bands, so without this step every short index would still decode to near-silence
 `[1, 2^P)` (the *prefix*, `P = 256` bits by default — every browseable position
 and any casually typed index) with a set of *target* slots scattered across `T`
 distinct, log-spaced bands from a short minimum (default **100 ms**) up to a long
-maximum (default **15 s**):
+maximum (default **5 s**):
 
 1. The short index `i` is first run through a Feistel over the whole prefix
    domain `[0, 2^P)` so that even *structured* inputs (e.g. browse indices, which
@@ -199,7 +199,7 @@ target slot (already a non-trivial length) pass through unchanged.
 
 The bounds and resolution are compile-time settings in
 `cpp/include/IndexScramble.h`: `AUDIOBABEL_SCRAMBLE_MIN_MS` /
-`AUDIOBABEL_SCRAMBLE_MAX_MS` (default `100` / `15000`),
+`AUDIOBABEL_SCRAMBLE_MAX_MS` (default `100` / `5000`),
 `AUDIOBABEL_SCRAMBLE_LENGTH_COUNT_LOG2` (default `8` ⇒ 256 distinct lengths), and
 `AUDIOBABEL_SCRAMBLE_PREFIX_BITS` (default `256`). Their consistency
 (min < max, disjoint prefix/target bands, even Feistel domains) is enforced by
@@ -214,9 +214,9 @@ The bounds and resolution are compile-time settings in
   exactly. It is just astronomically unlikely to be produced from a casually
   chosen index.
 - Browsing consecutive library positions now yields clips whose **durations** jump
-  across the whole 100 ms .. 15 s range and whose **contents** are unrelated,
+  across the whole 100 ms .. 5 s range and whose **contents** are unrelated,
   instead of a stream of indistinguishable sub-millisecond near-silence.
-- Cost scales with the chosen *target* band, so a short index does at most ~15 s
+- Cost scales with the chosen *target* band, so a short index does at most ~5 s
   worth of permutation work (tens of ms); most land on much shorter bands and
   cost proportionally less.
 

@@ -42,7 +42,7 @@
  *  - lengthSpread() is a keyed involution that swaps the block of "short"
  *    indices [1, 2^P) (the PREFIX, all of band <= P/16) with a set of TARGET
  *    slots that are spread across T distinct, well-separated bands ranging from
- *    a short minimum (default 100 ms) up to a long maximum (default 15 s). A
+ *    a short minimum (default 100 ms) up to a long maximum (default 5 s). A
  *    short index i is decomposed as i-1 = o*T + j: the sub-band index j selects
  *    one of the T target lengths (after a bit-reversal so that numerically
  *    adjacent indices land on *far-apart* durations, not neighbouring ones), and
@@ -54,7 +54,7 @@
  *    unchanged (their length is already non-trivial).
  *
  * Net effect: browsing consecutive library positions now yields clips whose
- * durations jump across the whole 100 ms .. 15 s range and whose contents are
+ * durations jump across the whole 100 ms .. 5 s range and whose contents are
  * unrelated, while every index still decodes to exactly one payload and back.
  *
  * @section feistel Why XOR stream / Why Feistel for lengthSpread
@@ -133,7 +133,7 @@ inline constexpr bool kScrambleEnabledByDefault = false;
  * @param index Non-negative stored index value.
  * @param seed  Key selecting the permutation.
  * @return The scrambled index. A short input (band <= PREFIX_BITS/16) is moved
- *         to one of the spread target lengths (100 ms .. 15 s by default);
+ *         to one of the spread target lengths (100 ms .. 5 s by default);
  *         longer inputs keep their length but have their content scattered.
  */
 auto scramble(const cpp_int& index, uint64_t seed) -> cpp_int;

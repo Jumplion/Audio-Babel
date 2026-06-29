@@ -100,6 +100,10 @@ cpp/wasm/boost/
 coverage/
 dist/
 
+### Generated test outputs (reconstructed WAVs + run logs)
+cpp/tests/Test Audio/Outputs/
+cpp/tests/test_results.log
+
 # End of .gitignore
 .vscode/tasks.json
 tools/bash/clang-tidy-output.txt

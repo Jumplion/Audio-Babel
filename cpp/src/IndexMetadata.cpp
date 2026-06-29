@@ -12,9 +12,33 @@
 
 namespace AudioBabel {
 
+namespace {
+
+    // Number of leading (most-significant) index bytes the SVG cover color uses.
+    constexpr size_t COVER_COLOR_BYTES = 3;
+
+    // The most-significant `n` bytes of `index`, MSB-first — the same prefix
+    // export_bits(msv=true) would yield, but without allocating the whole
+    // integer's byte string just to read its top three bytes (an O(N) waste on
+    // large indices). Returns fewer than `n` bytes when the index is shorter.
+    auto topBytesMsb(const boost::multiprecision::cpp_int& index, size_t n) -> std::vector<uint8_t> {
+        std::vector<uint8_t> bytes;
+        if (index <= 0) {
+            return bytes;
+        }
+        boost::multiprecision::cpp_int v          = index;
+        size_t                         totalBytes = static_cast<size_t>(boost::multiprecision::msb(index) / BITS_PER_BYTE) + 1;
+        if (totalBytes > n) {
+            v >>= (totalBytes - n) * BITS_PER_BYTE; // drop the low bytes the cover never reads
+        }
+        boost::multiprecision::export_bits(v, std::back_inserter(bytes), BITS_PER_BYTE, true);
+        return bytes;
+    }
+
+} // namespace
+
 auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_int& index) -> IndexMetadata {
-    std::vector<uint8_t> bytes;
-    boost::multiprecision::export_bits(index, std::back_inserter(bytes), BITS_PER_BYTE, true);
+    std::vector<uint8_t> bytes = topBytesMsb(index, COVER_COLOR_BYTES);
 
     LibraryPosition position = calculateLibraryPosition(index);
     return buildMetadataFromBytesAndPosition(bytes, position, IndexNaming::namesForIndex(index));
@@ -29,8 +53,7 @@ auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> 
 
     boost::multiprecision::cpp_int index = ::AudioBabel::Utilities::b64ToIndex(base64Index);
 
-    std::vector<uint8_t> bytes;
-    boost::multiprecision::export_bits(index, std::back_inserter(bytes), BITS_PER_BYTE, true);
+    std::vector<uint8_t> bytes = topBytesMsb(index, COVER_COLOR_BYTES);
 
     LibraryPosition position = calculateLibraryPosition(index);
     return buildMetadataFromBytesAndPosition(bytes, position, IndexNaming::namesForIndex(index));

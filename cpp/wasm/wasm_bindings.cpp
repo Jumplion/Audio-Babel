@@ -8,11 +8,9 @@
  * 
  * @section exported_functions Exported Functions
  * - getMetadata: Extract metadata from base64 index string
- * - reconstructAudio: Decode index to PCM samples
- * - calculatePosition: Calculate library position from index
+ * - decodeIndex: Decode index to metadata, position, and PCM samples in one pass
  * - reconstructIndex: Reconstruct index from library position
  * - encodeIndex: Encode raw PCM bytes into a bijective base64 index string
- * - calculateSize: Get the size of audio data for a given duration
  * - getLibraryConstants: Return library hierarchy constants as JSON
  * - getGenreNames/getArtistNames/getAlbumNames/getTrackNames: Batch cosmetic
  *   names for one sibling group at a time (see IndexNaming.h)
@@ -135,25 +133,6 @@ static std::string getMetadataWrapper(const std::string& base64Index) {
 }
 
 /**
- * Reconstruct PCM audio samples from a base64-encoded index.
- * Returns a JavaScript Uint8Array, or null on error.
- */
-static emscripten::val reconstructAudioWrapper(const std::string& base64Index) {
-    try {
-        cpp_int index = AudioBabel::Utilities::b64ToIndex(base64Index);
-
-        std::vector<uint8_t> samples = Index::decode(index);
-
-        emscripten::val view = emscripten::val(emscripten::typed_memory_view(samples.size(), samples.data()));
-        return emscripten::val::global("Uint8Array").new_(view);
-
-    } catch (const std::exception& e) {
-        std::cerr << "[reconstructAudioWrapper] Exception: " << e.what() << std::endl;
-        return emscripten::val::null();
-    }
-}
-
-/**
  * Decode a base64 index in one pass: b64ToIndex is called exactly once, then
  * metadata, position, and PCM are all derived from the same cpp_int.
  * Returns a JS object {metadataJson, positionJson, pcm: Uint8Array}, or null on error.
@@ -200,30 +179,6 @@ static emscripten::val decodeIndexWrapper(const std::string& base64Index) {
 }
 
 /**
- * Calculate library position from a base64 index.
- * Returns JSON: {"room":"base64", "wall":N, "shelf":N, "album":N, "track":N}
- */
-static std::string calculatePositionWrapper(const std::string& base64Index) {
-    try {
-        cpp_int index = AudioBabel::Utilities::b64ToIndex(base64Index);
-
-        LibraryPosition pos = AudioBabel::calculateLibraryPosition(index);
-
-        std::string json = "{";
-        json += jsonStringField("room", pos.room) + ",";
-        json += jsonNumberField("wall", pos.wall) + ",";
-        json += jsonNumberField("shelf", pos.shelf) + ",";
-        json += jsonNumberField("album", pos.album) + ",";
-        json += jsonNumberField("track", pos.track);
-        json += "}";
-        return json;
-
-    } catch (const std::exception& e) {
-        return makeJsonError(e.what());
-    }
-}
-
-/**
  * Reconstruct a base64 index from a library position (lossless).
  */
 static std::string reconstructIndexWrapper(const std::string& roomStr, int wall, int shelf, int album, int track) {
@@ -242,15 +197,6 @@ static std::string reconstructIndexWrapper(const std::string& roomStr, int wall,
     } catch (const std::exception& e) {
         return makeJsonError(e.what());
     }
-}
-
-/**
- * Compute the PCM byte size for a given duration and audio format.
- */
-static int calculatePcmByteSize(int durationSeconds, int sampleRate, int bitDepth, int channels) {
-    int samples = durationSeconds * sampleRate * channels;
-    int bytes   = samples * (bitDepth / 8);
-    return bytes;
 }
 
 /**
@@ -394,14 +340,9 @@ using namespace emscripten;
 EMSCRIPTEN_BINDINGS(audio_index_module) {
     // Expose utility functions (using std::string wrappers)
     function("getMetadata", &getMetadataWrapper);
-    function("reconstructAudio", &reconstructAudioWrapper);
     function("decodeIndex", &decodeIndexWrapper);
-    function("calculatePosition", &calculatePositionWrapper);
     function("reconstructIndex", &reconstructIndexWrapper);
     function("encodeIndex", &encodeIndexWrapper);
-
-    // Functions that don't need wrappers
-    function("calculateSize", &calculatePcmByteSize);
 
     // Library hierarchy constants (R5 — avoids manual duplication in JS)
     function("getLibraryConstants", &getLibraryConstantsWrapper);

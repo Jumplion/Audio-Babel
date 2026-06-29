@@ -4,14 +4,6 @@
  * Serverless version for docs folder (GitHub Pages)
  */
 
-import { createWavFile } from '../utils/wavUtils.js';
-import { bytesToBase64Chunked } from '../utils/base64.js';
-import {
-  DEFAULT_SAMPLE_RATE,
-  DEFAULT_BIT_DEPTH,
-  DEFAULT_NUM_CHANNELS,
-} from '../utils/audioConstants.js';
-
 class IndexWasm {
   constructor() {
     this.module = null;
@@ -83,21 +75,6 @@ class IndexWasm {
   }
 
   /**
-   * Reconstruct audio data from a base64 index
-   * @param {string} base64Index - Base64-encoded index (URL-safe, no padding)
-   * @returns {Uint8Array} PCM sample data
-   */
-  reconstructAudioFromIndex(base64Index) {
-    this._ensureInitialized();
-
-    const result = this.module.reconstructAudio(base64Index);
-    if (!result) {
-      throw new Error('Failed to reconstruct audio from index');
-    }
-    return result;
-  }
-
-  /**
    * Encode raw PCM bytes into a bijective base64 index string
    * @param {Uint8Array} pcmBytes - Raw PCM sample bytes
    * @param {number} sampleRate - Sample rate
@@ -114,42 +91,6 @@ class IndexWasm {
       throw new Error(errResult.error || 'Failed to encode index from PCM data');
     }
     return result;
-  }
-
-  /**
-   * Convert audio samples to WAV format (client-side)
-   * @param {Uint8Array} samples - PCM samples
-   * @param {number} sampleRate - Sample rate
-   * @param {number} bitDepth - Bit depth
-   * @param {number} channels - Channel count
-   * @returns {Blob} WAV file blob
-   */
-  samplesToWav(
-    samples,
-    sampleRate = DEFAULT_SAMPLE_RATE,
-    bitDepth = DEFAULT_BIT_DEPTH,
-    channels = DEFAULT_NUM_CHANNELS
-  ) {
-    return createWavFile(samples, sampleRate, bitDepth, channels);
-  }
-
-  /**
-   * Convert audio samples to a base64-encoded WAV file (for embedding in JSON results)
-   * @param {Uint8Array} samples - PCM samples
-   * @param {number} sampleRate - Sample rate
-   * @param {number} bitDepth - Bit depth
-   * @param {number} channels - Channel count
-   * @returns {Promise<string>} Base64-encoded WAV file
-   */
-  async samplesToWavBase64(
-    samples,
-    sampleRate = DEFAULT_SAMPLE_RATE,
-    bitDepth = DEFAULT_BIT_DEPTH,
-    channels = DEFAULT_NUM_CHANNELS
-  ) {
-    const wavBlob = this.samplesToWav(samples, sampleRate, bitDepth, channels);
-    const wavBytes = new Uint8Array(await wavBlob.arrayBuffer());
-    return bytesToBase64Chunked(wavBytes);
   }
 }
 

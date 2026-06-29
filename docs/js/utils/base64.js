@@ -6,22 +6,6 @@
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 
 /**
- * Convert Uint8Array to base64 in chunks (for large data)
- * More efficient for large arrays, prevents stack overflow
- * @param {Uint8Array} bytes - Bytes to encode
- * @param {number} chunkSize - Size of chunks (default: 0x8000)
- * @returns {string} Standard base64 string
- */
-export function bytesToBase64Chunked(bytes, chunkSize = 0x8000) {
-  let binaryString = '';
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binaryString += String.fromCharCode.apply(null, chunk);
-  }
-  return btoa(binaryString);
-}
-
-/**
  * Decode a standard base64 string into raw bytes.
  * @param {string} base64 - Standard (non-URL-safe) base64 string
  * @returns {Uint8Array} Decoded bytes

@@ -90,6 +90,7 @@
 .search #fileInput {
   min-width: 0;
   max-width: 100%;
+  display: block
 }
 
 .search .extract-group .btn-clear-file {
@@ -124,10 +125,6 @@
 
 .search .search-help {
   margin-top: 8px;
-}
-
-.search #fileInput {
-  display: block;
 }
 
 .search #statusLine {

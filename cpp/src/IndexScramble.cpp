@@ -16,39 +16,15 @@ namespace mp = boost::multiprecision;
 
 namespace {
 
-    // Number of Feistel rounds. Four rounds give full avalanche across the band.
-    constexpr int FEISTEL_ROUNDS = 4;
-
-    // bandIndex()/repunit() (length recovery and the base-B repunit) and
-    // mixIn()/splitmix64() (the avalanche bit mixer) are shared with Index's
-    // payload bijection and IndexNaming's cosmetic name generation — see
-    // Utilities.h.
+    // bandIndex()/repunit() (length recovery and the base-B repunit),
+    // mixIn()/splitmix64() (the avalanche bit mixer), and the big-integer Feistel
+    // primitives (feistelPow2 and friends) are shared with Index's payload
+    // bijection and IndexNaming's cosmetic name generation — see Utilities.h.
     using AudioBabel::Utilities::bandIndex;
+    using AudioBabel::Utilities::feistelPow2;
     using AudioBabel::Utilities::mixIn;
     using AudioBabel::Utilities::repunit;
     using AudioBabel::Utilities::splitmix64;
-
-    // Keyed diffusing round function: half-block -> half-block of the same length.
-    // Each output byte depends on every input byte (forward pass spreads low->high,
-    // backward pass spreads high->low). It need not be invertible — the Feistel
-    // structure provides invertibility.
-    auto roundFunction(const std::vector<uint8_t>& in, uint64_t key) -> std::vector<uint8_t> {
-        const size_t         n = in.size();
-        std::vector<uint8_t> out(n, 0);
-
-        uint64_t fwd = key ^ 0xA0761D6478BD642FULL;
-        for (size_t i = 0; i < n; ++i) {
-            mixIn(fwd, in[i]);
-            out[i] = static_cast<uint8_t>(fwd);
-        }
-
-        uint64_t bwd = key ^ 0xE7037ED1A0B428DBULL;
-        for (size_t i = n; i-- > 0;) {
-            mixIn(bwd, static_cast<uint8_t>(in[i] ^ out[i]));
-            out[i] = static_cast<uint8_t>(out[i] ^ static_cast<uint8_t>(bwd >> 17));
-        }
-        return out;
-    }
 
     // contentScramble: length-preserving XOR-stream permutation within the index's
     // band. Each band has exactly B^L = 2^(16L) elements, so XOR is a valid
@@ -94,55 +70,11 @@ namespace {
         return splitmix64(state);
     }
 
-    // Low-h-bits mask as a big integer.
-    auto lowBitsMask(size_t h) -> cpp_int {
-        return (cpp_int(1) << h) - 1;
-    }
-
-    // h-bit keyed diffusing round function built on the byte-oriented roundFunction.
-    // The h-bit half is laid out in ceil(h/8) bytes (most-significant first) and the
-    // result is masked back to h bits, so it maps an h-bit value to an h-bit value.
-    auto roundFunctionBits(const cpp_int& half, size_t h, uint64_t key, const cpp_int& mask) -> cpp_int {
-        const size_t         hbytes = (h + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
-        std::vector<uint8_t> in(hbytes, 0);
-
-        std::vector<uint8_t> raw;
-        mp::export_bits(half, std::back_inserter(raw), BITS_PER_BYTE, true);
-        if (raw.size() <= in.size()) {
-            std::copy(raw.begin(), raw.end(), in.end() - static_cast<std::ptrdiff_t>(raw.size()));
-        }
-
-        std::vector<uint8_t> out = roundFunction(in, key);
-        cpp_int              r   = 0;
-        mp::import_bits(r, out.begin(), out.end(), BITS_PER_BYTE, true);
-        return r & mask;
-    }
-
-    // Keyed balanced Feistel permutation over [0, 2^e) (e even), built from big
-    // integers so the domain need not be byte-aligned. Halves are e/2 bits each.
-    // Inverted by running the rounds in reverse.
-    auto feistelPow2(const cpp_int& z, size_t e, uint64_t seed, uint64_t subkey, bool encrypt) -> cpp_int {
-        const size_t  h    = e / 2;
-        const cpp_int mask = lowBitsMask(h);
-        cpp_int       hi   = (z >> h) & mask;
-        cpp_int       lo   = z & mask;
-
-        if (encrypt) {
-            for (int r = 0; r < FEISTEL_ROUNDS; ++r) {
-                cpp_int f = roundFunctionBits(lo, h, subRoundKey(seed, subkey, r), mask);
-                cpp_int t = hi ^ f;
-                hi        = lo;
-                lo        = t;
-            }
-        } else {
-            for (int r = FEISTEL_ROUNDS - 1; r >= 0; --r) {
-                cpp_int f = roundFunctionBits(hi, h, subRoundKey(seed, subkey, r), mask);
-                cpp_int t = lo ^ f;
-                lo        = hi;
-                hi        = t;
-            }
-        }
-        return (hi << h) | lo;
+    // Per-band Feistel over [0, 2^e): thin wrapper around the shared
+    // Utilities::feistelPow2 driver, supplying this module's keyed round keys.
+    auto feistelBand(const cpp_int& z, size_t e, uint64_t seed, uint64_t subkey, bool encrypt) -> cpp_int {
+        return feistelPow2(
+            z, e, [&](int round) { return subRoundKey(seed, subkey, round); }, encrypt);
     }
 
     // --- Length-spread configuration -------------------------------------------
@@ -238,12 +170,12 @@ namespace {
             // Mix the whole value first so STRUCTURED inputs (e.g. browse indices,
             // which step by a fixed stride) still spread evenly across lengths
             // instead of cycling through a couple of values of the low bits.
-            cpp_int rp  = feistelPow2(r, kPrefixBits, seed, kPrefixSubkey, /*encrypt=*/true);
+            cpp_int rp  = feistelBand(r, kPrefixBits, seed, kPrefixSubkey, /*encrypt=*/true);
             auto    j   = static_cast<uint64_t>(rp & ((cpp_int(1) << kLengthCountLog2) - 1)); // rp mod T
             cpp_int o   = rp >> kLengthCountLog2;                                             // rp / T, in [0, 2^kSubBits)
             size_t  p   = static_cast<size_t>(bitReverse(j));                                 // spread adjacent j across bands
             size_t  L   = targetBands()[p];
-            cpp_int off = feistelPow2(o, kSubBits, seed, p, /*encrypt=*/true); // in [0, 2^kSubBits) < B^L
+            cpp_int off = feistelBand(o, kSubBits, seed, p, /*encrypt=*/true); // in [0, 2^kSubBits) < B^L
             return repunit(L) + off;
         }
 
@@ -253,10 +185,10 @@ namespace {
         if (p >= 0) {
             cpp_int off = index - repunit(L); // in-band offset
             if (off < subSize) {              // exactly the slots the spread uses
-                cpp_int  o  = feistelPow2(off, kSubBits, seed, static_cast<size_t>(p), /*encrypt=*/false);
+                cpp_int  o  = feistelBand(off, kSubBits, seed, static_cast<size_t>(p), /*encrypt=*/false);
                 uint64_t j  = bitReverse(static_cast<uint64_t>(p));
                 cpp_int  rp = (o << kLengthCountLog2) | cpp_int(j);
-                cpp_int  r  = feistelPow2(rp, kPrefixBits, seed, kPrefixSubkey, /*encrypt=*/false);
+                cpp_int  r  = feistelBand(rp, kPrefixBits, seed, kPrefixSubkey, /*encrypt=*/false);
                 return r + 1;
             }
         }

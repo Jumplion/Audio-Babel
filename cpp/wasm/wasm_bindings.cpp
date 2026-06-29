@@ -201,7 +201,7 @@ static std::string reconstructIndexWrapper(const std::string& roomStr, int wall,
 
 /**
  * Encode raw PCM bytes into a bijective base64 index string.
- * This is the forward direction (PCM -> index); reconstructAudio is its inverse.
+ * This is the forward direction (PCM -> index); decodeIndex is its inverse.
  * No header is embedded — the index is a pure bijection over the PCM payload.
  */
 static std::string encodeIndexWrapper(const emscripten::val& pcmBytes, int sampleRate, int bitDepth, int numChannels) {
@@ -211,7 +211,10 @@ static std::string encodeIndexWrapper(const emscripten::val& pcmBytes, int sampl
     (void) bitDepth;
     (void) numChannels;
     try {
-        std::vector<uint8_t> samples = emscripten::vecFromJSArray<uint8_t>(pcmBytes);
+        // convertJSArrayToNumberVector bulk-copies a JS typed array through the
+        // WASM heap in one shot; vecFromJSArray marshals element-by-element via
+        // val, which is dramatically slower for multi-MB PCM uploads.
+        std::vector<uint8_t> samples = emscripten::convertJSArrayToNumberVector<uint8_t>(pcmBytes);
 
         cpp_int index = Index::encode(samples);
         return AudioBabel::Utilities::indexToB64(index);

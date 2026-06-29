@@ -233,11 +233,11 @@ These files are committed to the repo so the GitHub Pages site works without a b
 
 ### WASM Build Configuration
 
-- **Optimization:** `-O3` (Release) / `-O0 -g` (Debug)
+- **Optimization:** `-O3 -flto` (Release) / `-O0 -g` (Debug)
 - **Memory:** 64 MB initial, 2 GB max
-- **Module format:** ES6 (`-sMODULARIZE`, `-sEXPORT_ES6`)
+- **Module format:** ES6 (`-sMODULARIZE`, `-sEXPORT_ES6`), browser-only (`-sENVIRONMENT=web`, `-sFILESYSTEM=0`)
 - **Bindings:** Emscripten embind (`--bind`)
-- **Exceptions:** Enabled (`-fexceptions`)
+- **Exceptions:** Native WebAssembly exceptions (`-fwasm-exceptions`)
 
 ## Web App
 

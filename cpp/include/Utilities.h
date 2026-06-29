@@ -5,6 +5,7 @@
 #include <array>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <cstdint>
+#include <iterator>
 #include <ostream>
 #include <stdexcept>
 #include <string>
@@ -114,6 +115,93 @@ inline auto splitmix64(uint64_t& state) -> uint64_t {
     z          = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
     z          = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
     return z ^ (z >> 31);
+}
+
+// --- Balanced big-integer Feistel permutation primitives ---------------------
+// Shared by IndexScramble's per-band scatter and IndexNaming's cosmetic-name
+// permutation. Both build a keyed bijection over [0, 2^e) (e even) from the same
+// three pieces, differing ONLY in how each round's key is derived (passed in as
+// a callback). LibraryPosition keeps its own uint64-domain variant because its
+// 14-bit domain is far faster in machine integers than in cpp_int.
+
+// Number of Feistel rounds. Four rounds give full avalanche across the domain.
+constexpr int FEISTEL_ROUNDS = 4;
+
+// Low-h-bits mask as a big integer.
+inline auto lowBitsMask(size_t h) -> boost::multiprecision::cpp_int {
+    return (boost::multiprecision::cpp_int(1) << h) - 1;
+}
+
+// Keyed diffusing byte mixer: half-block -> half-block of the same length. Each
+// output byte depends on every input byte (forward pass spreads low->high,
+// backward pass high->low). It need not be invertible — the Feistel structure
+// provides invertibility.
+inline auto feistelDiffuse(const std::vector<uint8_t>& in, uint64_t key) -> std::vector<uint8_t> {
+    const size_t         n = in.size();
+    std::vector<uint8_t> out(n, 0);
+
+    uint64_t fwd = key ^ 0xA0761D6478BD642FULL;
+    for (size_t i = 0; i < n; ++i) {
+        mixIn(fwd, in[i]);
+        out[i] = static_cast<uint8_t>(fwd);
+    }
+
+    uint64_t bwd = key ^ 0xE7037ED1A0B428DBULL;
+    for (size_t i = n; i-- > 0;) {
+        mixIn(bwd, static_cast<uint8_t>(in[i] ^ out[i]));
+        out[i] = static_cast<uint8_t>(out[i] ^ static_cast<uint8_t>(bwd >> 17));
+    }
+    return out;
+}
+
+// h-bit keyed round function built on feistelDiffuse: the h-bit half is laid out
+// in ceil(h/8) bytes (most-significant first) and the result is masked back to h
+// bits, so it maps an h-bit value to an h-bit value.
+inline auto feistelRoundBits(const boost::multiprecision::cpp_int& half, size_t h, uint64_t key, const boost::multiprecision::cpp_int& mask)
+    -> boost::multiprecision::cpp_int {
+    const size_t         hbytes = (h + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
+    std::vector<uint8_t> in(hbytes, 0);
+
+    std::vector<uint8_t> raw;
+    boost::multiprecision::export_bits(half, std::back_inserter(raw), BITS_PER_BYTE, true);
+    if (raw.size() <= in.size()) {
+        std::copy(raw.begin(), raw.end(), in.end() - static_cast<std::ptrdiff_t>(raw.size()));
+    }
+
+    std::vector<uint8_t>           out = feistelDiffuse(in, key);
+    boost::multiprecision::cpp_int r   = 0;
+    boost::multiprecision::import_bits(r, out.begin(), out.end(), BITS_PER_BYTE, true);
+    return r & mask;
+}
+
+// Keyed balanced Feistel permutation over [0, 2^e) (e even), built from big
+// integers so the domain need not be byte-aligned. Halves are e/2 bits each.
+// `roundKey(r)` supplies each round's key; inverted by running rounds in reverse.
+template <typename RoundKeyFn>
+inline auto feistelPow2(const boost::multiprecision::cpp_int& x, size_t e, RoundKeyFn&& roundKey, bool encrypt)
+    -> boost::multiprecision::cpp_int {
+    using boost::multiprecision::cpp_int;
+    const size_t  h    = e / 2;
+    const cpp_int mask = lowBitsMask(h);
+    cpp_int       hi   = (x >> h) & mask;
+    cpp_int       lo   = x & mask;
+
+    if (encrypt) {
+        for (int r = 0; r < FEISTEL_ROUNDS; ++r) {
+            cpp_int f = feistelRoundBits(lo, h, roundKey(r), mask);
+            cpp_int t = hi ^ f;
+            hi        = lo;
+            lo        = t;
+        }
+    } else {
+        for (int r = FEISTEL_ROUNDS - 1; r >= 0; --r) {
+            cpp_int f = feistelRoundBits(hi, h, roundKey(r), mask);
+            cpp_int t = lo ^ f;
+            lo        = hi;
+            hi        = t;
+        }
+    }
+    return (hi << h) | lo;
 }
 
 // --- Base64 URL-safe utilities (alphabet A-Z a-z 0-9 - _, no padding) ---------

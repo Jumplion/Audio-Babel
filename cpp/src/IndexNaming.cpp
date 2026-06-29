@@ -26,10 +26,7 @@ namespace {
     // IndexScramble uses so the two features' keying can never alias.
     constexpr uint64_t NAME_KEY = 0xA24BAED4963EE407ULL;
 
-    // Four rounds give full avalanche, matching IndexScramble's choice.
-    constexpr int FEISTEL_ROUNDS = 4;
-
-    using AudioBabel::Utilities::mixIn;
+    using AudioBabel::Utilities::feistelPow2;
     using AudioBabel::Utilities::splitmix64;
 
     // D = number of distinct names per field = count of non-empty base64
@@ -74,71 +71,16 @@ namespace {
         return r % d;
     }
 
-    auto lowBitsMask(size_t h) -> cpp_int {
-        return (cpp_int(1) << h) - 1;
-    }
-
     auto roundKey(uint64_t key, int round) -> uint64_t {
         uint64_t state = key ^ (0x9E3779B97F4A7C15ULL * (static_cast<uint64_t>(round) + 1));
         return splitmix64(state);
     }
 
-    // Keyed diffusing round function over an h-bit half: every output byte
-    // depends on every input byte (forward pass spreads low->high, backward
-    // pass high->low). Need not be invertible — the Feistel structure is.
-    auto roundFunctionBits(const cpp_int& half, size_t h, uint64_t key, const cpp_int& mask) -> cpp_int {
-        const size_t         hbytes = (h + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
-        std::vector<uint8_t> in(hbytes, 0);
-
-        std::vector<uint8_t> raw;
-        mp::export_bits(half, std::back_inserter(raw), BITS_PER_BYTE, true);
-        if (raw.size() <= in.size()) {
-            std::copy(raw.begin(), raw.end(), in.end() - static_cast<std::ptrdiff_t>(raw.size()));
-        }
-
-        std::vector<uint8_t> out(hbytes, 0);
-
-        uint64_t fwd = key ^ 0xA0761D6478BD642FULL;
-        for (size_t i = 0; i < hbytes; ++i) {
-            mixIn(fwd, in[i]);
-            out[i] = static_cast<uint8_t>(fwd);
-        }
-
-        uint64_t bwd = key ^ 0xE7037ED1A0B428DBULL;
-        for (size_t i = hbytes; i-- > 0;) {
-            mixIn(bwd, static_cast<uint8_t>(in[i] ^ out[i]));
-            out[i] = static_cast<uint8_t>(out[i] ^ static_cast<uint8_t>(bwd >> 17));
-        }
-
-        cpp_int r = 0;
-        mp::import_bits(r, out.begin(), out.end(), BITS_PER_BYTE, true);
-        return r & mask;
-    }
-
-    // Balanced big-integer Feistel permutation over [0, 2^e) (e even), inverted
-    // by running the rounds in reverse.
+    // Name-material Feistel over [0, 2^e): thin wrapper around the shared
+    // Utilities::feistelPow2 driver, keyed by the fixed global NAME_KEY.
     auto feistel(const cpp_int& x, size_t e, bool encrypt) -> cpp_int {
-        const size_t  h    = e / 2;
-        const cpp_int mask = lowBitsMask(h);
-        cpp_int       hi   = (x >> h) & mask;
-        cpp_int       lo   = x & mask;
-
-        if (encrypt) {
-            for (int r = 0; r < FEISTEL_ROUNDS; ++r) {
-                cpp_int f = roundFunctionBits(lo, h, roundKey(NAME_KEY, r), mask);
-                cpp_int t = hi ^ f;
-                hi        = lo;
-                lo        = t;
-            }
-        } else {
-            for (int r = FEISTEL_ROUNDS - 1; r >= 0; --r) {
-                cpp_int f = roundFunctionBits(hi, h, roundKey(NAME_KEY, r), mask);
-                cpp_int t = lo ^ f;
-                lo        = hi;
-                hi        = t;
-            }
-        }
-        return (hi << h) | lo;
+        return feistelPow2(
+            x, e, [](int round) { return roundKey(NAME_KEY, round); }, encrypt);
     }
 
     // Keyed bijection on [0, full) via feistel() + cycle-walking (Black &

@@ -7,20 +7,32 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Emscripten-specific compiler flags
 if(EMSCRIPTEN)
-    # Core WASM settings
+    # Core WASM settings. The app talks to the module exclusively through embind
+    # (Module.encodeIndex(...) etc.), so no ccall/cwrap/HEAP runtime methods are
+    # exported — that list was dead glue.
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sWASM=1")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sALLOW_MEMORY_GROWTH=1")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,getValue,setValue,UTF8ToString,allocateUTF8,HEAPU8")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sMODULARIZE=1")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sEXPORT_ES6=1")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sEXPORT_NAME=IndexModule")
+
+    # Browser-only module: drop the Node/shell/worker loader glue and the virtual
+    # filesystem. No file I/O reaches the WASM (FileIO is native-only and is not
+    # compiled in below), so FILESYSTEM=0 is safe and trims the loader.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sENVIRONMENT=web")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sFILESYSTEM=0")
 
     # Memory settings for large audio indexes
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sINITIAL_MEMORY=67108864") # 64MB
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sMAXIMUM_MEMORY=2147483648") # 2GB
 
-    # Exception support (needed for C++ error handling)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sDISABLE_EXCEPTION_CATCHING=0")
+    # Native WebAssembly exceptions: smaller and faster than the legacy JS-based
+    # exception emulation (-sDISABLE_EXCEPTION_CATCHING=0). Must be set at both
+    # compile and link time, so it lives in CMAKE_CXX_FLAGS.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fwasm-exceptions")
+
+    # Link-time optimization across the whole module (applies at compile + link).
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto")
 
     # Optimization for production
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
@@ -43,12 +55,14 @@ else()
     message(STATUS "If build fails, install Boost with: embuilder build boost_headers")
 endif()
 
-# Source files
+# Source files. FileIO (WAV read/write via std::fstream) is intentionally NOT
+# compiled into the WASM module: the browser passes raw PCM bytes across the
+# embind boundary, so no file I/O happens here. Leaving it out keeps FILESYSTEM=0
+# valid and shrinks the binary.
 set(INDEX_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/Index.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/IndexMetadata.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/IndexNaming.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/FileIO.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/LibraryPosition.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/IndexScramble.cpp
 )

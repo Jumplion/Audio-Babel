@@ -18,78 +18,17 @@
  *
  * This module applies a keyed, reversible permutation that fixes both problems
  * while keeping the index<->payload mapping a perfect bijection:
- *   1. a per-band content scramble so neighbouring payloads no longer share
- *      almost all of their samples, and
- *   2. a length-spreading swap so that *short* indices decode to a wide, varied
- *      range of durations instead of all collapsing to near-silence (or, as the
- *      previous tier design did, all collapsing to a single ~1-second length).
+ *   1. a per-band content scramble (a keyed Feistel *within* the index's own
+ *      length band) so neighbouring payloads no longer share almost all of their
+ *      samples, and
+ *   2. a length-spreading involution so that *short* indices decode to a wide,
+ *      varied range of durations (default 100 ms .. 5 s) instead of all
+ *      collapsing to near-silence.
  *
- * @section algorithm Algorithm
- *
- * An L-sample payload maps to an integer in the length-"band"
- * [S_L, S_{L+1}) where S_L = (B^L - 1)/(B - 1) and B = 65536. The band index L
- * is exactly the decoded sample count, so changing an index's band changes its
- * audio length.
- *
- * scramble() = lengthSpread( contentScramble( index ) ):
- *
- *  - contentScramble() runs a keyed balanced Feistel *within the index's own
- *    band* (length-preserving). Each band has exactly B^L = 2^(16L) elements, so
- *    a Feistel over the 16L-bit in-band value is a bijection. It diffuses
- *    neighbours: two payloads that differ only in their last sample land far
- *    apart, with different sample values throughout. (A plain XOR mask would NOT
- *    do this — being affine, it leaves x and x+1 differing only in their low
- *    bits, so numerically adjacent indices decode to near-identical audio.) This
- *    is applied to every index.
- *
- *  - lengthSpread() is a keyed involution that swaps the block of "short"
- *    indices [1, 2^P) (the PREFIX, all of band <= P/16) with a set of TARGET
- *    slots that are spread across T distinct, well-separated bands ranging from
- *    a short minimum (default 100 ms) up to a long maximum (default 5 s). A
- *    short index i is decomposed as i-1 = o*T + j: the sub-band index j selects
- *    one of the T target lengths (after a bit-reversal so that numerically
- *    adjacent indices land on *far-apart* durations, not neighbouring ones), and
- *    o is run through a keyed Feistel over [0, 2^(P-log2 T)) to choose the
- *    sample values within that band. Because the map is a fixed pairing between
- *    two equal-size disjoint sets, it is its own inverse and trivially a
- *    bijection; the displaced TARGET indices map back down into the short block.
- *    Indices that are neither in the PREFIX nor a TARGET slot pass through
- *    unchanged (their length is already non-trivial).
- *
- * Net effect: browsing consecutive library positions now yields clips whose
- * durations jump across the whole 100 ms .. 5 s range and whose contents are
- * unrelated, while every index still decodes to exactly one payload and back.
- *
- * @section feistel Why Feistel for contentScramble (and not an XOR mask)
- * contentScramble() was briefly reimplemented as a keyed XOR keystream over the
- * band's 2^(16L) values: each band is exactly a power of two in size, so XOR with
- * a pseudorandom per-band mask is a length-preserving bijection, and XOR is its
- * own inverse, so scramble and unscramble could share one code path. That looked
- * simpler — but it regressed the core guarantee and was reverted.
- *
- * The problem is that an XOR mask is *affine*: contentScramble(x) XOR
- * contentScramble(x+1) == x XOR (x+1). Adding a fixed mask cancels when you
- * compare two inputs, so the DIFFERENCE between neighbours is preserved. Two
- * in-band indices that differ only in their low bits (e.g. payloads differing in
- * just their last sample) stay differing only in their low bits after scrambling,
- * so they decode to near-identical audio. This surfaced directly in Browse: in a
- * room whose stored indices land above the lengthSpread PREFIX (Case C
- * pass-through, where contentScramble is the ONLY transform), consecutive tracks
- * came out the same length with ~95% of their samples identical — "similar audio
- * outputs" while browsing. Measured: adjacent large indices differed in 1-2 of 25
- * samples under XOR vs all 25 under the Feistel.
- *
- * A Feistel network avoids this because it *diffuses* — every output bit depends
- * on the whole input through its round function, so x and x+1 map to unrelated
- * outputs. It is still a bijection for ANY round function (no modular inverse
- * needed) and is inverted simply by running its rounds in reverse; that reverse
- * direction (encrypt=false in scramble vs unscramble) is the only cost we trade
- * for proper neighbour diffusion. Both directions are linear in the band width.
- * The length-spread swap is an involution, so it needs no inverse at all.
- *
- * @section references References
- * - Feistel networks: https://en.wikipedia.org/wiki/Feistel_cipher
- * - Bijective numeration: https://en.wikipedia.org/wiki/Bijective_numeration
+ * The full algorithm — the band math, why a Feistel is used over an affine XOR
+ * mask, and the length-spread swap — is documented in docs/INDEX_FORMAT.md (see
+ * also cpp/include/README.md and cpp/src/IndexScramble.cpp for the static_assert
+ * consistency checks on the tuning constants).
  *
  * @section toggle Toggling
  * The pure scramble()/unscramble() functions are always available. Whether the

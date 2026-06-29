@@ -5,15 +5,8 @@
  * Exposes C++ functions to JavaScript for browser-based audio indexing.
  * Uses Emscripten's embind API to create JavaScript-callable wrappers
  * for the core AudioBabel library.
- * 
- * @section exported_functions Exported Functions
- * - getMetadata: Extract metadata from base64 index string
- * - decodeIndex: Decode index to metadata, position, and PCM samples in one pass
- * - reconstructIndex: Reconstruct index from library position
- * - encodeIndex: Encode raw PCM bytes into a bijective base64 index string
- * - getLibraryConstants: Return library hierarchy constants as JSON
- * - getGenreNames/getArtistNames/getAlbumNames/getTrackNames: Batch cosmetic
- *   names for one sibling group at a time (see IndexNaming.h)
+ *
+ * The exported functions are listed in cpp/wasm/README.md.
  *
  * @see docs/js/core/indexWasm.js for JavaScript integration wrapper
  */

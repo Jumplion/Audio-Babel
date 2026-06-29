@@ -14,29 +14,13 @@ namespace AudioBabel {
  * @class Index
  * @brief Bidirectional bijection between a raw PCM sample payload and a big integer.
  *
- * Index provides bidirectional conversion between a PCM sample payload and
- * cryptographically-large indexes, enabling lossless reconstruction and hierarchical
- * organization in the "Speaker of Babel" library system. The index is a TRUE BIJECTION
- * over the PCM sample payload only: every index decodes to exactly one payload and every
- * payload encodes to exactly one index, with no header, version, or format metadata
- * embedded. Index knows nothing about WAV headers, sample rates, or files — see FileIO
- * for reading/writing PCM payloads to/from WAV files.
+ * The index is a TRUE BIJECTION over the PCM sample payload only: every index decodes
+ * to exactly one payload and every payload encodes to exactly one index, with no header,
+ * version, or format metadata embedded. Index knows nothing about WAV headers, sample
+ * rates, or files — see FileIO for reading/writing PCM payloads to/from WAV files.
  *
- * @section index_format Index Format (payload-only bijection)
- * The index encodes ONLY the PCM sample payload. The atomic unit is one PCM sample, interpreted
- * as an UNSIGNED little-endian value in 0..B-1 where B = 1u << DEFAULT_BIT_DEPTH (65536 at the
- * 16-bit default). The integer is built with bijective numeration (digit = value + 1):
- *
- * @par Encoding (samples -> integer):
- * - n = 0; for each sample v in order: n = n * B + (v + 1)
- *
- * @par Decoding (integer -> samples):
- * - while n > 0: { n -= 1; v = n mod B; emit v; n = n / B } then reverse
- *
- * Because the digit is value+1, trailing zero (silence) samples are preserved: k vs k+1 trailing
- * zero samples produce different indices. The user-facing index string is a bijective base-64
- * over the URL-safe alphabet (see Utilities::indexToB64). There is intentionally NO integrity
- * check: every alphabet-valid index decodes to a valid payload.
+ * The encode/decode bijection, the bijective base-64 index string, and the "no integrity
+ * check" property are described in cpp/include/README.md and docs/INDEX_FORMAT.md.
  *
  * @section usage Usage Example
  * @code

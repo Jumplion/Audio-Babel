@@ -13,26 +13,13 @@ using boost::multiprecision::cpp_int;
  * @struct LibraryPosition
  * @brief Hierarchical position in the "Speaker of Babel" library.
  * 
- * LibraryPosition represents a deterministic, lossless mapping from audio indexes
- * to a virtual record shop hierarchy. The structure mirrors a physical library with
- * rooms, walls, shelves, albums, and tracks.
- * 
- * @par Hierarchy Structure
- * - **Room**: Base64-encoded string (upper bits of index / 9600)
- * - **Wall**: 0-3 (4 walls per room)
- * - **Shelf**: 0-4 (5 shelves per wall)
- * - **Album**: 0-31 (32 albums per shelf)
- * - **Track**: 0-14 (15 tracks per album)
- * 
- * @par Bijection Property
- * The position ↔ index mapping is perfectly bijective (one-to-one), enabling
- * navigation by position and reconstruction of indexes from positions without
- * information loss.
- * 
- * @par Capacity
- * Each room contains exactly 9,600 tracks (4 × 5 × 32 × 15). The library
- * supports an unlimited number of rooms via the base64-encoded room identifier.
- * 
+ * LibraryPosition represents a deterministic, lossless, perfectly bijective
+ * mapping from audio indexes to a virtual record-shop hierarchy (room → wall →
+ * shelf → album → track). Each room holds exactly 9,600 tracks (4 × 5 × 32 × 15);
+ * the base64-encoded room identifier gives unlimited rooms. The per-level ranges
+ * are documented on the fields below; see cpp/include/README.md and the root
+ * README for the hierarchy table and bijection details.
+ *
  * @see calculateLibraryPosition for computing position from index
  * @see reconstructIndexFromPosition for inverse operation
  */

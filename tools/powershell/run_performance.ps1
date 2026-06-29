@@ -10,13 +10,19 @@
 .PARAMETER Clean
     Clean the build directory before building.
 
+.PARAMETER Compare
+    After running, compare results against cpp/perf/baseline.json using
+    tools/node/compare-benchmarks.mjs (best-effort; skipped if node isn't on PATH).
+
 .EXAMPLE
     .\run_performance.ps1
     .\run_performance.ps1 -Clean
+    .\run_performance.ps1 -Compare
 #>
 
 param(
-    [switch]$Clean
+    [switch]$Clean,
+    [switch]$Compare
 )
 
 $ErrorActionPreference = "Stop"
@@ -45,65 +51,76 @@ try {
         New-Item -ItemType Directory -Path "build" | Out-Null
     }
 
-    # Configure with Release mode
-    Write-Host "Configuring CMake (Release mode)..." -ForegroundColor Yellow
+    # Configure, build, and run from inside build/ so the benchmark binary's
+    # relative output paths (performance_results.txt/.json) land at
+    # build/performance_results.* as documented, matching run_performance.sh.
     Push-Location "build"
     try {
+        Write-Host "Configuring CMake (Release mode)..." -ForegroundColor Yellow
         cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release ..
         if ($LASTEXITCODE -ne 0) {
             throw "CMake configuration failed"
         }
-    } finally {
-        Pop-Location
-    }
 
-    # Build
-    Write-Host "`nBuilding performance benchmarks..." -ForegroundColor Yellow
-    Push-Location "build"
-    try {
+        Write-Host "`nBuilding performance benchmarks..." -ForegroundColor Yellow
         mingw32-make performance_benchmarks -j 4
         if ($LASTEXITCODE -ne 0) {
             throw "Build failed"
         }
+
+        # Check if executable exists
+        $ExeName = "performance_benchmarks.exe"
+        if (-not (Test-Path $ExeName)) {
+            throw "Performance benchmarks executable not found at: build/$ExeName"
+        }
+
+        # Run benchmarks
+        Write-Host "`n==================================================" -ForegroundColor Green
+        Write-Host "Running benchmarks (this may take a few minutes)..." -ForegroundColor Green
+        Write-Host "==================================================" -ForegroundColor Green
+        Write-Host ""
+
+        & ".\$ExeName"
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "Benchmarks failed with exit code: $LASTEXITCODE"
+        }
+
+        # Display results
+        Write-Host "`n==================================================" -ForegroundColor Cyan
+        Write-Host "BENCHMARK RESULTS" -ForegroundColor Cyan
+        Write-Host "==================================================" -ForegroundColor Cyan
+        Write-Host ""
+
+        $ResultsName = "performance_results.txt"
+        if (Test-Path $ResultsName) {
+            Get-Content $ResultsName | Write-Host
+            Write-Host "`nResults saved to: build/$ResultsName" -ForegroundColor Green
+        } else {
+            Write-Warning "Results file not found at: build/$ResultsName"
+        }
     } finally {
         Pop-Location
-    }
-
-    # Check if executable exists
-    $ExePath = Join-Path "build" "performance_benchmarks.exe"
-    if (-not (Test-Path $ExePath)) {
-        throw "Performance benchmarks executable not found at: $ExePath"
-    }
-
-    # Run benchmarks
-    Write-Host "`n==================================================" -ForegroundColor Green
-    Write-Host "Running benchmarks (this may take a few minutes)..." -ForegroundColor Green
-    Write-Host "==================================================" -ForegroundColor Green
-    Write-Host ""
-
-    & $ExePath
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Benchmarks failed with exit code: $LASTEXITCODE"
-    }
-
-    # Display results
-    Write-Host "`n==================================================" -ForegroundColor Cyan
-    Write-Host "BENCHMARK RESULTS" -ForegroundColor Cyan
-    Write-Host "==================================================" -ForegroundColor Cyan
-    Write-Host ""
-
-    $ResultsPath = Join-Path "build" "performance_results.txt"
-    if (Test-Path $ResultsPath) {
-        Get-Content $ResultsPath | Write-Host
-        Write-Host "`nResults saved to: $ResultsPath" -ForegroundColor Green
-    } else {
-        Write-Warning "Results file not found at: $ResultsPath"
     }
 
     Write-Host "`n==================================================" -ForegroundColor Green
     Write-Host "Performance benchmarks completed successfully!" -ForegroundColor Green
     Write-Host "==================================================" -ForegroundColor Green
+
+    # Optionally compare against the committed baseline
+    if ($Compare) {
+        Write-Host "`n==================================================" -ForegroundColor Cyan
+        Write-Host "COMPARING AGAINST BASELINE" -ForegroundColor Cyan
+        Write-Host "==================================================" -ForegroundColor Cyan
+        Write-Host ""
+
+        if (Get-Command node -ErrorAction SilentlyContinue) {
+            node tools/node/compare-benchmarks.mjs
+        } else {
+            Write-Host "NOTE: node not found on PATH; skipping baseline comparison." -ForegroundColor Yellow
+            Write-Host "Install Node.js and re-run with -Compare to compare against cpp/perf/baseline.json." -ForegroundColor Yellow
+        }
+    }
 
 } catch {
     Write-Host "`n==================================================" -ForegroundColor Red

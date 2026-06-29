@@ -290,6 +290,10 @@ export async function handleJsonResponse(j, originalIndexB64) {
     }
   }
 
+  var DEFAULT_SAMPLE_RATE = 44100;
+  var DEFAULT_BIT_DEPTH = 16;
+  var DEFAULT_NUM_CHANNELS = 1;
+
   // audio
   if (j.pcm) {
     const {

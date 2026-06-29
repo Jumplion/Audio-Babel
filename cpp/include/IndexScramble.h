@@ -33,11 +33,14 @@
  *
  * scramble() = lengthSpread( contentScramble( index ) ):
  *
- *  - contentScramble() applies a keyed XOR stream *within the index's own
- *    band* (length-preserving). Each band has exactly B^L = 2^(16L) elements,
- *    so XOR with a pseudorandom mask is a valid bijection. The stream is keyed
- *    on (seed, L) via splitmix64. XOR is self-inverse, so scramble and
- *    unscramble call the same function. This is applied to every index.
+ *  - contentScramble() runs a keyed balanced Feistel *within the index's own
+ *    band* (length-preserving). Each band has exactly B^L = 2^(16L) elements, so
+ *    a Feistel over the 16L-bit in-band value is a bijection. It diffuses
+ *    neighbours: two payloads that differ only in their last sample land far
+ *    apart, with different sample values throughout. (A plain XOR mask would NOT
+ *    do this — being affine, it leaves x and x+1 differing only in their low
+ *    bits, so numerically adjacent indices decode to near-identical audio.) This
+ *    is applied to every index.
  *
  *  - lengthSpread() is a keyed involution that swaps the block of "short"
  *    indices [1, 2^P) (the PREFIX, all of band <= P/16) with a set of TARGET
@@ -57,14 +60,32 @@
  * durations jump across the whole 100 ms .. 5 s range and whose contents are
  * unrelated, while every index still decodes to exactly one payload and back.
  *
- * @section feistel Why XOR stream / Why Feistel for lengthSpread
- * contentScramble() uses an XOR stream: each band has exactly 2^(16L) elements,
- * so XOR with a pseudorandom mask is a length-preserving bijection and is its
- * own inverse — no modular inverse or round reversal needed.
- * lengthSpread() still uses a Feistel network internally for the per-target
- * value permutation: a Feistel is a bijection for ANY round function and is
- * inverted by running rounds in reverse. The length-spread swap itself is an
- * involution, so it needs no inverse at all.
+ * @section feistel Why Feistel for contentScramble (and not an XOR mask)
+ * contentScramble() was briefly reimplemented as a keyed XOR keystream over the
+ * band's 2^(16L) values: each band is exactly a power of two in size, so XOR with
+ * a pseudorandom per-band mask is a length-preserving bijection, and XOR is its
+ * own inverse, so scramble and unscramble could share one code path. That looked
+ * simpler — but it regressed the core guarantee and was reverted.
+ *
+ * The problem is that an XOR mask is *affine*: contentScramble(x) XOR
+ * contentScramble(x+1) == x XOR (x+1). Adding a fixed mask cancels when you
+ * compare two inputs, so the DIFFERENCE between neighbours is preserved. Two
+ * in-band indices that differ only in their low bits (e.g. payloads differing in
+ * just their last sample) stay differing only in their low bits after scrambling,
+ * so they decode to near-identical audio. This surfaced directly in Browse: in a
+ * room whose stored indices land above the lengthSpread PREFIX (Case C
+ * pass-through, where contentScramble is the ONLY transform), consecutive tracks
+ * came out the same length with ~95% of their samples identical — "similar audio
+ * outputs" while browsing. Measured: adjacent large indices differed in 1-2 of 25
+ * samples under XOR vs all 25 under the Feistel.
+ *
+ * A Feistel network avoids this because it *diffuses* — every output bit depends
+ * on the whole input through its round function, so x and x+1 map to unrelated
+ * outputs. It is still a bijection for ANY round function (no modular inverse
+ * needed) and is inverted simply by running its rounds in reverse; that reverse
+ * direction (encrypt=false in scramble vs unscramble) is the only cost we trade
+ * for proper neighbour diffusion. Both directions are linear in the band width.
+ * The length-spread swap is an involution, so it needs no inverse at all.
  *
  * @section references References
  * - Feistel networks: https://en.wikipedia.org/wiki/Feistel_cipher

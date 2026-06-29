@@ -264,8 +264,8 @@ class BenchmarkRunner {
 
         PlatformInfo platform = detectPlatform();
 
-        auto        now = system_clock::now();
-        std::time_t tt  = system_clock::to_time_t(now);
+        auto               now = system_clock::now();
+        std::time_t        tt  = system_clock::to_time_t(now);
         std::ostringstream tsStream;
         tsStream << std::put_time(std::gmtime(&tt), "%FT%TZ");
 
@@ -564,12 +564,12 @@ void runIntegrationBenchmarks(BenchmarkRunner& runner) {
 
 void runScrambleBenchmarks(BenchmarkRunner& runner) {
     const std::string category = "IndexScramble Operations";
-    const uint64_t    seed      = 0xC0FFEE123456ULL;
+    const uint64_t    seed     = 0xC0FFEE123456ULL;
 
     boost::multiprecision::cpp_int smallIndex = 5000;
 
-    auto        largeSamples = generateSyntheticAudio(44100 * 30, 16); // 30 seconds
-    auto        largeIndex   = Index::encode(packSamples16(largeSamples));
+    auto largeSamples = generateSyntheticAudio(44100 * 30, 16); // 30 seconds
+    auto largeIndex   = Index::encode(packSamples16(largeSamples));
 
     runner.runBenchmark(
         "Scramble Round Trip (small)",
@@ -727,7 +727,7 @@ int main() {
     std::cout << "=================================================\n";
     std::cout << "Note: Run in Release mode for accurate results.\n";
     std::cout << "Results will be written to: performance_results.{txt,json} "
-                  "(run this binary from inside build/ so they land at build/performance_results.*)\n\n";
+                 "(run this binary from inside build/ so they land at build/performance_results.*)\n\n";
 
     BenchmarkRunner runner("performance_results.txt");
 

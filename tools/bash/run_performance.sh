@@ -7,6 +7,8 @@
 # Usage:
 #   ./run_performance.sh
 #   ./run_performance.sh clean
+#   ./run_performance.sh compare
+#   ./run_performance.sh clean compare
 
 set -e
 
@@ -14,13 +16,22 @@ set -e
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO_ROOT"
 
+DO_CLEAN=false
+DO_COMPARE=false
+for arg in "$@"; do
+    case "$arg" in
+        clean) DO_CLEAN=true ;;
+        compare) DO_COMPARE=true ;;
+    esac
+done
+
 echo "=================================================="
 echo "AUDIO BABEL PERFORMANCE BENCHMARKS"
 echo "=================================================="
 echo ""
 
 # Clean if requested
-if [[ "${1:-}" == "clean" ]]; then
+if [[ "$DO_CLEAN" == true ]]; then
     echo "Cleaning build directory..."
     rm -rf build
 fi
@@ -78,3 +89,19 @@ echo ""
 echo "=================================================="
 echo "Performance benchmarks completed successfully!"
 echo "=================================================="
+
+# Optionally compare against the committed baseline
+if [[ "$DO_COMPARE" == true ]]; then
+    echo ""
+    echo "=================================================="
+    echo "COMPARING AGAINST BASELINE"
+    echo "=================================================="
+    echo ""
+    if command -v node >/dev/null 2>&1; then
+        cd "$REPO_ROOT"
+        node tools/node/compare-benchmarks.mjs || true
+    else
+        echo "NOTE: node not found on PATH; skipping baseline comparison."
+        echo "Install Node.js and re-run with the 'compare' argument to compare against cpp/perf/baseline.json."
+    fi
+fi

@@ -4,6 +4,25 @@ project(SpeakerOfBabel LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Short git commit hash, embedded into the performance benchmarks binary so
+# its JSON output is traceable to a revision. Falls back to "unknown" when
+# building from a source tarball (no .git directory).
+set(AUDIOBABEL_GIT_COMMIT "unknown")
+find_package(Git QUIET)
+if(GIT_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_COMMIT_OUTPUT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE GIT_RESULT
+    )
+    if(GIT_RESULT EQUAL 0 AND GIT_COMMIT_OUTPUT)
+        set(AUDIOBABEL_GIT_COMMIT "${GIT_COMMIT_OUTPUT}")
+    endif()
+endif()
+
 # Fetch Catch2 v3 for modern unit testing
 include(FetchContent)
 fetchcontent_declare(
@@ -77,6 +96,15 @@ if(EXISTS ${PERF_SRC})
     add_executable(performance_benchmarks ${PERF_SRC})
     target_link_libraries(performance_benchmarks PRIVATE audiolib)
     target_include_directories(performance_benchmarks PRIVATE ${CPP_ROOT}/include ${CPP_ROOT}/tests)
+    if(CMAKE_BUILD_TYPE)
+        set(AUDIOBABEL_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
+    else()
+        set(AUDIOBABEL_BUILD_TYPE "Unspecified")
+    endif()
+    target_compile_definitions(performance_benchmarks PRIVATE
+        AUDIOBABEL_GIT_COMMIT="${AUDIOBABEL_GIT_COMMIT}"
+        AUDIOBABEL_BUILD_TYPE="${AUDIOBABEL_BUILD_TYPE}"
+    )
     # Recommend Release mode for accurate benchmarks
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         message(WARNING "Performance benchmarks should be run in Release mode for accurate results. Use: cmake -DCMAKE_BUILD_TYPE=Release ..")

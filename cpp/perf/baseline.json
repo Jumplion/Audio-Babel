@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-29T14:34:18Z",
+  "gitCommit": "a500312",
+  "platform": {
+    "os": "Linux",
+    "compiler": "GCC 13.3.0",
+    "buildType": "Release",
+    "archBits": 64
+  },
+  "benchmarks": [
+    {
+      "name": "Index Generation (1s audio)",
+      "category": "Index Operations",
+      "medianMs": 0.407321,
+      "minMs": 0.388861,
+      "maxMs": 0.730538,
+      "stddevMs": 0.034923,
+      "iterations": 1000,
+      "throughput": 108268417.292504,
+      "throughputUnit": "samples/sec"
+    },
+    {
+      "name": "Index Generation (30s audio)",
+      "category": "Index Operations",
+      "medianMs": 15.646099,
+      "minMs": 15.380816,
+      "maxMs": 17.704298,
+      "stddevMs": 0.349711,
+      "iterations": 100,
+      "throughput": 84557818.533553,
+      "throughputUnit": "samples/sec"
+    },
+    {
+      "name": "Index Generation (120s audio)",
+      "category": "Index Operations",
+      "medianMs": 69.53776,
+      "minMs": 68.364179,
+      "maxMs": 82.324709,
+      "stddevMs": 3.990545,
+      "iterations": 10,
+      "throughput": 76102537.671619,
+      "throughputUnit": "samples/sec"
+    },
+    {
+      "name": "Index Generation (240s audio)",
+      "category": "Index Operations",
+      "medianMs": 141.786551,
+      "minMs": 138.345006,
+      "maxMs": 148.618678,
+      "stddevMs": 3.683213,
+      "iterations": 5,
+      "throughput": 74647418.428282,
+      "throughputUnit": "samples/sec"
+    },
+    {
+      "name": "Index Generation (480s audio)",
+      "category": "Index Operations",
+      "medianMs": 296.276845,
+      "minMs": 295.912293,
+      "maxMs": 296.276845,
+      "stddevMs": 0.182276,
+      "iterations": 2,
+      "throughput": 71446690.341258,
+      "throughputUnit": "samples/sec"
+    },
+    {
+      "name": "Index Generation (600s audio)",
+      "category": "Index Operations",
+      "medianMs": 373.904696,
+      "minMs": 373.904696,
+      "maxMs": 373.904696,
+      "stddevMs": 0,
+      "iterations": 1,
+      "throughput": 70766696.120875,
+      "throughputUnit": "samples/sec"
+    },
+    {
+      "name": "Index Serialization",
+      "category": "Index Operations",
+      "medianMs": 10.28681,
+      "minMs": 9.660176,
+      "maxMs": 12.059651,
+      "stddevMs": 0.665054,
+      "iterations": 10,
+      "throughput": 9721.186646,
+      "throughputUnit": "KB/sec"
+    },
+    {
+      "name": "Position Calculation (small)",
+      "category": "LibraryPosition Operations",
+      "medianMs": 0.000196,
+      "minMs": 0.000192,
+      "maxMs": 0.000244,
+      "stddevMs": 0.000015,
+      "iterations": 10,
+      "throughput": 5102040.816327,
+      "throughputUnit": "calcs/sec"
+    },
+    {
+      "name": "Position Calculation (large)",
+      "category": "LibraryPosition Operations",
+      "medianMs": 0.000493,
+      "minMs": 0.000453,
+      "maxMs": 0.000567,
+      "stddevMs": 0.000033,
+      "iterations": 10,
+      "throughput": 2028397.565923,
+      "throughputUnit": "calcs/sec"
+    },
+    {
+      "name": "Index Reconstruction",
+      "category": "LibraryPosition Operations",
+      "medianMs": 0.000523,
+      "minMs": 0.000508,
+      "maxMs": 0.000631,
+      "stddevMs": 0.000034,
+      "iterations": 10,
+      "throughput": 1912045.889101,
+      "throughputUnit": "recons/sec"
+    },
+    {
+      "name": "Batch Position Calc (10,000 indexes)",
+      "category": "LibraryPosition Operations",
+      "medianMs": 1.709151,
+      "minMs": 1.675348,
+      "maxMs": 1.76545,
+      "stddevMs": 0.021699,
+      "iterations": 10,
+      "throughput": 5850858.116106,
+      "throughputUnit": "positions/sec"
+    },
+    {
+      "name": "Metadata Extraction (small)",
+      "category": "IndexMetadata Operations",
+      "medianMs": 9.279145,
+      "minMs": 9.000892,
+      "maxMs": 11.203756,
+      "stddevMs": 0.611893,
+      "iterations": 10,
+      "throughput": 107.76855,
+      "throughputUnit": "extractions/sec"
+    },
+    {
+      "name": "Metadata Extraction (large)",
+      "category": "IndexMetadata Operations",
+      "medianMs": 1081.926179,
+      "minMs": 1076.787128,
+      "maxMs": 1081.926179,
+      "stddevMs": 2.569526,
+      "iterations": 2,
+      "throughput": 12.439157,
+      "throughputUnit": "MB/sec"
+    },
+    {
+      "name": "SVG Cover Generation",
+      "category": "IndexMetadata Operations",
+      "medianMs": 9.011522,
+      "minMs": 8.854147,
+      "maxMs": 10.795638,
+      "stddevMs": 0.233801,
+      "iterations": 1000,
+      "throughput": 110.969046,
+      "throughputUnit": "SVGs/sec"
+    },
+    {
+      "name": "Index Roundtrip Verification",
+      "category": "End-to-End Integration",
+      "medianMs": 0.000387,
+      "minMs": 0.000375,
+      "maxMs": 0.028115,
+      "stddevMs": 0.000555,
+      "iterations": 10000,
+      "throughput": 2583979.328165,
+      "throughputUnit": "roundtrips/sec"
+    },
+    {
+      "name": "Scramble Round Trip (small)",
+      "category": "IndexScramble Operations",
+      "medianMs": 0.135536,
+      "minMs": 0.134601,
+      "maxMs": 0.169637,
+      "stddevMs": 0.009763,
+      "iterations": 100,
+      "throughput": 7378.113564,
+      "throughputUnit": "scrambles/sec"
+    },
+    {
+      "name": "Scramble Round Trip (large)",
+      "category": "IndexScramble Operations",
+      "medianMs": 184.492096,
+      "minMs": 183.604726,
+      "maxMs": 192.345267,
+      "stddevMs": 2.425422,
+      "iterations": 10,
+      "throughput": 5.420286,
+      "throughputUnit": "scrambles/sec"
+    },
+    {
+      "name": "Scramble Only (large)",
+      "category": "IndexScramble Operations",
+      "medianMs": 92.292606,
+      "minMs": 91.443364,
+      "maxMs": 94.449544,
+      "stddevMs": 0.770065,
+      "iterations": 10,
+      "throughput": 10.835104,
+      "throughputUnit": "scrambles/sec"
+    },
+    {
+      "name": "Unscramble Only (large)",
+      "category": "IndexScramble Operations",
+      "medianMs": 92.911421,
+      "minMs": 91.732596,
+      "maxMs": 94.433536,
+      "stddevMs": 0.77643,
+      "iterations": 10,
+      "throughput": 10.762939,
+      "throughputUnit": "scrambles/sec"
+    },
+    {
+      "name": "Base64 Round Trip (small)",
+      "category": "Utilities Operations",
+      "medianMs": 0.000233,
+      "minMs": 0.000221,
+      "maxMs": 0.000608,
+      "stddevMs": 0.000016,
+      "iterations": 1000,
+      "throughput": 4291845.493562,
+      "throughputUnit": "roundtrips/sec"
+    },
+    {
+      "name": "Base64 Round Trip (large)",
+      "category": "Utilities Operations",
+      "medianMs": 66.34104,
+      "minMs": 65.887442,
+      "maxMs": 67.083434,
+      "stddevMs": 0.287756,
+      "iterations": 10,
+      "throughput": 15.073626,
+      "throughputUnit": "roundtrips/sec"
+    },
+    {
+      "name": "Base64 Encode Only (large)",
+      "category": "Utilities Operations",
+      "medianMs": 33.062999,
+      "minMs": 32.606803,
+      "maxMs": 34.863539,
+      "stddevMs": 0.633854,
+      "iterations": 10,
+      "throughput": 106705323.373721,
+      "throughputUnit": "chars/sec"
+    },
+    {
+      "name": "Base64 Decode Only (large)",
+      "category": "Utilities Operations",
+      "medianMs": 32.933776,
+      "minMs": 32.700622,
+      "maxMs": 33.183172,
+      "stddevMs": 0.12804,
+      "iterations": 10,
+      "throughput": 107124005.458712,
+      "throughputUnit": "chars/sec"
+    },
+    {
+      "name": "WAV Write (5s audio)",
+      "category": "FileIO Operations",
+      "medianMs": 0.261862,
+      "minMs": 0.222178,
+      "maxMs": 0.5477,
+      "stddevMs": 0.06803,
+      "iterations": 20,
+      "throughput": 1606.076382,
+      "throughputUnit": "MB/sec"
+    },
+    {
+      "name": "WAV Read (5s audio)",
+      "category": "FileIO Operations",
+      "medianMs": 0.022149,
+      "minMs": 0.02192,
+      "maxMs": 0.0328,
+      "stddevMs": 0.002333,
+      "iterations": 20,
+      "throughput": 18988.233037,
+      "throughputUnit": "MB/sec"
+    }
+  ],
+  "tolerancePercent": 20
+}

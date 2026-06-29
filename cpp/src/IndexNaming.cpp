@@ -1,5 +1,6 @@
 #include "../include/IndexNaming.h"
 
+#include <algorithm>
 #include <array>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <cstdint>
@@ -57,6 +58,40 @@ namespace {
             return NameSpace{d, full, e};
         }();
         return ns;
+    }
+
+    // Reduce a (possibly multi-megabyte) non-negative index modulo the fixed
+    // name-space size `full` (~384 bits) in O(N) time.
+    //
+    // The obvious `idx % full` is a hot O(N^2) trap: boost's cpp_int division
+    // forms the full ~N-bit quotient even though we only want the residue, so a
+    // 30s upload spent ~33s here and a 60s upload ~4 minutes — the metadata path
+    // runs this on every decode/getMetadata over the whole index. We never need
+    // the quotient, so fold the index into the remainder in fixed-width chunks
+    // (Horner's rule in base 2^CHUNK_BITS): each step reduces a value only a
+    // little wider than `full`, so the per-chunk work is O(1) and the whole
+    // reduction is O(N). The result is bit-identical to `idx % full`.
+    auto reduceModFull(const cpp_int& idx, const cpp_int& full) -> cpp_int {
+        if (idx < full) {
+            return idx;
+        }
+        // Most-significant-byte-first bytes of the index (one linear pass).
+        std::vector<uint8_t> bytes;
+        mp::export_bits(idx, std::back_inserter(bytes), 8, true);
+
+        constexpr size_t CHUNK_BYTES = 32; // 256-bit folding step (comfortably < full's width)
+        cpp_int          rem         = 0;
+        const size_t     n           = bytes.size();
+        for (size_t i = 0; i < n;) {
+            const size_t take  = std::min(CHUNK_BYTES, n - i);
+            cpp_int      chunk = 0;
+            for (size_t k = 0; k < take; ++k) {
+                chunk = (chunk << 8) | cpp_int(bytes[i + k]);
+            }
+            rem = ((rem << (take * 8)) + chunk) % full;
+            i += take;
+        }
+        return rem;
     }
 
     // Sample a cpp_int uniformly in [0, d) using enough random bits to keep
@@ -173,7 +208,7 @@ auto nameMaxChars() -> size_t {
 
 auto namesForIndex(const cpp_int& index) -> Names {
     cpp_int idx = index < 0 ? cpp_int(0) : index;
-    cpp_int m   = idx % nameSpace().full; // name material (low part)
+    cpp_int m   = reduceModFull(idx, nameSpace().full); // name material (low part), O(N) reduction
     cpp_int s   = permuteEncode(m);
 
     std::array<cpp_int, 4> f = splitFields(s);

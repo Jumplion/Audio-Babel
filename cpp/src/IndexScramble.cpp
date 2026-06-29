@@ -4,67 +4,54 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <iterator>
-#include <vector>
 
 #include "Constants.h"
 #include "Utilities.h"
 
 namespace AudioBabel::IndexScramble {
 
-namespace mp = boost::multiprecision;
-
 namespace {
 
-    // bandIndex()/repunit() (length recovery and the base-B repunit),
-    // mixIn()/splitmix64() (the avalanche bit mixer), and the big-integer Feistel
-    // primitives (feistelPow2 and friends) are shared with Index's payload
-    // bijection and IndexNaming's cosmetic name generation — see Utilities.h.
+    // bandIndex()/repunit() (length recovery and the base-B repunit), splitmix64()
+    // (the avalanche bit mixer used to derive round keys), and the big-integer
+    // Feistel primitive feistelPow2() are shared with Index's payload bijection and
+    // IndexNaming's cosmetic name generation — see Utilities.h.
     using AudioBabel::Utilities::bandIndex;
     using AudioBabel::Utilities::feistelPow2;
-    using AudioBabel::Utilities::mixIn;
     using AudioBabel::Utilities::repunit;
     using AudioBabel::Utilities::splitmix64;
 
-    // contentScramble: length-preserving XOR-stream permutation within the index's
-    // band. Each band has exactly B^L = 2^(16L) elements, so XOR is a valid
-    // bijection. The keystream is derived from (seed, L) via splitmix64 in counter
-    // mode (one step per 8 bytes). XOR is self-inverse, so scramble and unscramble
-    // call the same function.
-    auto contentScramble(const cpp_int& index, uint64_t seed) -> cpp_int {
+    // Per-round key for the per-band content Feistel, derived from (seed, band L,
+    // round). Distinct mixing constants keep these keys disjoint from the
+    // power-of-two sub-Feistel keys (subRoundKey) used by lengthSpread.
+    auto contentRoundKey(uint64_t seed, size_t L, int round) -> uint64_t {
+        uint64_t state = seed ^ (0x9E3779B97F4A7C15ULL * (static_cast<uint64_t>(L) + 1)) ^ (0xD1B54A32D192ED03ULL * (static_cast<uint64_t>(round) + 1));
+        return splitmix64(state);
+    }
+
+    // contentScramble: length-preserving DIFFUSING permutation within the index's
+    // band. Each band has exactly B^L = 2^(16L) elements, so a balanced Feistel
+    // over the 16L-bit in-band value is a bijection (16L is always even). Unlike a
+    // plain XOR mask — which is affine and so leaves x and x+1 differing only in
+    // their low bits — the Feistel scatters neighbours: two payloads that differ
+    // only in their last sample land far apart, with different sample values
+    // throughout. Inverted by running the Feistel rounds in reverse (encrypt=false).
+    auto contentScramble(const cpp_int& index, uint64_t seed, bool encrypt) -> cpp_int {
         if (index <= 0) {
             return cpp_int(0);
         }
-        size_t  L = bandIndex(index);
-        cpp_int S = repunit(L);
-        cpp_int y = index - S; // in [0, 2^(16L))
-
-        std::vector<uint8_t> raw;
-        mp::export_bits(y, std::back_inserter(raw), BITS_PER_BYTE, true);
-
-        std::vector<uint8_t> bytes(2 * L, 0);
-        if (raw.size() <= bytes.size()) {
-            std::copy(raw.begin(), raw.end(), bytes.end() - static_cast<std::ptrdiff_t>(raw.size()));
-        }
-
-        uint64_t state = seed ^ (0x9E3779B97F4A7C15ULL * (static_cast<uint64_t>(L) + 1));
-        for (size_t i = 0; i < bytes.size(); i += 8) {
-            uint64_t ks    = splitmix64(state);
-            size_t   chunk = std::min(static_cast<size_t>(8), bytes.size() - i);
-            for (size_t j = 0; j < chunk; ++j) {
-                bytes[i + j] ^= static_cast<uint8_t>(ks >> (j * 8));
-            }
-        }
-
-        cpp_int result = 0;
-        mp::import_bits(result, bytes.begin(), bytes.end(), BITS_PER_BYTE, true);
-        return S + result;
+        size_t  L  = bandIndex(index);
+        cpp_int S  = repunit(L);
+        cpp_int y  = index - S; // in [0, 2^(16L))
+        cpp_int yp = feistelPow2(
+            y, L * DEFAULT_BIT_DEPTH, [&](int round) { return contentRoundKey(seed, L, round); }, encrypt);
+        return S + yp;
     }
 
     // --- Power-of-two Feistel (used to pick sample values within a target band) -
 
     // Per-round key for the power-of-two Feistel. Distinct mixing constants keep
-    // these keys disjoint from the per-band roundKey() used by contentScramble.
+    // these keys disjoint from the per-band contentRoundKey() used by contentScramble.
     auto subRoundKey(uint64_t seed, uint64_t subkey, int round) -> uint64_t {
         uint64_t state = seed ^ (0xD6E8FEB86659FD93ULL * (subkey + 1)) ^ (0xA0761D6478BD642FULL * (static_cast<uint64_t>(round) + 1));
         return splitmix64(state);
@@ -202,7 +189,7 @@ auto scramble(const cpp_int& index, uint64_t seed) -> cpp_int {
     if (index <= 0) {
         return cpp_int(0); // 0 (and only 0) is the empty payload; keep it fixed
     }
-    cpp_int content = contentScramble(index, seed);
+    cpp_int content = contentScramble(index, seed, /*encrypt=*/true);
     return lengthSpread(content, seed);
 }
 
@@ -210,8 +197,9 @@ auto unscramble(const cpp_int& index, uint64_t seed) -> cpp_int {
     if (index <= 0) {
         return cpp_int(0);
     }
+    // Undo in reverse: lengthSpread is an involution, then invert the content scramble.
     cpp_int content = lengthSpread(index, seed);
-    return contentScramble(content, seed);
+    return contentScramble(content, seed, /*encrypt=*/false);
 }
 
 auto config() -> Config& {

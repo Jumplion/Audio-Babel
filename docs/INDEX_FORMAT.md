@@ -173,6 +173,18 @@ both directions are O(band width). This scatters neighbours: two payloads that
 differ only in their last sample now have unrelated sample values throughout. It
 does **not** change the band, so by itself it preserves decoded length.
 
+> **Why a Feistel and not a simpler XOR mask?** A band is exactly a power of two
+> in size, so XOR with a per-band keystream is also a length-preserving, self-
+> inverse bijection — tempting because one code path serves both directions. But
+> XOR is *affine*: `scramble(x) XOR scramble(x+1) == x XOR (x+1)`, so it preserves
+> the difference between neighbours instead of destroying it. Adjacent indices
+> then still differ only in their low bits and decode to near-identical audio —
+> the exact "neighbouring positions sound the same" problem this step exists to
+> fix (it resurfaced in Browse, where large-room indices bypass the length spread
+> and content scramble is the only transform). A Feistel diffuses every input bit
+> across the output, so neighbours map to unrelated values; the only price is an
+> explicit reverse direction, which the round-reversal already provides.
+
 ### Length spread (diversifies short-index duration)
 
 A `B = 65536` bijective-numeration index puts almost all small integers in tiny

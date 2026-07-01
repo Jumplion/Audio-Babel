@@ -52,19 +52,25 @@ static std::string encode_b64_url(const std::vector<uint8_t>& bytes) {
 
 static std::vector<uint8_t> decode_b64_standard(const std::string& s) {
     auto valueOf = [](char c) -> int {
-        if (c >= 'A' && c <= 'Z') return c - 'A';
-        if (c >= 'a' && c <= 'z') return c - 'a' + 26;
-        if (c >= '0' && c <= '9') return c - '0' + 52;
-        if (c == '+') return 62;
-        if (c == '/') return 63;
+        if (c >= 'A' && c <= 'Z')
+            return c - 'A';
+        if (c >= 'a' && c <= 'z')
+            return c - 'a' + 26;
+        if (c >= '0' && c <= '9')
+            return c - '0' + 52;
+        if (c == '+')
+            return 62;
+        if (c == '/')
+            return 63;
         return -1; // padding ('=') or terminator
     };
     std::vector<uint8_t> out;
     uint32_t             acc  = 0;
-    int                   bits = 0;
+    int                  bits = 0;
     for (char c : s) {
         int v = valueOf(c);
-        if (v < 0) break;
+        if (v < 0)
+            break;
         acc = (acc << 6) | static_cast<uint32_t>(v);
         bits += 6;
         if (bits >= 8) {
@@ -93,9 +99,9 @@ static uint32_t read_le32_at(const std::vector<uint8_t>& b, size_t off) {
 }
 
 struct DecodedBmp {
-    unsigned              width;
-    unsigned              height;
-    std::vector<uint8_t>  rgbTopDown; // row-major, top-down, RGB per pixel
+    unsigned             width;
+    unsigned             height;
+    std::vector<uint8_t> rgbTopDown; // row-major, top-down, RGB per pixel
 };
 
 static DecodedBmp decode_bmp24(const std::vector<uint8_t>& bmp) {
@@ -123,8 +129,8 @@ static DecodedBmp decode_bmp24(const std::vector<uint8_t>& bmp) {
         unsigned srcRow   = height - 1 - row;
         size_t   rowStart = pixelOffset + static_cast<size_t>(srcRow) * rowPadded;
         for (unsigned col = 0; col < width; ++col) {
-            size_t srcPx = rowStart + static_cast<size_t>(col) * 3;
-            size_t dstPx = (static_cast<size_t>(row) * width + col) * 3;
+            size_t srcPx                 = rowStart + static_cast<size_t>(col) * 3;
+            size_t dstPx                 = (static_cast<size_t>(row) * width + col) * 3;
             result.rgbTopDown[dstPx + 0] = bmp[srcPx + 2]; // R (BMP stores B, G, R)
             result.rgbTopDown[dstPx + 1] = bmp[srcPx + 1]; // G
             result.rgbTopDown[dstPx + 2] = bmp[srcPx + 0]; // B
@@ -313,9 +319,9 @@ TEST_CASE("IndexMetadata: generateSvgCover honors cellSize", "[metadata][svg][co
 
 TEST_CASE("IndexMetadata: extractMetadataFromIndex covers render at DEFAULT_CELL_SIZE resolution", "[metadata][svg][cover]") {
     cpp_int idx  = cpp_int("123456789012345678901234567890");
-    auto     meta = IndexMetadata::extractMetadataFromIndex(idx);
+    auto    meta = IndexMetadata::extractMetadataFromIndex(idx);
 
-    DecodedBmp decoded = decode_cover_bitmap(meta.cover);
+    DecodedBmp decoded      = decode_cover_bitmap(meta.cover);
     unsigned   expectedSide = 256 / IndexMetadata::DEFAULT_CELL_SIZE;
     REQUIRE(decoded.width == expectedSide);
     REQUIRE(decoded.height == expectedSide);

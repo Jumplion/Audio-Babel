@@ -552,7 +552,15 @@ void runCoverGridSizeBenchmarks(BenchmarkRunner& runner) {
         int      iterations;
     };
     std::vector<CellCase> cellCases = {
-        {1, 20}, {2, 80}, {4, 300}, {8, 1000}, {16, 2000}, {32, 3000}, {64, 5000}, {128, 5000}, {256, 5000},
+        {1, 20},
+        {2, 80},
+        {4, 300},
+        {8, 1000},
+        {16, 2000},
+        {32, 3000},
+        {64, 5000},
+        {128, 5000},
+        {256, 5000},
     };
 
     std::cout << "\nPixel bytes vs. SVG output size, by mosaic cell (tile) size:\n";
@@ -560,19 +568,18 @@ void runCoverGridSizeBenchmarks(BenchmarkRunner& runner) {
               << std::setw(14) << "SVG bytes" << std::setw(18) << "Bytes/tile (SVG)" << '\n';
 
     for (const auto& cc : cellCases) {
-        size_t       pixelBytes  = IndexMetadata::pixelBytesNeeded(cc.cellSize);
-        auto         sampleBytes = generateRandomBytes(pixelBytes);
-        std::string  svg         = IndexMetadata::generateSvgCover(sampleBytes, "t", cc.cellSize);
-        size_t       cellsPerSide = 256 / cc.cellSize;
-        size_t       tiles        = cellsPerSide * cellsPerSide;
+        size_t      pixelBytes   = IndexMetadata::pixelBytesNeeded(cc.cellSize);
+        auto        sampleBytes  = generateRandomBytes(pixelBytes);
+        std::string svg          = IndexMetadata::generateSvgCover(sampleBytes, "t", cc.cellSize);
+        size_t      cellsPerSide = 256 / cc.cellSize;
+        size_t      tiles        = cellsPerSide * cellsPerSide;
 
-        std::cout << std::left << std::setw(12) << (std::to_string(cc.cellSize) + "x" + std::to_string(cc.cellSize)) << std::right
-                  << std::setw(10) << tiles << std::setw(14) << pixelBytes << std::setw(14) << svg.size() << std::setw(18) << std::fixed
-                  << std::setprecision(1) << (static_cast<double>(svg.size()) / static_cast<double>(tiles)) << '\n';
+        std::cout << std::left << std::setw(12) << (std::to_string(cc.cellSize) + "x" + std::to_string(cc.cellSize)) << std::right << std::setw(10)
+                  << tiles << std::setw(14) << pixelBytes << std::setw(14) << svg.size() << std::setw(18) << std::fixed << std::setprecision(1)
+                  << (static_cast<double>(svg.size()) / static_cast<double>(tiles)) << '\n';
 
         runner.runBenchmark(
-            "Cover Generation (cell " + std::to_string(cc.cellSize) + "x" + std::to_string(cc.cellSize) + ", " + std::to_string(tiles) +
-                " tiles)",
+            "Cover Generation (cell " + std::to_string(cc.cellSize) + "x" + std::to_string(cc.cellSize) + ", " + std::to_string(tiles) + " tiles)",
             category,
             cc.iterations,
             [&sampleBytes, &cc]() {

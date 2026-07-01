@@ -87,7 +87,7 @@ TEST_CASE("Bijection: randomized round-trips (payload bytes and base64 strings)"
     }
 
     SECTION("Random alphabet strings round-trip through indexToB64/b64ToIndex") {
-        static const std::string ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+        using Utilities::BASE64_URL_ALPHA;
 
         std::mt19937                       rng(987654321);
         std::uniform_int_distribution<int> lenDist(0, 40);
@@ -98,7 +98,7 @@ TEST_CASE("Bijection: randomized round-trips (payload bytes and base64 strings)"
             std::string original;
             original.reserve(len);
             for (int i = 0; i < len; ++i) {
-                original.push_back(ALPHA[chrDist(rng)]);
+                original.push_back(BASE64_URL_ALPHA[chrDist(rng)]);
             }
 
             // Every alphabet-valid string decodes without throwing.
@@ -141,30 +141,6 @@ TEST_CASE("Bijection: integer -> string -> integer", "[bijection][string]") {
         cpp_int     back = Utilities::b64ToIndex(s);
         INFO("n=" << n << " s='" << s << "'");
         REQUIRE(back == n);
-    }
-}
-
-TEST_CASE("Bijection: random alphabet strings -> integer -> string", "[bijection][string][random]") {
-    static const std::string ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
-    std::mt19937                       rng(987654321);
-    std::uniform_int_distribution<int> lenDist(0, 40);
-    std::uniform_int_distribution<int> chrDist(0, 63);
-
-    for (int trial = 0; trial < 500; ++trial) {
-        int         len = lenDist(rng);
-        std::string original;
-        original.reserve(len);
-        for (int i = 0; i < len; ++i) {
-            original.push_back(ALPHA[chrDist(rng)]);
-        }
-
-        // Every alphabet-valid string decodes without throwing.
-        cpp_int     n = Utilities::b64ToIndex(original);
-        std::string s = Utilities::indexToB64(n);
-
-        INFO("trial=" << trial << " original='" << original << "'");
-        REQUIRE(s == original);
     }
 }
 

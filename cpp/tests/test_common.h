@@ -111,6 +111,21 @@ inline auto makePayload(const std::vector<uint16_t>& samples) -> std::vector<uin
 }
 
 /**
+ * @brief Check that every character in `s` belongs to the URL-safe base64
+ *        alphabet (A-Z, a-z, 0-9, -, _). Hand-rolled independently of
+ *        Utilities::isValidBase64Url so tests cross-check the production
+ *        function rather than assert against itself.
+ */
+inline auto valid_b64_chars(const std::string& s) -> bool {
+    for (char c : s) {
+        if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' && c != '_') {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
  * @brief Build a FileIO::AudioData from signed integer samples (mono, test-only helper).
  *
  * Packs each int32 sample into bitDepth/8 little-endian bytes. Production code has

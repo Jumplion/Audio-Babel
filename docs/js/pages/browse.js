@@ -1,9 +1,10 @@
 // browse.js - Hierarchical navigation through the Record Shop library
 import { getWasmModule } from '../core/wasmModule.js';
+import { isWasmError } from '../core/indexWasm.js';
 import { buildResultForIndex } from '../utils/resultBuilder.js';
 import { indexToBase64 } from '../utils/base64.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
-import { handleJsonResponse, cleanupResultHandler } from '../core/resultDisplay.js?v=4';
+import { handleJsonResponse, cleanupResultHandler } from '../core/resultDisplay.js?v=5';
 import { filterToBase64UrlChars } from '../utils/validationUtils.js';
 import { consumeFindInLibraryTarget } from '../utils/findInLibrary.js';
 
@@ -667,7 +668,7 @@ function buildAlbumStandInIndex(wasm, albumNum) {
     pos.album,
     pos.track
   );
-  if (typeof result === 'string' && result.startsWith('{')) {
+  if (isWasmError(result)) {
     const err = JSON.parse(result);
     throw new Error(err.error || 'Failed to build stand-in index for album cover');
   }
@@ -806,7 +807,7 @@ async function generateAndDisplayTrack() {
       throw new Error('Failed to reconstruct position index');
     }
     // On failure, reconstructIndex returns a JSON error object: {"error":"..."}
-    if (base64Index.startsWith('{')) {
+    if (isWasmError(base64Index)) {
       const errResult = JSON.parse(base64Index);
       throw new Error(errResult.error || 'Failed to reconstruct position index');
     }

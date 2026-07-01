@@ -172,6 +172,12 @@
   gap: 8px;
 }
 
+.similar-tracks-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* WaveSurfer.js waveform visualization container */
 #waveformContainer {
   margin-top: 8px;

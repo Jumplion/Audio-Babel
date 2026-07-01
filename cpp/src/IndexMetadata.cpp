@@ -35,7 +35,7 @@ namespace {
 } // namespace
 
 auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_int& index) -> IndexMetadata {
-    std::vector<uint8_t> bytes = topBytesMsb(index, pixelBytesNeeded(DEFAULT_GRID_SIZE));
+    std::vector<uint8_t> bytes = topBytesMsb(index, pixelBytesNeeded(DEFAULT_CELL_SIZE));
 
     LibraryPosition position = calculateLibraryPosition(index);
     return buildMetadataFromBytesAndPosition(bytes, position, IndexNaming::namesForIndex(index));
@@ -50,7 +50,7 @@ auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> 
 
     boost::multiprecision::cpp_int index = ::AudioBabel::Utilities::b64ToIndex(base64Index);
 
-    std::vector<uint8_t> bytes = topBytesMsb(index, pixelBytesNeeded(DEFAULT_GRID_SIZE));
+    std::vector<uint8_t> bytes = topBytesMsb(index, pixelBytesNeeded(DEFAULT_CELL_SIZE));
 
     LibraryPosition position = calculateLibraryPosition(index);
     return buildMetadataFromBytesAndPosition(bytes, position, IndexNaming::namesForIndex(index));
@@ -73,10 +73,6 @@ auto IndexMetadata::buildMetadataFromBytesAndPosition(const std::vector<uint8_t>
 
 namespace {
 
-    // The 256x256 canvas is subdivided into gridSize x gridSize square cells,
-    // each individually colored — a pixel mosaic instead of a flat fill.
-    constexpr unsigned CANVAS_SIZE = 256;
-
     auto appendHexByte(std::string& svg, uint8_t v) -> void {
         const char* hex = "0123456789abcdef";
         svg.push_back(hex[(v >> 4) & 0xF]);
@@ -94,18 +90,18 @@ namespace {
 
 } // namespace
 
-auto IndexMetadata::generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track, unsigned gridSize) -> std::string {
-    // Each cell reads its (R, G, B) straight off the next three bytes of
+auto IndexMetadata::generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track, unsigned cellSize) -> std::string {
+    // Each tile reads its (R, G, B) straight off the next three bytes of
     // `bytes` — a direct, bijective byte-to-pixel dump, not a PRNG stream.
     // The same index always renders the same cover (still deterministic),
     // but now the mapping is invertible: packing a target image's quantized
     // bytes at this same offset makes an index decode to that exact cover.
-    unsigned cellSize = gridSize > 0 ? CANVAS_SIZE / gridSize : CANVAS_SIZE;
+    unsigned cellsPerSide = cellSize > 0 ? CANVAS_SIZE / cellSize : 1;
 
     std::string svg = "<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'>";
     size_t      cursor = 0;
-    for (unsigned row = 0; row < gridSize; ++row) {
-        for (unsigned col = 0; col < gridSize; ++col) {
+    for (unsigned row = 0; row < cellsPerSide; ++row) {
+        for (unsigned col = 0; col < cellsPerSide; ++col) {
             uint8_t r = nextByteOrZero(bytes, cursor);
             uint8_t g = nextByteOrZero(bytes, cursor);
             uint8_t b = nextByteOrZero(bytes, cursor);

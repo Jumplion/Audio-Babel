@@ -539,44 +539,49 @@ void runIndexMetadataBenchmarks(BenchmarkRunner& runner) {
 }
 
 void runCoverGridSizeBenchmarks(BenchmarkRunner& runner) {
-    const std::string category = "Cover Mosaic Grid Size";
+    const std::string category = "Cover Mosaic Cell Size";
 
-    // Square grid sizes from a single flat-color cell up to one cell per
-    // pixel of the 256x256 canvas. Iteration counts taper off as gridSize^2
-    // (and thus per-call cost) grows, so every size still finishes quickly.
-    struct GridCase {
-        unsigned gridSize;
+    // cellSize is the pixel side length of one mosaic tile within the fixed
+    // 256x256 canvas -- NOT the tile count. cellSize=1 means one tile per
+    // canvas pixel (a full 256x256 bitmap, 65536 tiles); cellSize=256 means a
+    // single tile covering the whole canvas (a flat fill, 1 tile). Iteration
+    // counts scale inversely with tile count (256/cellSize)^2 so every case
+    // still finishes quickly.
+    struct CellCase {
+        unsigned cellSize;
         int      iterations;
     };
-    std::vector<GridCase> gridCases = {
-        {1, 5000}, {2, 5000}, {4, 5000}, {8, 3000}, {16, 2000}, {32, 1000}, {64, 300}, {128, 80}, {256, 20},
+    std::vector<CellCase> cellCases = {
+        {1, 20}, {2, 80}, {4, 300}, {8, 1000}, {16, 2000}, {32, 3000}, {64, 5000}, {128, 5000}, {256, 5000},
     };
 
-    std::cout << "\nPixel bytes vs. SVG output size, by grid size:\n";
-    std::cout << std::left << std::setw(10) << "Grid" << std::right << std::setw(14) << "Pixel bytes" << std::setw(14) << "SVG bytes"
-              << std::setw(18) << "Bytes/cell (SVG)" << '\n';
+    std::cout << "\nPixel bytes vs. SVG output size, by mosaic cell (tile) size:\n";
+    std::cout << std::left << std::setw(12) << "Cell size" << std::right << std::setw(10) << "Tiles" << std::setw(14) << "Pixel bytes"
+              << std::setw(14) << "SVG bytes" << std::setw(18) << "Bytes/tile (SVG)" << '\n';
 
-    for (const auto& gc : gridCases) {
-        size_t pixelBytes = IndexMetadata::pixelBytesNeeded(gc.gridSize);
-        auto   sampleBytes = generateRandomBytes(pixelBytes);
-        std::string svg     = IndexMetadata::generateSvgCover(sampleBytes, "t", gc.gridSize);
-        size_t      cells   = static_cast<size_t>(gc.gridSize) * gc.gridSize;
+    for (const auto& cc : cellCases) {
+        size_t       pixelBytes  = IndexMetadata::pixelBytesNeeded(cc.cellSize);
+        auto         sampleBytes = generateRandomBytes(pixelBytes);
+        std::string  svg         = IndexMetadata::generateSvgCover(sampleBytes, "t", cc.cellSize);
+        size_t       cellsPerSide = 256 / cc.cellSize;
+        size_t       tiles        = cellsPerSide * cellsPerSide;
 
-        std::cout << std::left << std::setw(10) << (std::to_string(gc.gridSize) + "x" + std::to_string(gc.gridSize)) << std::right
-                  << std::setw(14) << pixelBytes << std::setw(14) << svg.size() << std::setw(18) << std::fixed << std::setprecision(1)
-                  << (static_cast<double>(svg.size()) / static_cast<double>(cells)) << '\n';
+        std::cout << std::left << std::setw(12) << (std::to_string(cc.cellSize) + "x" + std::to_string(cc.cellSize)) << std::right
+                  << std::setw(10) << tiles << std::setw(14) << pixelBytes << std::setw(14) << svg.size() << std::setw(18) << std::fixed
+                  << std::setprecision(1) << (static_cast<double>(svg.size()) / static_cast<double>(tiles)) << '\n';
 
         runner.runBenchmark(
-            "Cover Generation (" + std::to_string(gc.gridSize) + "x" + std::to_string(gc.gridSize) + ")",
+            "Cover Generation (cell " + std::to_string(cc.cellSize) + "x" + std::to_string(cc.cellSize) + ", " + std::to_string(tiles) +
+                " tiles)",
             category,
-            gc.iterations,
-            [&sampleBytes, &gc]() {
-                auto svg = IndexMetadata::generateSvgCover(sampleBytes, "t", gc.gridSize);
+            cc.iterations,
+            [&sampleBytes, &cc]() {
+                auto svg = IndexMetadata::generateSvgCover(sampleBytes, "t", cc.cellSize);
                 (void) svg;
             },
-            [cells](double ms) -> std::pair<double, std::string> {
-                double cellsPerSec = static_cast<double>(cells) / (ms / 1000.0);
-                return {cellsPerSec, "cells/sec"};
+            [tiles](double ms) -> std::pair<double, std::string> {
+                double tilesPerSec = static_cast<double>(tiles) / (ms / 1000.0);
+                return {tilesPerSec, "tiles/sec"};
             });
     }
 }
@@ -785,7 +790,7 @@ int main() {
     std::cout << "\n[3/8] Running IndexMetadata benchmarks...\n";
     runIndexMetadataBenchmarks(runner);
 
-    std::cout << "\n[4/8] Running Cover mosaic grid-size benchmarks...\n";
+    std::cout << "\n[4/8] Running Cover mosaic cell-size benchmarks...\n";
     runCoverGridSizeBenchmarks(runner);
 
     std::cout << "\n[5/8] Running Integration benchmarks...\n";

@@ -49,7 +49,7 @@ class IndexMetadata {
      * @return IndexMetadata structure with all fields populated
      *
      * @par Algorithm
-     * 1. Export index to bytes (MSB-first); the leading pixelBytesNeeded(DEFAULT_GRID_SIZE)
+     * 1. Export index to bytes (MSB-first); the leading pixelBytesNeeded(DEFAULT_CELL_SIZE)
      *    of them become the cover mosaic's pixels directly
      * 2. Compute LibraryPosition from the index (for the Browse hierarchy)
      * 3. Derive genre/artist/album/track from the index via IndexNaming::namesForIndex
@@ -79,54 +79,65 @@ class IndexMetadata {
      */
     static auto extractMetadataFromIndex(const std::string& base64Index) -> IndexMetadata;
 
-    /// Cells per side of the production mosaic. 16x16 cells x 3 bytes/cell =
-    /// 768 bytes read directly off the top of every index.
-    static constexpr unsigned DEFAULT_GRID_SIZE = 16;
+    /// Side length, in canvas pixels, of one mosaic tile in the production
+    /// cover. The fixed 256x256 canvas (see generateSvgCover) is tiled with
+    /// (256 / DEFAULT_CELL_SIZE)^2 = 16x16 = 256 such tiles.
+    static constexpr unsigned DEFAULT_CELL_SIZE = 16;
 
-    /// Exact byte count a gridSize x gridSize mosaic reads (3 bytes/cell, no
-    /// padding) -- the size a caller must supply to `generateSvgCover` to
-    /// avoid any cell falling back to black.
-    static constexpr auto pixelBytesNeeded(unsigned gridSize) -> size_t {
-        return static_cast<size_t>(gridSize) * static_cast<size_t>(gridSize) * 3;
+    /// Exact byte count a mosaic of the given tile size reads (3 bytes/cell,
+    /// no padding) -- the size a caller must supply to `generateSvgCover` to
+    /// avoid any cell falling back to black. Smaller cellSize means more,
+    /// smaller tiles (finer image), so it needs *more* bytes: at cellSize=1
+    /// every one of the canvas's 256*256 pixels is its own tile.
+    static constexpr auto pixelBytesNeeded(unsigned cellSize) -> size_t {
+        size_t cellsPerSide = cellSize > 0 ? CANVAS_SIZE / cellSize : 1;
+        return cellsPerSide * cellsPerSide * 3;
     }
+
+    /// Side length, in pixels, of the square SVG canvas generateSvgCover draws.
+    static constexpr unsigned CANVAS_SIZE = 256;
 
     /**
      * @brief Generate an SVG album cover directly from index bytes.
      *
-     * Creates a 256×256 SVG image tiled with a gridSize×gridSize grid of
-     * individually colored cells (a pixel mosaic), plus centered white text
-     * over a translucent backdrop displaying the track identifier.
+     * Creates a 256×256 SVG image tiled with a mosaic of cellSize×cellSize
+     * pixel tiles, each individually colored, plus centered white text over
+     * a translucent backdrop displaying the track identifier.
      *
      * @param bytes Index bytes (MSB-first). Read three bytes at a time, in
-     *   order, as each cell's (R, G, B) -- a direct, literal dump of bytes
-     *   into pixels. A cell whose bytes run past the end of `bytes` renders
-     *   black (0, 0, 0) rather than throwing.
+     *   reading order (left-to-right, top-to-bottom), as each tile's (R, G, B)
+     *   -- a direct, literal dump of bytes into pixels. A tile whose bytes run
+     *   past the end of `bytes` renders black (0, 0, 0) rather than throwing.
      * @param track Track identifier string to display
-     * @param gridSize Cells per side of the mosaic (default DEFAULT_GRID_SIZE).
-     *   Exposed mainly so benchmarks/tests can sweep grid sizes; production
-     *   code should use the default.
+     * @param cellSize Side length, in canvas pixels, of one mosaic tile
+     *   (default DEFAULT_CELL_SIZE). Smaller values mean *more*, finer tiles
+     *   -- cellSize=1 is one tile per canvas pixel (a true bitmap); cellSize=256
+     *   is a single tile covering the whole canvas (a flat fill). Exposed
+     *   mainly so benchmarks/tests can sweep tile sizes; production code
+     *   should use the default.
      * @return SVG markup as a string
      *
      * @par Algorithm
-     * There is no hashing or PRNG step: cell (row, col), visited in reading
+     * There is no hashing or PRNG step: tile (row, col), visited in reading
      * order, takes the next three bytes off `bytes` as its red, green, and
      * blue channel, full stop. That makes the mapping from bytes to pixels
-     * bijective in both directions -- given a target image, quantize it to
-     * gridSize x gridSize 8-bit-RGB cells and write those bytes at the same
-     * offset an index's cover reads from, and decoding that index reproduces
-     * the image exactly. (The prior version seeded a splitmix64 PRNG stream
-     * from the bytes instead; PRNG output is one-way, so reproducing a target
-     * image would have meant searching a seed space profoundly smaller than
-     * the space of possible images -- not a search anyone could ever finish.)
+     * bijective in both directions -- given a target image, quantize it down
+     * to (256/cellSize) x (256/cellSize) 8-bit-RGB tiles and write those bytes
+     * at the same offset an index's cover reads from, and decoding that index
+     * reproduces the image exactly. (The prior version seeded a splitmix64
+     * PRNG stream from the bytes instead; PRNG output is one-way, so
+     * reproducing a target image would have meant searching a seed space
+     * profoundly smaller than the space of possible images -- not a search
+     * anyone could ever finish.)
      *
      * @par SVG Structure
      * - Viewbox: 0 0 256 256
-     * - Mosaic: gridSize*gridSize cells, each filled directly from three
-     *   bytes of `bytes`
+     * - Mosaic: (256/cellSize)^2 tiles, each filled directly from three bytes
+     *   of `bytes`
      * - Text: Track string centered in white, 20px font, over a translucent
      *   dark backdrop for legibility against arbitrary cell colors
      */
-    static auto generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track, unsigned gridSize = DEFAULT_GRID_SIZE)
+    static auto generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track, unsigned cellSize = DEFAULT_CELL_SIZE)
         -> std::string;
 
    private:

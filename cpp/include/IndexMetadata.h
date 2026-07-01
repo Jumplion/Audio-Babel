@@ -23,7 +23,7 @@ namespace AudioBabel {
  *   neighbouring indexes get wildly different names and any desired names can be
  *   inverted back into indexes that carry them. See IndexNaming for the
  *   algorithm.
- * - **Cover Art**: SVG image generated from index bytes
+ * - **Cover Art**: SVG pixel-mosaic image generated from index bytes
  * - **Position**: Hierarchical location (room, wall, shelf, track) in the library
  *
  * @see LibraryPosition for hierarchical position calculation
@@ -49,7 +49,7 @@ class IndexMetadata {
      * @return IndexMetadata structure with all fields populated
      *
      * @par Algorithm
-     * 1. Export index to bytes (MSB-first), for cover art color only
+     * 1. Export index to bytes (MSB-first), to seed the cover art mosaic only
      * 2. Compute LibraryPosition from the index (for the Browse hierarchy)
      * 3. Derive genre/artist/album/track from the index via IndexNaming::namesForIndex
      * 4. Generate SVG cover from the first bytes and the track name
@@ -80,21 +80,26 @@ class IndexMetadata {
 
     /**
      * @brief Generate an SVG album cover from index bytes.
-     * 
-     * Creates a 256×256 SVG image with a solid background color derived from
-     * the first three bytes of the index, and centered white text displaying
-     * the track identifier.
-     * 
-     * @param bytes Index bytes (MSB-first)
+     *
+     * Creates a 256×256 SVG image tiled with a 16×16 grid of individually
+     * colored 16×16 cells (a pixel mosaic), plus centered white text over a
+     * translucent backdrop displaying the track identifier.
+     *
+     * @param bytes Index bytes (MSB-first), used to seed the mosaic
      * @param track Track identifier string to display
      * @return SVG markup as a string
-     * 
+     *
      * @par SVG Structure
      * - Viewbox: 0 0 256 256
-     * - Background: Solid fill color from RGB(bytes[0], bytes[1], bytes[2])
-     * - Text: Track string centered in white, 20px font
-     * 
-     * @note If bytes contains fewer than 3 elements, missing bytes default to 0
+     * - Mosaic: 256 cells (16×16 grid), each filled with a color drawn from a
+     *   splitmix64 stream seeded by `bytes` (see Utilities::mixIn / splitmix64),
+     *   so the same bytes always produce the same mosaic
+     * - Text: Track string centered in white, 20px font, over a translucent
+     *   dark backdrop for legibility against arbitrary cell colors
+     *
+     * @note An empty `bytes` vector still yields a deterministic (non-zero
+     *       seeded) mosaic, since splitmix64's first step never leaves the
+     *       state at zero
      */
     static auto generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track) -> std::string;
 
@@ -106,7 +111,7 @@ class IndexMetadata {
      * IndexNaming::namesForIndex) into the result and generates the SVG cover
      * from `bytes` and the track name.
      *
-     * @param bytes Index bytes (MSB-first), used only for cover art color
+     * @param bytes Index bytes (MSB-first), used only to seed the cover art mosaic
      * @param position Already-computed LibraryPosition for this index
      * @param names Already-derived metadata names for this index
      * @return IndexMetadata with all fields populated

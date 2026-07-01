@@ -126,12 +126,32 @@ TEST_CASE("IndexMetadata: string-overload malformed input handling", "[metadata]
     REQUIRE_THROWS_AS(IndexMetadata::extractMetadataFromIndex(malformed), std::invalid_argument);
 }
 
-TEST_CASE("IndexMetadata: generateSvgCover color derivation", "[metadata][svg][cover]") {
+TEST_CASE("IndexMetadata: generateSvgCover renders a pixel mosaic", "[metadata][svg][cover]") {
     std::vector<uint8_t> bytes = {0x12, 0x34, 0x56, 0x78};
     std::string          svg   = IndexMetadata::generateSvgCover(bytes, "t");
 
-    // Color computed from first three bytes: 0x12 0x34 0x56 -> hex 123456
-    REQUIRE(svg.find("#123456") != std::string::npos);
+    // 16x16 grid of individually colored cells, not one flat background fill.
+    size_t count = 0;
+    size_t pos   = 0;
+    while ((pos = svg.find("<rect", pos)) != std::string::npos) {
+        ++count;
+        pos += 5;
+    }
+    REQUIRE(count == 256 + 1); // 256 mosaic cells + 1 text backdrop panel
+}
+
+TEST_CASE("IndexMetadata: generateSvgCover is deterministic and byte-sensitive", "[metadata][svg][cover][determinism]") {
+    std::vector<uint8_t> bytesA = {0x12, 0x34, 0x56, 0x78};
+    std::vector<uint8_t> bytesB = {0xFF, 0xEE, 0xDD, 0xCC};
+
+    std::string svgA1 = IndexMetadata::generateSvgCover(bytesA, "t");
+    std::string svgA2 = IndexMetadata::generateSvgCover(bytesA, "t");
+    std::string svgB  = IndexMetadata::generateSvgCover(bytesB, "t");
+
+    // Same bytes -> same mosaic, every time.
+    REQUIRE(svgA1 == svgA2);
+    // Different bytes -> a different mosaic.
+    REQUIRE(svgA1 != svgB);
 }
 
 TEST_CASE("IndexMetadata: generateSvgCover contains track text", "[metadata][svg][cover]") {

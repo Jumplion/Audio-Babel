@@ -106,8 +106,8 @@ auto IndexMetadata::generateSvgCover(const std::vector<uint8_t>& bytes, const st
     for (unsigned row = 0; row < GRID_SIZE; ++row) {
         for (unsigned col = 0; col < GRID_SIZE; ++col) {
             uint64_t rgb = ::AudioBabel::Utilities::splitmix64(state);
-            svg += "<rect x='" + std::to_string(col * CELL_SIZE) + "' y='" + std::to_string(row * CELL_SIZE) +
-                   "' width='" + std::to_string(CELL_SIZE) + "' height='" + std::to_string(CELL_SIZE) + "' fill='#";
+            svg += "<rect x='" + std::to_string(col * CELL_SIZE) + "' y='" + std::to_string(row * CELL_SIZE) + "' width='" +
+                   std::to_string(CELL_SIZE) + "' height='" + std::to_string(CELL_SIZE) + "' fill='#";
             appendHexColor(svg, rgb);
             svg += "'/>";
         }

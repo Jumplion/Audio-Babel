@@ -49,10 +49,11 @@ class IndexMetadata {
      * @return IndexMetadata structure with all fields populated
      *
      * @par Algorithm
-     * 1. Export index to bytes (MSB-first), to seed the cover art mosaic only
+     * 1. Export index to bytes (MSB-first); the leading pixelBytesNeeded(DEFAULT_GRID_SIZE)
+     *    of them become the cover mosaic's pixels directly
      * 2. Compute LibraryPosition from the index (for the Browse hierarchy)
      * 3. Derive genre/artist/album/track from the index via IndexNaming::namesForIndex
-     * 4. Generate SVG cover from the first bytes and the track name
+     * 4. Generate SVG cover from the leading bytes and the track name
      *
      * @see extractMetadataFromIndex(const std::string&) for base64 overload
      */
@@ -78,30 +79,55 @@ class IndexMetadata {
      */
     static auto extractMetadataFromIndex(const std::string& base64Index) -> IndexMetadata;
 
+    /// Cells per side of the production mosaic. 16x16 cells x 3 bytes/cell =
+    /// 768 bytes read directly off the top of every index.
+    static constexpr unsigned DEFAULT_GRID_SIZE = 16;
+
+    /// Exact byte count a gridSize x gridSize mosaic reads (3 bytes/cell, no
+    /// padding) -- the size a caller must supply to `generateSvgCover` to
+    /// avoid any cell falling back to black.
+    static constexpr auto pixelBytesNeeded(unsigned gridSize) -> size_t {
+        return static_cast<size_t>(gridSize) * static_cast<size_t>(gridSize) * 3;
+    }
+
     /**
-     * @brief Generate an SVG album cover from index bytes.
+     * @brief Generate an SVG album cover directly from index bytes.
      *
-     * Creates a 256×256 SVG image tiled with a 16×16 grid of individually
-     * colored 16×16 cells (a pixel mosaic), plus centered white text over a
-     * translucent backdrop displaying the track identifier.
+     * Creates a 256×256 SVG image tiled with a gridSize×gridSize grid of
+     * individually colored cells (a pixel mosaic), plus centered white text
+     * over a translucent backdrop displaying the track identifier.
      *
-     * @param bytes Index bytes (MSB-first), used to seed the mosaic
+     * @param bytes Index bytes (MSB-first). Read three bytes at a time, in
+     *   order, as each cell's (R, G, B) -- a direct, literal dump of bytes
+     *   into pixels. A cell whose bytes run past the end of `bytes` renders
+     *   black (0, 0, 0) rather than throwing.
      * @param track Track identifier string to display
+     * @param gridSize Cells per side of the mosaic (default DEFAULT_GRID_SIZE).
+     *   Exposed mainly so benchmarks/tests can sweep grid sizes; production
+     *   code should use the default.
      * @return SVG markup as a string
+     *
+     * @par Algorithm
+     * There is no hashing or PRNG step: cell (row, col), visited in reading
+     * order, takes the next three bytes off `bytes` as its red, green, and
+     * blue channel, full stop. That makes the mapping from bytes to pixels
+     * bijective in both directions -- given a target image, quantize it to
+     * gridSize x gridSize 8-bit-RGB cells and write those bytes at the same
+     * offset an index's cover reads from, and decoding that index reproduces
+     * the image exactly. (The prior version seeded a splitmix64 PRNG stream
+     * from the bytes instead; PRNG output is one-way, so reproducing a target
+     * image would have meant searching a seed space profoundly smaller than
+     * the space of possible images -- not a search anyone could ever finish.)
      *
      * @par SVG Structure
      * - Viewbox: 0 0 256 256
-     * - Mosaic: 256 cells (16×16 grid), each filled with a color drawn from a
-     *   splitmix64 stream seeded by `bytes` (see Utilities::mixIn / splitmix64),
-     *   so the same bytes always produce the same mosaic
+     * - Mosaic: gridSize*gridSize cells, each filled directly from three
+     *   bytes of `bytes`
      * - Text: Track string centered in white, 20px font, over a translucent
      *   dark backdrop for legibility against arbitrary cell colors
-     *
-     * @note An empty `bytes` vector still yields a deterministic (non-zero
-     *       seeded) mosaic, since splitmix64's first step never leaves the
-     *       state at zero
      */
-    static auto generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track) -> std::string;
+    static auto generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track, unsigned gridSize = DEFAULT_GRID_SIZE)
+        -> std::string;
 
    private:
     /**
@@ -111,7 +137,7 @@ class IndexMetadata {
      * IndexNaming::namesForIndex) into the result and generates the SVG cover
      * from `bytes` and the track name.
      *
-     * @param bytes Index bytes (MSB-first), used only to seed the cover art mosaic
+     * @param bytes Index bytes (MSB-first), used directly as the cover art mosaic's pixels
      * @param position Already-computed LibraryPosition for this index
      * @param names Already-derived metadata names for this index
      * @return IndexMetadata with all fields populated

@@ -16,7 +16,7 @@ specification see the [root README](../../README.md) and
 | `IndexScramble.h` | Optional, reversible keyed permutation (`AUDIOBABEL_SCRAMBLE` toggle) that scatters neighboring payloads and spreads short indices across a varied range of decoded durations, while keeping a perfect bijection. |
 | `LibraryPosition.h` | Maps an index to a hierarchical "record shop" address (room / wall / shelf / album / track) and back. Bijective; 9,600 tracks per room. |
 | `IndexNaming.h` | Deterministic genre/artist/album/track names derived from the index via an invertible Feistel permutation. Invertible, so desired names can be turned straight into indexes that carry them (no search). |
-| `IndexMetadata.h` | Aggregates per-index metadata: the four `IndexNaming` labels, a 256×256 SVG cover derived from the index bytes, and the `LibraryPosition`. |
+| `IndexMetadata.h` | Aggregates per-index metadata: the four `IndexNaming` labels, a 256×256 SVG cover mosaic whose cells are a direct, bijective read of the index's leading bytes (no hashing/PRNG — invertible, so a target image's bytes can be packed into an index to reproduce it), and the `LibraryPosition`. |
 
 ## The index format (payload-only bijection)
 

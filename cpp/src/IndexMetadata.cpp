@@ -14,9 +14,6 @@ namespace AudioBabel {
 
 namespace {
 
-    // Number of leading (most-significant) index bytes the SVG cover mosaic seeds from.
-    constexpr size_t COVER_SEED_BYTES = 8;
-
     // The most-significant `n` bytes of `index`, MSB-first — the same prefix
     // export_bits(msv=true) would yield, but without allocating the whole
     // integer's byte string just to read its top few bytes (an O(N) waste on
@@ -38,7 +35,7 @@ namespace {
 } // namespace
 
 auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_int& index) -> IndexMetadata {
-    std::vector<uint8_t> bytes = topBytesMsb(index, COVER_SEED_BYTES);
+    std::vector<uint8_t> bytes = topBytesMsb(index, pixelBytesNeeded(DEFAULT_GRID_SIZE));
 
     LibraryPosition position = calculateLibraryPosition(index);
     return buildMetadataFromBytesAndPosition(bytes, position, IndexNaming::namesForIndex(index));
@@ -53,7 +50,7 @@ auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> 
 
     boost::multiprecision::cpp_int index = ::AudioBabel::Utilities::b64ToIndex(base64Index);
 
-    std::vector<uint8_t> bytes = topBytesMsb(index, COVER_SEED_BYTES);
+    std::vector<uint8_t> bytes = topBytesMsb(index, pixelBytesNeeded(DEFAULT_GRID_SIZE));
 
     LibraryPosition position = calculateLibraryPosition(index);
     return buildMetadataFromBytesAndPosition(bytes, position, IndexNaming::namesForIndex(index));
@@ -76,39 +73,47 @@ auto IndexMetadata::buildMetadataFromBytesAndPosition(const std::vector<uint8_t>
 
 namespace {
 
-    // The 256x256 canvas is subdivided into GRID_SIZE x GRID_SIZE square cells,
-    // each individually colored — a pixel mosaic instead of a flat fill. Bump
-    // GRID_SIZE for a finer mosaic; CELL_SIZE follows automatically.
+    // The 256x256 canvas is subdivided into gridSize x gridSize square cells,
+    // each individually colored — a pixel mosaic instead of a flat fill.
     constexpr unsigned CANVAS_SIZE = 256;
-    constexpr unsigned GRID_SIZE   = 16;
-    constexpr unsigned CELL_SIZE   = CANVAS_SIZE / GRID_SIZE;
 
-    auto appendHexColor(std::string& svg, uint64_t rgb) -> void {
+    auto appendHexByte(std::string& svg, uint8_t v) -> void {
         const char* hex = "0123456789abcdef";
-        for (int i = 5; i >= 0; --i) {
-            svg.push_back(hex[(rgb >> (i * 4)) & 0xF]);
-        }
+        svg.push_back(hex[(v >> 4) & 0xF]);
+        svg.push_back(hex[v & 0xF]);
+    }
+
+    // Next byte of `bytes` at `cursor`, or 0 once the supply runs out — lets
+    // short/zero indexes still render a (black-padded) mosaic instead of
+    // needing a special case.
+    auto nextByteOrZero(const std::vector<uint8_t>& bytes, size_t& cursor) -> uint8_t {
+        uint8_t v = cursor < bytes.size() ? bytes[cursor] : 0;
+        ++cursor;
+        return v;
     }
 
 } // namespace
 
-auto IndexMetadata::generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track) -> std::string {
-    // Seed a splitmix64 stream from the index's seed bytes (same avalanche
-    // mixer IndexNaming/IndexScramble use), then draw one cell's color per
-    // stream output — so the whole mosaic is a deterministic function of the
-    // index: the same index always renders the same cover.
-    uint64_t state = 0;
-    for (uint8_t b : bytes) {
-        ::AudioBabel::Utilities::mixIn(state, b);
-    }
+auto IndexMetadata::generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track, unsigned gridSize) -> std::string {
+    // Each cell reads its (R, G, B) straight off the next three bytes of
+    // `bytes` — a direct, bijective byte-to-pixel dump, not a PRNG stream.
+    // The same index always renders the same cover (still deterministic),
+    // but now the mapping is invertible: packing a target image's quantized
+    // bytes at this same offset makes an index decode to that exact cover.
+    unsigned cellSize = gridSize > 0 ? CANVAS_SIZE / gridSize : CANVAS_SIZE;
 
     std::string svg = "<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'>";
-    for (unsigned row = 0; row < GRID_SIZE; ++row) {
-        for (unsigned col = 0; col < GRID_SIZE; ++col) {
-            uint64_t rgb = ::AudioBabel::Utilities::splitmix64(state);
-            svg += "<rect x='" + std::to_string(col * CELL_SIZE) + "' y='" + std::to_string(row * CELL_SIZE) + "' width='" +
-                   std::to_string(CELL_SIZE) + "' height='" + std::to_string(CELL_SIZE) + "' fill='#";
-            appendHexColor(svg, rgb);
+    size_t      cursor = 0;
+    for (unsigned row = 0; row < gridSize; ++row) {
+        for (unsigned col = 0; col < gridSize; ++col) {
+            uint8_t r = nextByteOrZero(bytes, cursor);
+            uint8_t g = nextByteOrZero(bytes, cursor);
+            uint8_t b = nextByteOrZero(bytes, cursor);
+            svg += "<rect x='" + std::to_string(col * cellSize) + "' y='" + std::to_string(row * cellSize) + "' width='" +
+                   std::to_string(cellSize) + "' height='" + std::to_string(cellSize) + "' fill='#";
+            appendHexByte(svg, r);
+            appendHexByte(svg, g);
+            appendHexByte(svg, b);
             svg += "'/>";
         }
     }

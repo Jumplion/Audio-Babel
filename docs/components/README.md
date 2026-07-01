@@ -8,4 +8,4 @@ container. See the [root README](../../README.md) for the site overview.
 
 | File | Purpose |
 | ---- | ------- |
-| `result.html` | The result panel markup — index display, library position (with "Find in Library" action), metadata, cover art, and audio playback controls. Populated by [`js/core/resultDisplay.js`](../js/core/resultDisplay.js). |
+| `result.html` | The result panel markup — index display, library position (with "Find in Library" action), metadata, cover art, audio playback controls, and an on-demand "More Like This…" Similar Tracks list. Populated by [`js/core/resultDisplay.js`](../js/core/resultDisplay.js). |

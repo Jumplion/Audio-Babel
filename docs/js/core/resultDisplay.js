@@ -13,6 +13,12 @@ import { openIndexInNewTab } from './indexViewer.js';
 import { setFindInLibraryTarget } from '../utils/findInLibrary.js';
 import { createWavFile } from '../utils/wavUtils.js';
 import { buildResultForIndex } from '../utils/resultBuilder.js';
+import { buildSimilarTracks } from './similarTracks.js';
+import {
+  DEFAULT_SAMPLE_RATE,
+  DEFAULT_BIT_DEPTH,
+  DEFAULT_NUM_CHANNELS,
+} from '../utils/audioConstants.js';
 import WaveSurfer from 'https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.esm.js';
 import Timeline from 'https://unpkg.com/wavesurfer.js@7/dist/plugins/timeline.esm.js';
 
@@ -71,7 +77,7 @@ function resolveCosmeticName(namesJson, index) {
  */
 export async function ensureResultFrag() {
   if (!resultFrag)
-    resultFrag = await loadFragment('#resultContainer', './components/result.html?v=4');
+    resultFrag = await loadFragment('#resultContainer', './components/result.html?v=5');
   return resultFrag;
 }
 
@@ -165,6 +171,82 @@ const pcmToWavBlob = (pcm, sampleRate, bitDepth, numChannels) =>
   createWavFile(pcm, sampleRate, bitDepth, numChannels);
 
 /**
+ * Build a similar-track button's label: a truncated index plus its cosmetic
+ * track name, fetched the same way the main metadata panel does (never
+ * fabricated client-side).
+ * @param {Object} wasm - Initialized IndexWasm instance
+ * @param {string} indexBase64 - Variant index to describe
+ * @returns {{indexLabel: string, trackName: string}}
+ */
+function describeSimilarTrack(wasm, indexBase64) {
+  const indexLabel = truncateString(indexBase64, 24, 10);
+  try {
+    const metadata = JSON.parse(wasm.module.getMetadata(indexBase64));
+    if (metadata.error) throw new Error(metadata.error);
+    return { indexLabel, trackName: metadata.track || 'Unknown' };
+  } catch (error) {
+    console.error('Error resolving similar track metadata:', error);
+    return { indexLabel, trackName: 'Unknown' };
+  }
+}
+
+/**
+ * Generate and render the "Similar Tracks" list on demand: a handful of new
+ * indexes whose decoded audio is a close variation of the current result
+ * (sample jitter, silence padding, sped up/slowed down, or a few combined).
+ * Clicking one regenerates the whole result display for that index.
+ * @param {Object} frag - Result fragment helper (see ensureResultFrag)
+ * @param {Object} wasm - Initialized IndexWasm instance
+ * @param {Uint8Array} pcmData - Raw PCM payload of the currently-displayed result
+ */
+async function renderSimilarTracks(frag, wasm, pcmData) {
+  const list = frag.get('#similarTracksList');
+  const status = frag.get('#similarTracksStatus');
+  if (!list) return;
+
+  list.innerHTML = '';
+  if (status) status.textContent = 'Generating similar tracks…';
+
+  try {
+    const variantIndexes = buildSimilarTracks(wasm, pcmData);
+
+    if (variantIndexes.length === 0) {
+      if (status) status.textContent = 'No similar tracks could be generated.';
+      return;
+    }
+
+    if (status) status.textContent = '';
+    variantIndexes.forEach((variantIndex) => {
+      const { indexLabel, trackName } = describeSimilarTrack(wasm, variantIndex);
+
+      const li = document.createElement('li');
+      li.className = 'similar-track-item';
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn similar-track-btn';
+      btn.title = 'Click to load this similar track';
+      btn.innerHTML = `<code class="similar-track-index">${escapeHtml(indexLabel)}</code><span class="similar-track-name">${escapeHtml(trackName)}</span>`;
+      btn.addEventListener('click', async () => {
+        try {
+          const w = await getWasmModule();
+          const result = await buildResultForIndex(w, variantIndex);
+          await handleJsonResponse(result, variantIndex);
+        } catch (error) {
+          console.error('Error loading similar track:', error);
+        }
+      });
+
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+  } catch (error) {
+    console.error('Error generating similar tracks:', error);
+    if (status) status.textContent = 'Unable to generate similar tracks';
+  }
+}
+
+/**
  * Displays a JSON response containing audio metadata and PCM data.
  * @param {Object} j - Result object from buildResultForIndex
  * @param {string} [originalIndexB64] - Optional original index string to display
@@ -173,6 +255,14 @@ export async function handleJsonResponse(j, originalIndexB64) {
   const frag = await ensureResultFrag();
   let indexDisplay = frag.get('#indexDisplay');
   const resultEl = frag.get('#result');
+
+  // Reset the "Similar Tracks" section for the new result — it's
+  // regenerated on demand (via the "More Like This…" button below), not
+  // carried over from whatever was previously displayed.
+  const similarList = frag.get('#similarTracksList');
+  const similarStatus = frag.get('#similarTracksStatus');
+  if (similarList) similarList.innerHTML = '';
+  if (similarStatus) similarStatus.textContent = '';
 
   // show index with truncation and click-to-download functionality
   const indexToShow = originalIndexB64 || j.indexBase64 || '';
@@ -290,10 +380,6 @@ export async function handleJsonResponse(j, originalIndexB64) {
     }
   }
 
-  var DEFAULT_SAMPLE_RATE = 44100;
-  var DEFAULT_BIT_DEPTH = 16;
-  var DEFAULT_NUM_CHANNELS = 1;
-
   // audio
   if (j.pcm) {
     const {
@@ -312,6 +398,23 @@ export async function handleJsonResponse(j, originalIndexB64) {
       downloadLink.onclick = (e) => {
         e.preventDefault();
         downloadBlob(wavBlob, 'reconstructed.wav');
+      };
+    }
+
+    // "More Like This…" generates similar-track variants on demand, rather
+    // than up front on every result — most results are never expanded.
+    const moreLikeThisBtn = frag.get('#moreLikeThisBtn');
+    if (moreLikeThisBtn) {
+      moreLikeThisBtn.style.display = '';
+      moreLikeThisBtn.disabled = false;
+      moreLikeThisBtn.onclick = async () => {
+        moreLikeThisBtn.disabled = true;
+        try {
+          const wasm = await getWasmModule();
+          await renderSimilarTracks(frag, wasm, j.pcm);
+        } finally {
+          moreLikeThisBtn.disabled = false;
+        }
       };
     }
 
@@ -376,6 +479,9 @@ export async function handleJsonResponse(j, originalIndexB64) {
         console.error('Error generating waveform with WaveSurfer.js:', error);
       }
     }
+  } else {
+    const moreLikeThisBtn = frag.get('#moreLikeThisBtn');
+    if (moreLikeThisBtn) moreLikeThisBtn.style.display = 'none';
   }
 
   if (resultEl) resultEl.style.display = 'block';

@@ -19,20 +19,13 @@
 using namespace AudioBabel;
 using boost::multiprecision::cpp_int;
 
-// Helper to validate base64 URL-safe characters
-static bool valid_b64_chars(const std::string& s) {
-    for (char c : s) {
-        if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' && c != '_') {
-            return false;
-        }
-    }
-    return true;
-}
-
-// Helper to encode bytes to base64 URL-safe (no padding)
+// Helper to encode bytes to base64 URL-safe (no padding). Reuses the real
+// alphabet (Utilities::BASE64_URL_ALPHA) rather than a hand-copied literal,
+// so the two never drift apart; valid_b64_chars (test_common.h) still
+// independently re-derives the *character set* to cross-check the result.
 static std::string encode_b64_url(const std::vector<uint8_t>& bytes) {
-    static const char b64_alpha[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    std::string       b64str;
+    using AudioBabel::Utilities::BASE64_URL_ALPHA;
+    std::string b64str;
     b64str.reserve((bytes.size() * 8 + 5) / 6);
     uint32_t acc      = 0;
     int      acc_bits = 0;
@@ -42,12 +35,12 @@ static std::string encode_b64_url(const std::vector<uint8_t>& bytes) {
         while (acc_bits >= 6) {
             acc_bits -= 6;
             auto idx = static_cast<uint8_t>((acc >> acc_bits) & 0x3F);
-            b64str.push_back(b64_alpha[idx]);
+            b64str.push_back(BASE64_URL_ALPHA[idx]);
         }
     }
     if (acc_bits > 0) {
         auto idx = static_cast<uint8_t>((acc << (6 - acc_bits)) & 0x3F);
-        b64str.push_back(b64_alpha[idx]);
+        b64str.push_back(BASE64_URL_ALPHA[idx]);
     }
     return b64str;
 }
@@ -192,12 +185,7 @@ TEST_CASE("IndexMetadata: stress test across small and large cpp_int values", "[
         // Every field's characters should be valid base64 URL-safe
         std::string recombined = meta.genre + meta.artist + meta.album + meta.track;
         REQUIRE(recombined.length() > 0);
-
-        // Verify all characters are valid base64 URL-safe
-        for (char c : recombined) {
-            bool valid = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_';
-            REQUIRE(valid);
-        }
+        REQUIRE(valid_b64_chars(recombined));
 
         // Cover should be valid SVG
         REQUIRE_FALSE(meta.cover.empty());

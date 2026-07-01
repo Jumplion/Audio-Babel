@@ -35,10 +35,10 @@ struct ScrambleGuard {
 };
 
 // The default length-spread bounds (AUDIOBABEL_SCRAMBLE_MIN_MS / MAX_MS = 100 ms
-// / 15 s at 44100 Hz). Short indices decode to a length inside [kMinFrames,
+// / 5 s at 44100 Hz). Short indices decode to a length inside [kMinFrames,
 // kMaxFrames]; mirrored here so the tests don't reach into the .cpp internals.
-constexpr size_t kMinFrames = 100UL * DEFAULT_SAMPLE_RATE / 1000;   // 4410
-constexpr size_t kMaxFrames = 15000UL * DEFAULT_SAMPLE_RATE / 1000; // 661500
+constexpr size_t kMinFrames = 100UL * DEFAULT_SAMPLE_RATE / 1000;  // 4410
+constexpr size_t kMaxFrames = 5000UL * DEFAULT_SAMPLE_RATE / 1000; // 220500
 
 } // namespace
 

@@ -17,8 +17,8 @@ import { isValidBase64Url, filterToBase64UrlChars } from '../utils/validationUti
 import { getWasmModule } from '../core/wasmModule.js';
 import { parseWavFile } from '../utils/wavUtils.js';
 import { showValidationError, handleError } from '../utils/errorHandler.js';
+import { ALPHABET as BASE64_URL_ALPHABET } from '../utils/base64.js';
 
-const BASE64_URL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 const VALID_BASE64_URL_CHAR = /[A-Za-z0-9_-]/;
 
 // Default random index length range (characters), chosen for a reasonable

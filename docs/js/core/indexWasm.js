@@ -4,6 +4,16 @@
  * Serverless version for docs folder (GitHub Pages)
  */
 
+/**
+ * True if a WASM string-returning call signaled failure by returning a JSON
+ * error object ({"error":"..."}) instead of the expected value.
+ * @param {*} result
+ * @returns {boolean}
+ */
+export function isWasmError(result) {
+  return typeof result === 'string' && result.startsWith('{');
+}
+
 class IndexWasm {
   constructor() {
     this.module = null;
@@ -86,7 +96,7 @@ class IndexWasm {
     this._ensureInitialized();
 
     const result = this.module.encodeIndex(pcmBytes, sampleRate, bitDepth, numChannels);
-    if (!result || result.startsWith('{')) {
+    if (!result || isWasmError(result)) {
       const errResult = result ? JSON.parse(result) : {};
       throw new Error(errResult.error || 'Failed to encode index from PCM data');
     }

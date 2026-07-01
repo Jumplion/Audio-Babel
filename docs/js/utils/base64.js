@@ -3,21 +3,7 @@
  * Uses the same alphabet as the C++ library: A-Z, a-z, 0-9, -, _ (no padding)
  */
 
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-
-/**
- * Decode a standard base64 string into raw bytes.
- * @param {string} base64 - Standard (non-URL-safe) base64 string
- * @returns {Uint8Array} Decoded bytes
- */
-export function base64ToBytes(base64) {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
+export const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 
 /**
  * Convert a room number to a bijective base64 string (no padding).

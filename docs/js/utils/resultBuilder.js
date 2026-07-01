@@ -7,9 +7,6 @@
 
 import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from './audioConstants.js';
 
-// Re-export so page modules can import everything from one place
-export { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS };
-
 /**
  * Reconstruct audio and metadata for an index string and build the result object
  * consumed by handleJsonResponse.

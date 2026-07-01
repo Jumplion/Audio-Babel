@@ -327,6 +327,76 @@ TEST_CASE("IndexMetadata: extractMetadataFromIndex covers render at DEFAULT_CELL
     REQUIRE(decoded.height == expectedSide);
 }
 
+// Count RGB channels that differ between two same-sized decoded bitmaps.
+static size_t count_differing_channels(const DecodedBmp& a, const DecodedBmp& b) {
+    REQUIRE(a.rgbTopDown.size() == b.rgbTopDown.size());
+    size_t diff = 0;
+    for (size_t i = 0; i < a.rgbTopDown.size(); ++i) {
+        if (a.rgbTopDown[i] != b.rgbTopDown[i]) {
+            ++diff;
+        }
+    }
+    return diff;
+}
+
+TEST_CASE("IndexMetadata: cover art is scrambled, so sibling library positions look wildly different", "[metadata][svg][cover][scramble]") {
+    // Sibling positions differ only in a small, scrambled low-order offset
+    // (see LibraryPosition::reconstructIndexFromPosition) -- their indexes'
+    // most significant bytes are otherwise identical. Before the cover
+    // material was folded through reduceModLarge + a keyed Feistel (mirroring
+    // IndexNaming's name scramble), the cover mosaic read those unchanged
+    // top bytes directly, so every track in an album (and every album in a
+    // shelf) rendered essentially the same cover. Assert real diffusion instead.
+    LibraryPosition base;
+    base.room  = "";
+    base.wall  = 0;
+    base.shelf = 0;
+    base.album = 0;
+    base.track = 0;
+
+    LibraryPosition siblingTrack = base;
+    siblingTrack.track           = 1;
+
+    LibraryPosition siblingAlbum = base;
+    siblingAlbum.album           = 1;
+
+    cpp_int baseIdx         = reconstructIndexFromPosition(base);
+    cpp_int siblingTrackIdx = reconstructIndexFromPosition(siblingTrack);
+    cpp_int siblingAlbumIdx = reconstructIndexFromPosition(siblingAlbum);
+
+    auto baseMeta         = IndexMetadata::extractMetadataFromIndex(baseIdx);
+    auto siblingTrackMeta = IndexMetadata::extractMetadataFromIndex(siblingTrackIdx);
+    auto siblingAlbumMeta = IndexMetadata::extractMetadataFromIndex(siblingAlbumIdx);
+
+    DecodedBmp baseBmp         = decode_cover_bitmap(baseMeta.cover);
+    DecodedBmp siblingTrackBmp = decode_cover_bitmap(siblingTrackMeta.cover);
+    DecodedBmp siblingAlbumBmp = decode_cover_bitmap(siblingAlbumMeta.cover);
+
+    // At least 3/4 of the mosaic's colour channels should differ -- a real
+    // avalanche, not a one-corner tweak.
+    size_t totalChannels = baseBmp.rgbTopDown.size();
+    REQUIRE(count_differing_channels(baseBmp, siblingTrackBmp) > (totalChannels * 3) / 4);
+    REQUIRE(count_differing_channels(baseBmp, siblingAlbumBmp) > (totalChannels * 3) / 4);
+}
+
+TEST_CASE("IndexMetadata: cover scrambling is deterministic", "[metadata][svg][cover][scramble][determinism]") {
+    cpp_int idx = cpp_int("987654321098765432109876543210");
+
+    auto meta1 = IndexMetadata::extractMetadataFromIndex(idx);
+    auto meta2 = IndexMetadata::extractMetadataFromIndex(idx);
+    REQUIRE(meta1.cover == meta2.cover);
+
+    // The base64 string overload must agree with the cpp_int overload for the
+    // same underlying index (both routes fold/permute the same value).
+    // Note: this needs the production bijective-numeration encoder
+    // (Utilities::indexToB64), not encode_b64_url() above -- that helper is a
+    // plain bit-accumulator base64 and does not round-trip through
+    // Utilities::b64ToIndex (which the string overload decodes with).
+    std::string b64   = Utilities::indexToB64(idx);
+    auto        meta3 = IndexMetadata::extractMetadataFromIndex(b64);
+    REQUIRE(meta1.cover == meta3.cover);
+}
+
 TEST_CASE("IndexMetadata: stress test across small and large cpp_int values", "[metadata][edge_case]") {
     // Edge cases with minimal indexes, plus progressively larger indexes.
     std::vector<cpp_int> values = {

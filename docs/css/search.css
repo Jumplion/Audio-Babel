@@ -300,3 +300,25 @@
   padding: 8px 14px;
   font-size: 14px;
 }
+
+/* Result panel's cover art (see docs/components/result.html #metadata) is
+   display:none by default (result.css) since only Browse previously showed
+   it, styled entirely differently there (see browse.css). On Search, show
+   just the generated cover thumbnail; the genre/artist/album/track text
+   next to it is dropped since "Position in Library" above already lists
+   them, so showing both would just repeat the same four names twice. */
+.search #metadata {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search #coverImg {
+  float: none;
+  margin: 0;
+}
+
+.search .metadata-content,
+.search .metadata-clearfix {
+  display: none;
+}

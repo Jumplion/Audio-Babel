@@ -558,7 +558,8 @@ function selectShelf(shelfNum, originEvent = null) {
  * Render the albums for the current shelf
  * Creates album "spine" buttons (0-31); each shows its generated album name
  * only on hover/focus (see .album-number in browse.css), evoking a long box
- * of records flipped through sideways.
+ * of records flipped through sideways. Each spine's background is a sliver
+ * of that album's own generated cover art (see applyAlbumSpineArt).
  */
 async function renderAlbums() {
   const container = $('albumsContainer');
@@ -567,8 +568,9 @@ async function renderAlbums() {
   container.innerHTML = ''; // clear stale buttons while names load
 
   let names = [];
+  let wasm = null;
   try {
-    const wasm = await getWasmModule();
+    wasm = await getWasmModule();
     const raw = JSON.parse(
       wasm.module.getAlbumNames(navState.room.toString(), navState.wall, navState.shelf)
     );
@@ -595,6 +597,32 @@ async function renderAlbums() {
     btn.addEventListener('click', (e) => selectAlbum(i, e));
     container.appendChild(btn);
   }
+
+  if (wasm) applyAlbumSpineArt(wasm, container);
+}
+
+/**
+ * Fetch each album's generated cover art and set it as its spine button's
+ * background image (browse.css crops it down to a single column via
+ * background-size/position, so it reads as a thin colored spine rather than
+ * the whole square cover squeezed into the narrow rectangle). Best-effort:
+ * a failed lookup just leaves that spine on its plain fallback color.
+ * @param {Object} wasm - Initialized IndexWasm instance
+ * @param {HTMLElement} container - albumsContainer, already populated with .album-btn children
+ */
+function applyAlbumSpineArt(wasm, container) {
+  const buttons = container.querySelectorAll('.album-btn');
+  buttons.forEach((btn, i) => {
+    try {
+      const indexBase64 = buildAlbumStandInIndex(wasm, i);
+      const metadata = JSON.parse(wasm.module.getMetadata(indexBase64));
+      if (metadata.error || !metadata.cover) return;
+      const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(metadata.cover);
+      btn.style.backgroundImage = `url("${svgDataUrl}")`;
+    } catch (err) {
+      console.error('Failed to load spine cover art for album', i, err);
+    }
+  });
 }
 
 /**

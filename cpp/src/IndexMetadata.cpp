@@ -14,28 +14,91 @@ namespace AudioBabel {
 
 namespace {
 
-    // The most-significant `n` bytes of `index`, MSB-first — the same prefix
-    // export_bits(msv=true) would yield, but without allocating the whole
-    // integer's byte string just to read its top few bytes (an O(N) waste on
-    // large indices). Returns fewer than `n` bytes when the index is shorter.
-    auto topBytesMsb(const boost::multiprecision::cpp_int& index, size_t n) -> std::vector<uint8_t> {
-        std::vector<uint8_t> bytes;
-        if (index <= 0) {
-            return bytes;
+    using boost::multiprecision::cpp_int;
+
+    // Fixed permutation key for the cover-material Feistel. Distinct from
+    // IndexNaming's NAME_KEY, IndexScramble's seed, and LibraryPosition's
+    // POSITION_SALT so keying can never alias across features.
+    constexpr uint64_t COVER_KEY = 0xB4B2A265B1A5C2EFULL;
+
+    // Cover-material domain: exactly enough bits for the production cover's
+    // pixel byte budget (pixelBytesNeeded(DEFAULT_CELL_SIZE) bytes). A whole
+    // number of bytes is already an even bit count, so (unlike IndexNaming's
+    // nameSpace(), whose D^4 name space needs rounding up) no ceiling step is
+    // needed to get an even Feistel domain width.
+    struct CoverSpace {
+        cpp_int full; // modulus the index is folded against, deliberately NOT a power of two
+        size_t  e;    // Feistel domain width in bits (== coverBits)
+    };
+
+    auto coverSpace() -> const CoverSpace& {
+        static const CoverSpace cs = [] {
+            const size_t coverBits = IndexMetadata::pixelBytesNeeded(IndexMetadata::DEFAULT_CELL_SIZE) * BITS_PER_BYTE;
+            // Just under 2^coverBits and odd, so it's guaranteed not to be a
+            // power of two itself. That matters: reduceModLarge's Horner-rule
+            // fold only mixes every bit of the index into the residue when the
+            // modulus isn't a power of two -- a power-of-two modulus would
+            // degrade to a plain bitmask of the index's low bits, and sibling
+            // library positions (which differ only in a scrambled low-order
+            // offset -- see LibraryPosition.cpp) would then produce nearly
+            // identical top-byte-dominated covers, same as the un-scrambled
+            // byte dump this replaces.
+            cpp_int full = (cpp_int(1) << coverBits) - 3;
+            return CoverSpace{full, coverBits};
+        }();
+        return cs;
+    }
+
+    auto coverRoundKey(int round) -> uint64_t {
+        uint64_t state = COVER_KEY ^ (0x9E3779B97F4A7C15ULL * (static_cast<uint64_t>(round) + 1));
+        return AudioBabel::Utilities::splitmix64(state);
+    }
+
+    // Keyed bijection on [0, full) via feistelPow2 + cycle-walking (Black &
+    // Rogaway, CT-RSA 2002): re-apply the power-of-two permutation until the
+    // result lands back in [0, full). Mirrors IndexNaming's permuteEncode,
+    // scaled to the cover's much wider material.
+    auto permuteCoverEncode(const cpp_int& x) -> cpp_int {
+        const CoverSpace& cs = coverSpace();
+        cpp_int           y  = AudioBabel::Utilities::feistelPow2(x, cs.e, coverRoundKey, /*encrypt=*/true);
+        while (y >= cs.full) {
+            y = AudioBabel::Utilities::feistelPow2(y, cs.e, coverRoundKey, /*encrypt=*/true);
         }
-        boost::multiprecision::cpp_int v          = index;
-        size_t                         totalBytes = static_cast<size_t>(boost::multiprecision::msb(index) / BITS_PER_BYTE) + 1;
-        if (totalBytes > n) {
-            v >>= (totalBytes - n) * BITS_PER_BYTE; // drop the low bytes the cover never reads
-        }
-        boost::multiprecision::export_bits(v, std::back_inserter(bytes), BITS_PER_BYTE, true);
-        return bytes;
+        return y;
+    }
+
+    // Render `value` as exactly `n` bytes, most-significant first, left-padded
+    // with zero bytes (not right-padded — value is a coverBits-bit number, so
+    // any missing high-order bytes are genuinely leading zeros, not "ran out of
+    // material" the way generateSvgCover's own nextByteOrZero padding means).
+    auto toFixedBytesMsb(const cpp_int& value, size_t n) -> std::vector<uint8_t> {
+        std::vector<uint8_t> raw;
+        boost::multiprecision::export_bits(value, std::back_inserter(raw), BITS_PER_BYTE, true);
+        std::vector<uint8_t> out(n, 0);
+        const size_t         copyLen = std::min(raw.size(), n);
+        std::copy(raw.end() - static_cast<std::ptrdiff_t>(copyLen), raw.end(), out.end() - static_cast<std::ptrdiff_t>(copyLen));
+        return out;
+    }
+
+    // Derive the cover mosaic's pixel bytes from the whole index via a keyed
+    // Feistel permutation -- the same treatment IndexNaming::namesForIndex
+    // gives the genre/artist/album/track fields, and for the same reason:
+    // sibling library positions differ only in a small low-order offset (see
+    // LibraryPosition::reconstructIndexFromPosition), and reduceModLarge's
+    // non-power-of-two fold plus this permutation scatters that difference
+    // across every pixel instead of leaving neighbouring tracks/albums with
+    // near-identical (or, for short indexes, mostly-black) cover art.
+    auto coverBytesForIndex(const cpp_int& index) -> std::vector<uint8_t> {
+        cpp_int idx = index < 0 ? cpp_int(0) : index;
+        cpp_int m   = AudioBabel::Utilities::reduceModLarge(idx, coverSpace().full);
+        cpp_int s   = permuteCoverEncode(m);
+        return toFixedBytesMsb(s, IndexMetadata::pixelBytesNeeded(IndexMetadata::DEFAULT_CELL_SIZE));
     }
 
 } // namespace
 
 auto IndexMetadata::extractMetadataFromIndex(const boost::multiprecision::cpp_int& index) -> IndexMetadata {
-    std::vector<uint8_t> bytes = topBytesMsb(index, pixelBytesNeeded(DEFAULT_CELL_SIZE));
+    std::vector<uint8_t> bytes = coverBytesForIndex(index);
 
     LibraryPosition position = calculateLibraryPosition(index);
     return buildMetadataFromBytesAndPosition(bytes, position, IndexNaming::namesForIndex(index));
@@ -50,7 +113,7 @@ auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> 
 
     boost::multiprecision::cpp_int index = ::AudioBabel::Utilities::b64ToIndex(base64Index);
 
-    std::vector<uint8_t> bytes = topBytesMsb(index, pixelBytesNeeded(DEFAULT_CELL_SIZE));
+    std::vector<uint8_t> bytes = coverBytesForIndex(index);
 
     LibraryPosition position = calculateLibraryPosition(index);
     return buildMetadataFromBytesAndPosition(bytes, position, IndexNaming::namesForIndex(index));

@@ -23,8 +23,10 @@ namespace AudioBabel {
  *   neighbouring indexes get wildly different names and any desired names can be
  *   inverted back into indexes that carry them. See IndexNaming for the
  *   algorithm.
- * - **Cover Art**: SVG-wrapped, native-resolution bitmap mosaic generated
- *   directly (bijectively) from index bytes
+ * - **Cover Art**: SVG-wrapped, native-resolution bitmap mosaic generated from
+ *   index bytes that have first been folded and Feistel-permuted (same
+ *   keyed-scramble treatment as the Content Labels, with its own key), so
+ *   neighbouring indexes get wildly different cover art too
  * - **Position**: Hierarchical location (room, wall, shelf, track) in the library
  *
  * @see LibraryPosition for hierarchical position calculation
@@ -50,11 +52,13 @@ class IndexMetadata {
      * @return IndexMetadata structure with all fields populated
      *
      * @par Algorithm
-     * 1. Export index to bytes (MSB-first); the leading pixelBytesNeeded(DEFAULT_CELL_SIZE)
-     *    of them become the cover mosaic's pixels directly
+     * 1. Fold the whole index down to pixelBytesNeeded(DEFAULT_CELL_SIZE) bytes'
+     *    worth of material and Feistel-permute it (own key, distinct from
+     *    IndexNaming's), so the cover mosaic's pixel bytes depend on every bit
+     *    of the index, not just its most significant bytes
      * 2. Compute LibraryPosition from the index (for the Browse hierarchy)
      * 3. Derive genre/artist/album/track from the index via IndexNaming::namesForIndex
-     * 4. Generate SVG cover from the leading bytes and the track name
+     * 4. Generate SVG cover from the permuted bytes and the track name
      *
      * @see extractMetadataFromIndex(const std::string&) for base64 overload
      */

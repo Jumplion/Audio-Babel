@@ -235,7 +235,19 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  background: rgba(140, 70, 60, 0.3);
+  background-color: rgba(140, 70, 60, 0.3);
+  /* browse.js sets background-image to that album's generated cover art.
+     background-size stretches the source 256x256 mosaic to 256x its own
+     width while keeping height at 1x, so only ~1 native-resolution pixel
+     column is visible, spanning the button's full height unsquished -- a
+     spine-style sliver of the cover rather than the whole image squeezed
+     into the narrow rectangle. background-position picks a column just
+     inside the left edge (x<8 of the 256-wide viewBox), landing before the
+     SVG's track-label backdrop rect (x 8-248), so the slice is pure mosaic. */
+  background-repeat: no-repeat;
+  background-size: 25600% 100%;
+  background-position: 1.2% 0;
+  image-rendering: pixelated;
   border: 2px solid rgba(140, 70, 60, 0.6);
   border-radius: 4px;
   color: var(--text);
@@ -243,18 +255,36 @@
   transition:
     transform 0.25s cubic-bezier(0.34, 1.2, 0.64, 1),
     box-shadow 0.25s ease,
-    background 0.25s ease,
+    background-color 0.25s ease,
     border-color 0.25s ease;
   z-index: 1;
+}
+
+/* Hover/focus tint: painted as its own layer (rather than via
+   background-color, which sits underneath -- and so would be hidden by --
+   the opaque cover-art background-image) so the highlight stays visible
+   over whatever colors that album's spine art happens to show. */
+.album-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(140, 70, 60, 0.35);
+  transition: background 0.25s ease;
+  pointer-events: none;
 }
 
 .album-btn:hover,
 .album-btn:focus-visible {
   transform: translateY(-22px) scale(1.06);
-  background: rgba(170, 95, 85, 0.5);
+  background-color: rgba(170, 95, 85, 0.5);
   border-color: rgba(210, 140, 130, 0.85);
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.4);
   z-index: 5;
+}
+
+.album-btn:hover::after,
+.album-btn:focus-visible::after {
+  background: rgba(170, 95, 85, 0.55);
 }
 
 .album-btn:active {
@@ -262,9 +292,12 @@
 }
 
 .album-number {
+  position: relative;
+  z-index: 1;
   font-size: 14px;
   font-weight: 600;
   opacity: 0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
   transition: opacity 0.18s ease;
 }
 
@@ -411,7 +444,10 @@
    album art and fades in (see browse.js showTrackDetail). It can use the
    sleeve's full width: the sleeve's z-index (5) sits above the record (4),
    so the record never visibly shows through this panel even though it
-   geometrically overlaps it — no need to pad around it. */
+   geometrically overlaps it — no need to pad around it. Its background is
+   translucent rather than opaque so #coverArt (painted directly beneath it
+   in .cover-right) still shows through, tinted, instead of being fully
+   hidden once a track is picked. */
 .track-detail {
   position: absolute;
   inset: 0;
@@ -419,7 +455,7 @@
   flex-direction: column;
   padding: 16px;
   opacity: 0;
-  background: linear-gradient(160deg, #2d2119, #1b140f);
+  background: linear-gradient(160deg, rgba(45, 33, 25, 0.82), rgba(27, 20, 15, 0.88));
   color: var(--text);
   overflow: hidden;
   transition: opacity 0.45s ease;

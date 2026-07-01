@@ -45,6 +45,98 @@ static std::string encode_b64_url(const std::vector<uint8_t>& bytes) {
     return b64str;
 }
 
+// --- Independent standard-base64 + BMP decoders, used only to verify
+// generateSvgCover's embedded image. Deliberately separate from the
+// production encoder in IndexMetadata.cpp so these tests exercise a real
+// round-trip rather than checking the implementation against itself.
+
+static std::vector<uint8_t> decode_b64_standard(const std::string& s) {
+    auto valueOf = [](char c) -> int {
+        if (c >= 'A' && c <= 'Z') return c - 'A';
+        if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+        if (c >= '0' && c <= '9') return c - '0' + 52;
+        if (c == '+') return 62;
+        if (c == '/') return 63;
+        return -1; // padding ('=') or terminator
+    };
+    std::vector<uint8_t> out;
+    uint32_t             acc  = 0;
+    int                   bits = 0;
+    for (char c : s) {
+        int v = valueOf(c);
+        if (v < 0) break;
+        acc = (acc << 6) | static_cast<uint32_t>(v);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out.push_back(static_cast<uint8_t>((acc >> bits) & 0xFF));
+        }
+    }
+    return out;
+}
+
+// Extracts the base64 payload between `base64,` and the closing `'` from
+// generated SVG markup's embedded <image href='data:image/bmp;base64,...'>.
+static std::string extract_bmp_base64(const std::string& svg) {
+    static const std::string marker = "base64,";
+    size_t                   start  = svg.find(marker);
+    REQUIRE(start != std::string::npos);
+    start += marker.size();
+    size_t end = svg.find('\'', start);
+    REQUIRE(end != std::string::npos);
+    return svg.substr(start, end - start);
+}
+
+static uint32_t read_le32_at(const std::vector<uint8_t>& b, size_t off) {
+    return static_cast<uint32_t>(b[off]) | (static_cast<uint32_t>(b[off + 1]) << 8) | (static_cast<uint32_t>(b[off + 2]) << 16) |
+           (static_cast<uint32_t>(b[off + 3]) << 24);
+}
+
+struct DecodedBmp {
+    unsigned              width;
+    unsigned              height;
+    std::vector<uint8_t>  rgbTopDown; // row-major, top-down, RGB per pixel
+};
+
+static DecodedBmp decode_bmp24(const std::vector<uint8_t>& bmp) {
+    REQUIRE(bmp.size() >= 54);
+    REQUIRE(bmp[0] == 'B');
+    REQUIRE(bmp[1] == 'M');
+    uint32_t pixelOffset = read_le32_at(bmp, 10);
+    uint32_t headerSize  = read_le32_at(bmp, 14);
+    REQUIRE(headerSize == 40);
+    uint32_t width  = read_le32_at(bmp, 18);
+    uint32_t height = read_le32_at(bmp, 22);
+    auto     bpp    = static_cast<uint16_t>(bmp[28] | (bmp[29] << 8));
+    REQUIRE(bpp == 24);
+
+    unsigned rowBytes  = width * 3;
+    unsigned rowPadded = (rowBytes + 3) & ~0x3U;
+
+    DecodedBmp result;
+    result.width  = width;
+    result.height = height;
+    result.rgbTopDown.resize(static_cast<size_t>(width) * height * 3);
+
+    for (unsigned row = 0; row < height; ++row) {
+        // BMP rows are stored bottom-up; convert to top-down while decoding.
+        unsigned srcRow   = height - 1 - row;
+        size_t   rowStart = pixelOffset + static_cast<size_t>(srcRow) * rowPadded;
+        for (unsigned col = 0; col < width; ++col) {
+            size_t srcPx = rowStart + static_cast<size_t>(col) * 3;
+            size_t dstPx = (static_cast<size_t>(row) * width + col) * 3;
+            result.rgbTopDown[dstPx + 0] = bmp[srcPx + 2]; // R (BMP stores B, G, R)
+            result.rgbTopDown[dstPx + 1] = bmp[srcPx + 1]; // G
+            result.rgbTopDown[dstPx + 2] = bmp[srcPx + 0]; // B
+        }
+    }
+    return result;
+}
+
+static DecodedBmp decode_cover_bitmap(const std::string& svg) {
+    return decode_bmp24(decode_b64_standard(extract_bmp_base64(svg)));
+}
+
 TEST_CASE("IndexMetadata: deterministic and valid across both extraction overloads", "[metadata][determinism][base64]") {
     SECTION("cpp_int overload") {
         // Build a sample byte vector (non-empty) and construct a cpp_int (MSB-first)
@@ -119,18 +211,27 @@ TEST_CASE("IndexMetadata: string-overload malformed input handling", "[metadata]
     REQUIRE_THROWS_AS(IndexMetadata::extractMetadataFromIndex(malformed), std::invalid_argument);
 }
 
-TEST_CASE("IndexMetadata: generateSvgCover renders a pixel mosaic", "[metadata][svg][cover]") {
+TEST_CASE("IndexMetadata: generateSvgCover embeds a single raster image, not per-tile markup", "[metadata][svg][cover]") {
     std::vector<uint8_t> bytes = {0x12, 0x34, 0x56, 0x78};
     std::string          svg   = IndexMetadata::generateSvgCover(bytes, "t");
 
-    // 16x16 grid of individually colored cells, not one flat background fill.
-    size_t count = 0;
-    size_t pos   = 0;
+    // One embedded bitmap carries the whole mosaic; only the text backdrop
+    // panel is still drawn as a <rect> -- not one <rect> per tile.
+    size_t imageCount = 0;
+    size_t pos        = 0;
+    while ((pos = svg.find("<image", pos)) != std::string::npos) {
+        ++imageCount;
+        pos += 6;
+    }
+    REQUIRE(imageCount == 1);
+
+    size_t rectCount = 0;
+    pos              = 0;
     while ((pos = svg.find("<rect", pos)) != std::string::npos) {
-        ++count;
+        ++rectCount;
         pos += 5;
     }
-    REQUIRE(count == 256 + 1); // 256 mosaic cells + 1 text backdrop panel
+    REQUIRE(rectCount == 1); // text backdrop panel only
 }
 
 TEST_CASE("IndexMetadata: generateSvgCover is deterministic and byte-sensitive", "[metadata][svg][cover][determinism]") {
@@ -153,6 +254,71 @@ TEST_CASE("IndexMetadata: generateSvgCover contains track text", "[metadata][svg
     std::string          svg   = IndexMetadata::generateSvgCover(bytes, track);
 
     REQUIRE(svg.find(track) != std::string::npos);
+}
+
+TEST_CASE("IndexMetadata: generateSvgCover reads pixels directly, no PRNG mixing", "[metadata][svg][cover][bijective]") {
+    // cellSize=128 -> (256/128)^2 = 2x2 = 4 tiles. Decoding the embedded
+    // bitmap should show exactly the bytes supplied, verbatim -- proof
+    // there's no hashing/PRNG step between bytes and pixels.
+    std::vector<uint8_t> bytes = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
+    std::string          svg   = IndexMetadata::generateSvgCover(bytes, "t", 128);
+
+    DecodedBmp decoded = decode_cover_bitmap(svg);
+    REQUIRE(decoded.width == 2);
+    REQUIRE(decoded.height == 2);
+
+    // Tile 0 (top-left): bytes[0..2]
+    REQUIRE(decoded.rgbTopDown[0] == 0x12);
+    REQUIRE(decoded.rgbTopDown[1] == 0x34);
+    REQUIRE(decoded.rgbTopDown[2] == 0x56);
+    // Tile 1 (top-right): bytes[3..5]
+    REQUIRE(decoded.rgbTopDown[3] == 0x78);
+    REQUIRE(decoded.rgbTopDown[4] == 0x9A);
+    REQUIRE(decoded.rgbTopDown[5] == 0xBC);
+}
+
+TEST_CASE("IndexMetadata: generateSvgCover pads missing cells with black", "[metadata][svg][cover][bijective]") {
+    // Fewer bytes than pixelBytesNeeded(cellSize) -- the uncovered tiles
+    // should render black rather than throwing or reading out of bounds.
+    std::vector<uint8_t> bytes = {0xAA, 0xBB}; // cellSize=128 -> 2x2 tiles need 12 bytes; only 2 supplied
+    std::string          svg   = IndexMetadata::generateSvgCover(bytes, "t", 128);
+
+    DecodedBmp decoded = decode_cover_bitmap(svg);
+
+    // Tile 0: 0xAA, 0xBB, then padded 0x00
+    REQUIRE(decoded.rgbTopDown[0] == 0xAA);
+    REQUIRE(decoded.rgbTopDown[1] == 0xBB);
+    REQUIRE(decoded.rgbTopDown[2] == 0x00);
+
+    // Last tile (bottom-right), entirely past the supplied bytes: fully black.
+    size_t lastPx = decoded.rgbTopDown.size() - 3;
+    REQUIRE(decoded.rgbTopDown[lastPx + 0] == 0x00);
+    REQUIRE(decoded.rgbTopDown[lastPx + 1] == 0x00);
+    REQUIRE(decoded.rgbTopDown[lastPx + 2] == 0x00);
+}
+
+TEST_CASE("IndexMetadata: generateSvgCover honors cellSize", "[metadata][svg][cover]") {
+    // cellSize=64 -> (256/64)^2 = 4x4 = 16 tiles.
+    std::vector<uint8_t> bytes(IndexMetadata::pixelBytesNeeded(64), 0x7F);
+
+    std::string svg     = IndexMetadata::generateSvgCover(bytes, "t", 64);
+    DecodedBmp  decoded = decode_cover_bitmap(svg);
+
+    REQUIRE(decoded.width == 4);
+    REQUIRE(decoded.height == 4);
+    for (uint8_t channel : decoded.rgbTopDown) {
+        REQUIRE(channel == 0x7F);
+    }
+}
+
+TEST_CASE("IndexMetadata: extractMetadataFromIndex covers render at DEFAULT_CELL_SIZE resolution", "[metadata][svg][cover]") {
+    cpp_int idx  = cpp_int("123456789012345678901234567890");
+    auto     meta = IndexMetadata::extractMetadataFromIndex(idx);
+
+    DecodedBmp decoded = decode_cover_bitmap(meta.cover);
+    unsigned   expectedSide = 256 / IndexMetadata::DEFAULT_CELL_SIZE;
+    REQUIRE(decoded.width == expectedSide);
+    REQUIRE(decoded.height == expectedSide);
 }
 
 TEST_CASE("IndexMetadata: stress test across small and large cpp_int values", "[metadata][edge_case]") {

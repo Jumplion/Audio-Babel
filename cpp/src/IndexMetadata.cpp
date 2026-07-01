@@ -112,7 +112,7 @@ namespace {
         bmp.push_back('B');
         bmp.push_back('M');
         appendLE32(bmp, fileSize);
-        appendLE32(bmp, 0);      // reserved
+        appendLE32(bmp, 0);       // reserved
         appendLE32(bmp, 14 + 40); // pixel data offset
 
         // BITMAPINFOHEADER
@@ -150,7 +150,7 @@ namespace {
     // alphabet for encoding the bijective index itself, not arbitrary bytes.
     auto base64EncodeStandard(const std::vector<uint8_t>& bytes) -> std::string {
         static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        std::string        out;
+        std::string       out;
         out.reserve(((bytes.size() + 2) / 3) * 4);
 
         size_t i = 0;
@@ -187,9 +187,9 @@ auto IndexMetadata::generateSvgCover(const std::vector<uint8_t>& bytes, const st
     // index always renders the same cover (still deterministic), and the
     // mapping is invertible: packing a target image's quantized bytes at
     // this same offset makes an index decode to that exact cover.
-    unsigned              cellsPerSide = cellSize > 0 ? CANVAS_SIZE / cellSize : 1;
-    std::vector<uint8_t>  rgb(static_cast<size_t>(cellsPerSide) * cellsPerSide * 3);
-    size_t                cursor = 0;
+    unsigned             cellsPerSide = cellSize > 0 ? CANVAS_SIZE / cellSize : 1;
+    std::vector<uint8_t> rgb(static_cast<size_t>(cellsPerSide) * cellsPerSide * 3);
+    size_t               cursor = 0;
     for (auto& channel : rgb) {
         channel = nextByteOrZero(bytes, cursor);
     }

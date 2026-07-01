@@ -149,8 +149,7 @@ class IndexMetadata {
      * - Text: Track string centered in white, 20px font, over a translucent
      *   dark backdrop for legibility against arbitrary tile colors
      */
-    static auto generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track, unsigned cellSize = DEFAULT_CELL_SIZE)
-        -> std::string;
+    static auto generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track, unsigned cellSize = DEFAULT_CELL_SIZE) -> std::string;
 
    private:
     /**

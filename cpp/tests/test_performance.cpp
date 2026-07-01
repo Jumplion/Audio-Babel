@@ -20,6 +20,7 @@
 
 #include <FileIO.h>
 #include <Index.h>
+#include <IndexMetadata.h>
 #include <IndexScramble.h>
 #include <Utilities.h>
 
@@ -537,6 +538,54 @@ void runIndexMetadataBenchmarks(BenchmarkRunner& runner) {
     }
 }
 
+void runCoverGridSizeBenchmarks(BenchmarkRunner& runner) {
+    const std::string category = "Cover Mosaic Cell Size";
+
+    // cellSize is the pixel side length of one mosaic tile within the fixed
+    // 256x256 canvas -- NOT the tile count. cellSize=1 means one tile per
+    // canvas pixel (a full 256x256 bitmap, 65536 tiles); cellSize=256 means a
+    // single tile covering the whole canvas (a flat fill, 1 tile). Iteration
+    // counts scale inversely with tile count (256/cellSize)^2 so every case
+    // still finishes quickly.
+    struct CellCase {
+        unsigned cellSize;
+        int      iterations;
+    };
+    std::vector<CellCase> cellCases = {
+        {1, 20}, {2, 80}, {4, 300}, {8, 1000}, {16, 2000}, {32, 3000}, {64, 5000}, {128, 5000}, {256, 5000},
+    };
+
+    std::cout << "\nPixel bytes vs. SVG output size, by mosaic cell (tile) size:\n";
+    std::cout << std::left << std::setw(12) << "Cell size" << std::right << std::setw(10) << "Tiles" << std::setw(14) << "Pixel bytes"
+              << std::setw(14) << "SVG bytes" << std::setw(18) << "Bytes/tile (SVG)" << '\n';
+
+    for (const auto& cc : cellCases) {
+        size_t       pixelBytes  = IndexMetadata::pixelBytesNeeded(cc.cellSize);
+        auto         sampleBytes = generateRandomBytes(pixelBytes);
+        std::string  svg         = IndexMetadata::generateSvgCover(sampleBytes, "t", cc.cellSize);
+        size_t       cellsPerSide = 256 / cc.cellSize;
+        size_t       tiles        = cellsPerSide * cellsPerSide;
+
+        std::cout << std::left << std::setw(12) << (std::to_string(cc.cellSize) + "x" + std::to_string(cc.cellSize)) << std::right
+                  << std::setw(10) << tiles << std::setw(14) << pixelBytes << std::setw(14) << svg.size() << std::setw(18) << std::fixed
+                  << std::setprecision(1) << (static_cast<double>(svg.size()) / static_cast<double>(tiles)) << '\n';
+
+        runner.runBenchmark(
+            "Cover Generation (cell " + std::to_string(cc.cellSize) + "x" + std::to_string(cc.cellSize) + ", " + std::to_string(tiles) +
+                " tiles)",
+            category,
+            cc.iterations,
+            [&sampleBytes, &cc]() {
+                auto svg = IndexMetadata::generateSvgCover(sampleBytes, "t", cc.cellSize);
+                (void) svg;
+            },
+            [tiles](double ms) -> std::pair<double, std::string> {
+                double tilesPerSec = static_cast<double>(tiles) / (ms / 1000.0);
+                return {tilesPerSec, "tiles/sec"};
+            });
+    }
+}
+
 void runIntegrationBenchmarks(BenchmarkRunner& runner) {
     const std::string category = "End-to-End Integration";
 
@@ -732,25 +781,28 @@ int main() {
     BenchmarkRunner runner("performance_results.txt");
 
     // Run all benchmark categories
-    std::cout << "\n[1/7] Running Index benchmarks...\n";
+    std::cout << "\n[1/8] Running Index benchmarks...\n";
     runIndexBenchmarks(runner);
 
-    std::cout << "\n[2/7] Running LibraryPosition benchmarks...\n";
+    std::cout << "\n[2/8] Running LibraryPosition benchmarks...\n";
     runLibraryPositionBenchmarks(runner);
 
-    std::cout << "\n[3/7] Running IndexMetadata benchmarks...\n";
+    std::cout << "\n[3/8] Running IndexMetadata benchmarks...\n";
     runIndexMetadataBenchmarks(runner);
 
-    std::cout << "\n[4/7] Running Integration benchmarks...\n";
+    std::cout << "\n[4/8] Running Cover mosaic cell-size benchmarks...\n";
+    runCoverGridSizeBenchmarks(runner);
+
+    std::cout << "\n[5/8] Running Integration benchmarks...\n";
     runIntegrationBenchmarks(runner);
 
-    std::cout << "\n[5/7] Running IndexScramble benchmarks...\n";
+    std::cout << "\n[6/8] Running IndexScramble benchmarks...\n";
     runScrambleBenchmarks(runner);
 
-    std::cout << "\n[6/7] Running Utilities benchmarks...\n";
+    std::cout << "\n[7/8] Running Utilities benchmarks...\n";
     runUtilitiesBenchmarks(runner);
 
-    std::cout << "\n[7/7] Running FileIO benchmarks...\n";
+    std::cout << "\n[8/8] Running FileIO benchmarks...\n";
     runFileIoBenchmarks(runner);
 
     // Generate reports

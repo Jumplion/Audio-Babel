@@ -23,7 +23,8 @@ namespace AudioBabel {
  *   neighbouring indexes get wildly different names and any desired names can be
  *   inverted back into indexes that carry them. See IndexNaming for the
  *   algorithm.
- * - **Cover Art**: SVG pixel-mosaic image generated from index bytes
+ * - **Cover Art**: SVG-wrapped, native-resolution bitmap mosaic generated
+ *   directly (bijectively) from index bytes
  * - **Position**: Hierarchical location (room, wall, shelf, track) in the library
  *
  * @see LibraryPosition for hierarchical position calculation
@@ -49,10 +50,11 @@ class IndexMetadata {
      * @return IndexMetadata structure with all fields populated
      *
      * @par Algorithm
-     * 1. Export index to bytes (MSB-first), to seed the cover art mosaic only
+     * 1. Export index to bytes (MSB-first); the leading pixelBytesNeeded(DEFAULT_CELL_SIZE)
+     *    of them become the cover mosaic's pixels directly
      * 2. Compute LibraryPosition from the index (for the Browse hierarchy)
      * 3. Derive genre/artist/album/track from the index via IndexNaming::namesForIndex
-     * 4. Generate SVG cover from the first bytes and the track name
+     * 4. Generate SVG cover from the leading bytes and the track name
      *
      * @see extractMetadataFromIndex(const std::string&) for base64 overload
      */
@@ -78,30 +80,77 @@ class IndexMetadata {
      */
     static auto extractMetadataFromIndex(const std::string& base64Index) -> IndexMetadata;
 
+    /// Side length, in canvas pixels, of one mosaic tile in the production
+    /// cover. The fixed 256x256 canvas (see generateSvgCover) is tiled with
+    /// (256 / DEFAULT_CELL_SIZE)^2 = 64x64 = 4096 such tiles.
+    static constexpr unsigned DEFAULT_CELL_SIZE = 4;
+
+    /// Exact byte count a mosaic of the given tile size reads (3 bytes/cell,
+    /// no padding) -- the size a caller must supply to `generateSvgCover` to
+    /// avoid any cell falling back to black. Smaller cellSize means more,
+    /// smaller tiles (finer image), so it needs *more* bytes: at cellSize=1
+    /// every one of the canvas's 256*256 pixels is its own tile.
+    static constexpr auto pixelBytesNeeded(unsigned cellSize) -> size_t {
+        size_t cellsPerSide = cellSize > 0 ? CANVAS_SIZE / cellSize : 1;
+        return cellsPerSide * cellsPerSide * 3;
+    }
+
+    /// Side length, in pixels, of the square SVG canvas generateSvgCover draws.
+    static constexpr unsigned CANVAS_SIZE = 256;
+
     /**
-     * @brief Generate an SVG album cover from index bytes.
+     * @brief Generate an SVG album cover directly from index bytes.
      *
-     * Creates a 256×256 SVG image tiled with a 16×16 grid of individually
-     * colored 16×16 cells (a pixel mosaic), plus centered white text over a
-     * translucent backdrop displaying the track identifier.
+     * Builds a native-resolution (256/cellSize) x (256/cellSize) truecolor
+     * bitmap directly from `bytes`, embeds it as a single raster `<image>`
+     * inside a 256x256 SVG wrapper (upscaled with `image-rendering: pixelated`
+     * so tile edges stay crisp, not blurred), and overlays centered white
+     * text over a translucent backdrop showing the track identifier.
      *
-     * @param bytes Index bytes (MSB-first), used to seed the mosaic
+     * @param bytes Index bytes (MSB-first). Read three bytes at a time, in
+     *   reading order (left-to-right, top-to-bottom), as each tile's (R, G, B)
+     *   -- a direct, literal dump of bytes into pixels. A tile whose bytes run
+     *   past the end of `bytes` renders black (0, 0, 0) rather than throwing.
      * @param track Track identifier string to display
-     * @return SVG markup as a string
+     * @param cellSize Side length, in canvas pixels, of one mosaic tile
+     *   (default DEFAULT_CELL_SIZE). Smaller values mean *more*, finer tiles
+     *   -- cellSize=1 is one tile per canvas pixel (a true 256x256 bitmap);
+     *   cellSize=256 is a single tile covering the whole canvas (a flat fill).
+     *   Exposed mainly so benchmarks/tests can sweep tile sizes; production
+     *   code should use the default.
+     * @return SVG markup as a string (self-contained; the bitmap is embedded
+     *   as a base64 data URI, so this string alone is a valid SVG document)
+     *
+     * @par Algorithm
+     * There is no hashing or PRNG step: tile (row, col), visited in reading
+     * order, takes the next three bytes off `bytes` as its red, green, and
+     * blue channel, full stop -- literally the native-resolution image's raw
+     * pixel buffer. That makes the mapping from bytes to pixels bijective in
+     * both directions -- given a target image, quantize it down to
+     * (256/cellSize) x (256/cellSize) 8-bit-RGB tiles and write those bytes at
+     * the same offset an index's cover reads from, and decoding that index
+     * reproduces the image exactly. (The very first version seeded a
+     * splitmix64 PRNG stream from the bytes instead, which was one-way and
+     * not invertible at all. A later revision fixed that but still spelled
+     * out one SVG `<rect>` per tile -- correct, but the repeated markup made
+     * the output far larger than the pixel data it carried, especially at
+     * fine tile sizes. Embedding one small raster image is both.)
+     *
+     * @par Bitmap format
+     * The embedded image is an uncompressed 24-bit BMP (BITMAPFILEHEADER +
+     * BITMAPINFOHEADER, no color table, no compression) -- chosen because
+     * it's lossless and trivial to encode correctly without pulling in a
+     * compression library (no DEFLATE/zlib, unlike PNG), while still being a
+     * real raster image instead of a wall of vector markup.
      *
      * @par SVG Structure
      * - Viewbox: 0 0 256 256
-     * - Mosaic: 256 cells (16×16 grid), each filled with a color drawn from a
-     *   splitmix64 stream seeded by `bytes` (see Utilities::mixIn / splitmix64),
-     *   so the same bytes always produce the same mosaic
+     * - One `<image>` element: the (256/cellSize)^2-tile bitmap, base64-encoded
      * - Text: Track string centered in white, 20px font, over a translucent
-     *   dark backdrop for legibility against arbitrary cell colors
-     *
-     * @note An empty `bytes` vector still yields a deterministic (non-zero
-     *       seeded) mosaic, since splitmix64's first step never leaves the
-     *       state at zero
+     *   dark backdrop for legibility against arbitrary tile colors
      */
-    static auto generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track) -> std::string;
+    static auto generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track, unsigned cellSize = DEFAULT_CELL_SIZE)
+        -> std::string;
 
    private:
     /**
@@ -111,7 +160,7 @@ class IndexMetadata {
      * IndexNaming::namesForIndex) into the result and generates the SVG cover
      * from `bytes` and the track name.
      *
-     * @param bytes Index bytes (MSB-first), used only to seed the cover art mosaic
+     * @param bytes Index bytes (MSB-first), used directly as the cover art mosaic's pixels
      * @param position Already-computed LibraryPosition for this index
      * @param names Already-derived metadata names for this index
      * @return IndexMetadata with all fields populated

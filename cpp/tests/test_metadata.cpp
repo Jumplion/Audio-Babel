@@ -162,6 +162,41 @@ TEST_CASE("IndexMetadata: generateSvgCover contains track text", "[metadata][svg
     REQUIRE(svg.find(track) != std::string::npos);
 }
 
+TEST_CASE("IndexMetadata: generateSvgCover reads pixels directly, no PRNG mixing", "[metadata][svg][cover][bijective]") {
+    // The first cell's fill should be exactly the first three bytes supplied,
+    // hex-encoded verbatim -- proof there's no hashing/PRNG step between
+    // bytes and pixels.
+    std::vector<uint8_t> bytes = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
+    std::string          svg   = IndexMetadata::generateSvgCover(bytes, "t", 2);
+
+    REQUIRE(svg.find("fill='#123456'") != std::string::npos);
+    REQUIRE(svg.find("fill='#789abc'") != std::string::npos);
+}
+
+TEST_CASE("IndexMetadata: generateSvgCover pads missing cells with black", "[metadata][svg][cover][bijective]") {
+    // Fewer bytes than pixelBytesNeeded(gridSize) -- the uncovered cells
+    // should render black rather than throwing or reading out of bounds.
+    std::vector<uint8_t> bytes = {0xAA, 0xBB}; // 2x2 grid needs 12 bytes; only 2 supplied
+    std::string          svg   = IndexMetadata::generateSvgCover(bytes, "t", 2);
+
+    REQUIRE(svg.find("fill='#aabb00'") != std::string::npos); // first cell: 0xAA,0xBB, then padded 0x00
+    REQUIRE(svg.find("fill='#000000'") != std::string::npos); // fully-padded cell
+}
+
+TEST_CASE("IndexMetadata: generateSvgCover honors gridSize", "[metadata][svg][cover]") {
+    std::vector<uint8_t> bytes(IndexMetadata::pixelBytesNeeded(4), 0x7F);
+
+    std::string svg = IndexMetadata::generateSvgCover(bytes, "t", 4);
+
+    size_t count = 0;
+    size_t pos   = 0;
+    while ((pos = svg.find("<rect", pos)) != std::string::npos) {
+        ++count;
+        pos += 5;
+    }
+    REQUIRE(count == 4 * 4 + 1); // gridSize^2 mosaic cells + 1 text backdrop panel
+}
+
 TEST_CASE("IndexMetadata: stress test across small and large cpp_int values", "[metadata][edge_case]") {
     // Edge cases with minimal indexes, plus progressively larger indexes.
     std::vector<cpp_int> values = {

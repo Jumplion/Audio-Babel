@@ -20,6 +20,7 @@
 
 #include <FileIO.h>
 #include <Index.h>
+#include <IndexMetadata.h>
 #include <IndexScramble.h>
 #include <Utilities.h>
 
@@ -537,6 +538,49 @@ void runIndexMetadataBenchmarks(BenchmarkRunner& runner) {
     }
 }
 
+void runCoverGridSizeBenchmarks(BenchmarkRunner& runner) {
+    const std::string category = "Cover Mosaic Grid Size";
+
+    // Square grid sizes from a single flat-color cell up to one cell per
+    // pixel of the 256x256 canvas. Iteration counts taper off as gridSize^2
+    // (and thus per-call cost) grows, so every size still finishes quickly.
+    struct GridCase {
+        unsigned gridSize;
+        int      iterations;
+    };
+    std::vector<GridCase> gridCases = {
+        {1, 5000}, {2, 5000}, {4, 5000}, {8, 3000}, {16, 2000}, {32, 1000}, {64, 300}, {128, 80}, {256, 20},
+    };
+
+    std::cout << "\nPixel bytes vs. SVG output size, by grid size:\n";
+    std::cout << std::left << std::setw(10) << "Grid" << std::right << std::setw(14) << "Pixel bytes" << std::setw(14) << "SVG bytes"
+              << std::setw(18) << "Bytes/cell (SVG)" << '\n';
+
+    for (const auto& gc : gridCases) {
+        size_t pixelBytes = IndexMetadata::pixelBytesNeeded(gc.gridSize);
+        auto   sampleBytes = generateRandomBytes(pixelBytes);
+        std::string svg     = IndexMetadata::generateSvgCover(sampleBytes, "t", gc.gridSize);
+        size_t      cells   = static_cast<size_t>(gc.gridSize) * gc.gridSize;
+
+        std::cout << std::left << std::setw(10) << (std::to_string(gc.gridSize) + "x" + std::to_string(gc.gridSize)) << std::right
+                  << std::setw(14) << pixelBytes << std::setw(14) << svg.size() << std::setw(18) << std::fixed << std::setprecision(1)
+                  << (static_cast<double>(svg.size()) / static_cast<double>(cells)) << '\n';
+
+        runner.runBenchmark(
+            "Cover Generation (" + std::to_string(gc.gridSize) + "x" + std::to_string(gc.gridSize) + ")",
+            category,
+            gc.iterations,
+            [&sampleBytes, &gc]() {
+                auto svg = IndexMetadata::generateSvgCover(sampleBytes, "t", gc.gridSize);
+                (void) svg;
+            },
+            [cells](double ms) -> std::pair<double, std::string> {
+                double cellsPerSec = static_cast<double>(cells) / (ms / 1000.0);
+                return {cellsPerSec, "cells/sec"};
+            });
+    }
+}
+
 void runIntegrationBenchmarks(BenchmarkRunner& runner) {
     const std::string category = "End-to-End Integration";
 
@@ -732,25 +776,28 @@ int main() {
     BenchmarkRunner runner("performance_results.txt");
 
     // Run all benchmark categories
-    std::cout << "\n[1/7] Running Index benchmarks...\n";
+    std::cout << "\n[1/8] Running Index benchmarks...\n";
     runIndexBenchmarks(runner);
 
-    std::cout << "\n[2/7] Running LibraryPosition benchmarks...\n";
+    std::cout << "\n[2/8] Running LibraryPosition benchmarks...\n";
     runLibraryPositionBenchmarks(runner);
 
-    std::cout << "\n[3/7] Running IndexMetadata benchmarks...\n";
+    std::cout << "\n[3/8] Running IndexMetadata benchmarks...\n";
     runIndexMetadataBenchmarks(runner);
 
-    std::cout << "\n[4/7] Running Integration benchmarks...\n";
+    std::cout << "\n[4/8] Running Cover mosaic grid-size benchmarks...\n";
+    runCoverGridSizeBenchmarks(runner);
+
+    std::cout << "\n[5/8] Running Integration benchmarks...\n";
     runIntegrationBenchmarks(runner);
 
-    std::cout << "\n[5/7] Running IndexScramble benchmarks...\n";
+    std::cout << "\n[6/8] Running IndexScramble benchmarks...\n";
     runScrambleBenchmarks(runner);
 
-    std::cout << "\n[6/7] Running Utilities benchmarks...\n";
+    std::cout << "\n[7/8] Running Utilities benchmarks...\n";
     runUtilitiesBenchmarks(runner);
 
-    std::cout << "\n[7/7] Running FileIO benchmarks...\n";
+    std::cout << "\n[8/8] Running FileIO benchmarks...\n";
     runFileIoBenchmarks(runner);
 
     // Generate reports

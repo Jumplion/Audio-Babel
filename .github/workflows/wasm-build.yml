@@ -15,9 +15,13 @@ on:
 jobs:
   build-wasm:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v14
@@ -34,6 +38,13 @@ jobs:
       - name: Verify WASM output
         run: |
           ls -lh docs/wasm/index.wasm docs/wasm/index.js
+
+      - name: Commit WASM build
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update WASM binary"
+          file_pattern: "docs/wasm/index.wasm docs/wasm/index.js"
 
       - name: Upload WASM artifacts
         uses: actions/upload-artifact@v4

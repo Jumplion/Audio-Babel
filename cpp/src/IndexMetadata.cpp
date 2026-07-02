@@ -131,8 +131,9 @@ auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> 
     return buildMetadataFromBytesAndPosition(bytes, position, IndexNaming::namesForIndex(index));
 }
 
-auto IndexMetadata::constructIndexesForCover(const std::vector<uint8_t>& pixels, size_t count, uint64_t seed)
-    -> std::vector<boost::multiprecision::cpp_int> {
+auto IndexMetadata::constructIndexesForCover(const std::vector<uint8_t>& pixels,
+                                             size_t                      count,
+                                             uint64_t                    seed) -> std::vector<boost::multiprecision::cpp_int> {
     const size_t needed = pixelBytesNeeded(DEFAULT_CELL_SIZE);
     if (pixels.size() != needed) {
         throw std::invalid_argument("constructIndexesForCover: expected exactly " + std::to_string(needed) + " pixel bytes, got " +

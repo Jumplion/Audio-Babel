@@ -227,11 +227,8 @@ static std::string getLibraryConstantsWrapper() {
     json += jsonNumberField("nameMaxChars", static_cast<long long>(IndexNaming::nameMaxChars())) + ",";
     // Cover mosaic dimensions, so the JS cover-art search can quantize an
     // uploaded image to exactly the pixel grid constructByCover expects.
-    json += jsonNumberField("coverPixelsPerSide",
-                            static_cast<long long>(IndexMetadata::CANVAS_SIZE / IndexMetadata::DEFAULT_CELL_SIZE)) +
-            ",";
-    json += jsonNumberField("coverPixelBytes",
-                            static_cast<long long>(IndexMetadata::pixelBytesNeeded(IndexMetadata::DEFAULT_CELL_SIZE)));
+    json += jsonNumberField("coverPixelsPerSide", static_cast<long long>(IndexMetadata::CANVAS_SIZE / IndexMetadata::DEFAULT_CELL_SIZE)) + ",";
+    json += jsonNumberField("coverPixelBytes", static_cast<long long>(IndexMetadata::pixelBytesNeeded(IndexMetadata::DEFAULT_CELL_SIZE)));
     json += "}";
     return json;
 }

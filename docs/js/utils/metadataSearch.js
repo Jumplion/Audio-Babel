@@ -37,6 +37,24 @@ export function sanitizeMetadataFieldValue(value, width) {
 }
 
 /**
+ * Parse a constructByNames/constructByCover JSON response into result objects.
+ * @param {string} json - Raw JSON string returned by the WASM call
+ * @returns {Array<{indexBase64: string, position: Object, names: Object}>}
+ */
+function parseConstructedResults(json) {
+  const results = JSON.parse(json);
+  if (results && results.error) {
+    throw new Error(results.error);
+  }
+
+  return results.map((r) => ({
+    indexBase64: r.indexBase64,
+    position: { room: r.room, wall: r.wall, shelf: r.shelf, album: r.album, track: r.track },
+    names: { genre: r.genreName, artist: r.artistName, album: r.albumName, track: r.trackName },
+  }));
+}
+
+/**
  * Build indexes matching any combination of genre/artist/album/track names.
  * @param {Object} wasm - Initialized IndexWasm instance
  * @param {{genre?: string, artist?: string, album?: string, track?: string}} fields - Names to pin, per level
@@ -62,14 +80,30 @@ export async function searchByMetadata(wasm, fields, options = {}) {
     actualSeed
   );
 
-  const results = JSON.parse(json);
-  if (results && results.error) {
-    throw new Error(results.error);
-  }
+  return parseConstructedResults(json);
+}
 
-  return results.map((r) => ({
-    indexBase64: r.indexBase64,
-    position: { room: r.room, wall: r.wall, shelf: r.shelf, album: r.album, track: r.track },
-    names: { genre: r.genreName, artist: r.artistName, album: r.albumName, track: r.trackName },
-  }));
+/**
+ * Build indexes whose cover art renders the given pixel grid.
+ * Like searchByMetadata, this constructs rather than scans: the cover
+ * byte-to-pixel mapping is invertible (see IndexMetadata.h), so the target
+ * pixels are turned straight into indexes that carry them. Names, position,
+ * and audio vary per candidate; only the cover is pinned.
+ * @param {Object} wasm - Initialized IndexWasm instance
+ * @param {Uint8Array} pixels - Packed 8-bit RGB pixels in reading order,
+ *   exactly coverPixelBytes long (see getLibraryConstants) — the shape
+ *   quantizeImageToCoverPixels produces
+ * @param {Object} [options]
+ * @param {number} [options.maxResults=10] - How many candidate indexes to return
+ * @param {number} [options.seed] - Randomness seed (defaults to a fresh random value each call)
+ * @returns {Promise<Array<{indexBase64: string, position: Object, names: Object}>>}
+ */
+export async function searchByCover(wasm, pixels, options = {}) {
+  const { maxResults = 10, seed } = options;
+
+  const actualSeed = seed ?? Math.floor(Math.random() * 0x1_0000_0000);
+
+  const json = wasm.module.constructByCover(pixels, maxResults, actualSeed);
+
+  return parseConstructedResults(json);
 }

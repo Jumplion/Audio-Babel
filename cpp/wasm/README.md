@@ -27,3 +27,5 @@ Consumed by [`docs/js/core/indexWasm.js`](../../docs/js/core/indexWasm.js):
 | `reconstructIndex` | Reconstruct an index from a library position. |
 | `getLibraryConstants` | Return library hierarchy constants as JSON. |
 | `getGenreNames` / `getArtistNames` / `getAlbumNames` / `getTrackNames` | Batch cosmetic names for one sibling group at a time (see [`IndexNaming.h`](../include/IndexNaming.h)). |
+| `constructByNames` | Construct indexes that carry the requested metadata names (see [`IndexNaming.h`](../include/IndexNaming.h)). |
+| `constructByCover` | Construct indexes whose cover art renders the given RGB pixel grid (see [`IndexMetadata.h`](../include/IndexMetadata.h)). |

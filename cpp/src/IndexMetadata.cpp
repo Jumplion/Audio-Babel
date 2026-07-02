@@ -2,6 +2,7 @@
 
 #include <boost/multiprecision/cpp_int.hpp>
 #include <iterator>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -67,6 +68,17 @@ namespace {
         return y;
     }
 
+    // Exact inverse of permuteCoverEncode: decrypt, cycle-walking back through
+    // any intermediate values that fall outside [0, full).
+    auto permuteCoverDecode(const cpp_int& y) -> cpp_int {
+        const CoverSpace& cs = coverSpace();
+        cpp_int           x  = AudioBabel::Utilities::feistelPow2(y, cs.e, coverRoundKey, /*encrypt=*/false);
+        while (x >= cs.full) {
+            x = AudioBabel::Utilities::feistelPow2(x, cs.e, coverRoundKey, /*encrypt=*/false);
+        }
+        return x;
+    }
+
     // Render `value` as exactly `n` bytes, most-significant first, left-padded
     // with zero bytes (not right-padded — value is a coverBits-bit number, so
     // any missing high-order bytes are genuinely leading zeros, not "ran out of
@@ -117,6 +129,50 @@ auto IndexMetadata::extractMetadataFromIndex(const std::string& base64Index) -> 
 
     LibraryPosition position = calculateLibraryPosition(index);
     return buildMetadataFromBytesAndPosition(bytes, position, IndexNaming::namesForIndex(index));
+}
+
+auto IndexMetadata::constructIndexesForCover(const std::vector<uint8_t>& pixels, size_t count, uint64_t seed)
+    -> std::vector<boost::multiprecision::cpp_int> {
+    const size_t needed = pixelBytesNeeded(DEFAULT_CELL_SIZE);
+    if (pixels.size() != needed) {
+        throw std::invalid_argument("constructIndexesForCover: expected exactly " + std::to_string(needed) + " pixel bytes, got " +
+                                    std::to_string(pixels.size()));
+    }
+
+    const CoverSpace& cs = coverSpace();
+
+    cpp_int s = 0;
+    boost::multiprecision::import_bits(s, pixels.begin(), pixels.end(), BITS_PER_BYTE, true);
+    // full = 2^coverBits - 3, so the top three pixel patterns (all-white and
+    // its two nearest neighbours) have no preimage; clamp them to the nearest
+    // representable pattern (at most -3 in the last tile's blue channel).
+    if (s >= cs.full) {
+        s = cs.full - 1;
+    }
+
+    cpp_int material = permuteCoverDecode(s);
+
+    // Same discriminator sizing as IndexNaming::constructIndexesForNames:
+    // enough random high bits to land each candidate at ~65536 base64 chars
+    // (meaningful audio), and to make candidates distinct even though the
+    // cover material is fully pinned.
+    static const size_t TARGET_INDEX_BITS = 65536 * 6;
+    const size_t        fullBits          = static_cast<size_t>(boost::multiprecision::msb(cs.full)) + 1;
+    const size_t        discBits          = TARGET_INDEX_BITS > fullBits ? TARGET_INDEX_BITS - fullBits : 1;
+    const size_t        discWords         = (discBits + 63) / 64;
+
+    std::mt19937_64 rng(seed);
+
+    std::vector<cpp_int> results;
+    results.reserve(count);
+    for (size_t k = 0; k < count; ++k) {
+        cpp_int discriminator = 0;
+        for (size_t w = 0; w < discWords; ++w) {
+            discriminator = (discriminator << 64) | cpp_int(rng());
+        }
+        results.push_back(discriminator * cs.full + material);
+    }
+    return results;
 }
 
 auto IndexMetadata::buildMetadataFromBytesAndPosition(const std::vector<uint8_t>& bytes,

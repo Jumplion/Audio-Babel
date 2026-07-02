@@ -397,6 +397,66 @@ TEST_CASE("IndexMetadata: cover scrambling is deterministic", "[metadata][svg][c
     REQUIRE(meta1.cover == meta3.cover);
 }
 
+TEST_CASE("IndexMetadata: constructIndexesForCover round-trips a target image", "[metadata][cover][construct]") {
+    // Deterministic pseudo-random target pixels (a stand-in for a quantized
+    // uploaded image), exactly the production cover's pixel byte budget.
+    const size_t         needed = IndexMetadata::pixelBytesNeeded(IndexMetadata::DEFAULT_CELL_SIZE);
+    std::vector<uint8_t> pixels(needed);
+    uint32_t             lcg = 0x12345678;
+    for (auto& p : pixels) {
+        lcg = lcg * 1664525U + 1013904223U;
+        p   = static_cast<uint8_t>(lcg >> 24);
+    }
+
+    auto indexes = IndexMetadata::constructIndexesForCover(pixels, 3, /*seed=*/42);
+    REQUIRE(indexes.size() == 3);
+
+    // Distinct candidates (different discriminators)...
+    REQUIRE(indexes[0] != indexes[1]);
+    REQUIRE(indexes[1] != indexes[2]);
+
+    // ...that each decode to exactly the requested cover mosaic.
+    for (const auto& idx : indexes) {
+        auto       meta    = IndexMetadata::extractMetadataFromIndex(idx);
+        DecodedBmp decoded = decode_cover_bitmap(meta.cover);
+        REQUIRE(decoded.rgbTopDown == pixels);
+    }
+
+    // Reproducible: same pixels + seed give the same candidates.
+    auto again = IndexMetadata::constructIndexesForCover(pixels, 3, /*seed=*/42);
+    REQUIRE(again == indexes);
+}
+
+TEST_CASE("IndexMetadata: constructIndexesForCover clamps unreachable all-white covers", "[metadata][cover][construct][edge_case]") {
+    // The cover material domain is [0, 2^bits - 3), so all-white (and its two
+    // nearest patterns) have no preimage. The construction clamps instead of
+    // throwing; the rendered cover may differ only in the very last byte, by
+    // at most 3 (0xFF -> 0xFC).
+    const size_t         needed = IndexMetadata::pixelBytesNeeded(IndexMetadata::DEFAULT_CELL_SIZE);
+    std::vector<uint8_t> white(needed, 0xFF);
+
+    auto indexes = IndexMetadata::constructIndexesForCover(white, 1, /*seed=*/7);
+    REQUIRE(indexes.size() == 1);
+
+    auto       meta    = IndexMetadata::extractMetadataFromIndex(indexes[0]);
+    DecodedBmp decoded = decode_cover_bitmap(meta.cover);
+    REQUIRE(decoded.rgbTopDown.size() == needed);
+    for (size_t i = 0; i + 1 < needed; ++i) {
+        REQUIRE(decoded.rgbTopDown[i] == 0xFF);
+    }
+    REQUIRE(decoded.rgbTopDown[needed - 1] >= 0xFC);
+}
+
+TEST_CASE("IndexMetadata: constructIndexesForCover rejects wrong-size input", "[metadata][cover][construct][error]") {
+    const size_t needed = IndexMetadata::pixelBytesNeeded(IndexMetadata::DEFAULT_CELL_SIZE);
+
+    std::vector<uint8_t> tooShort(needed - 1, 0x00);
+    REQUIRE_THROWS_AS(IndexMetadata::constructIndexesForCover(tooShort, 1, 0), std::invalid_argument);
+
+    std::vector<uint8_t> tooLong(needed + 1, 0x00);
+    REQUIRE_THROWS_AS(IndexMetadata::constructIndexesForCover(tooLong, 1, 0), std::invalid_argument);
+}
+
 TEST_CASE("IndexMetadata: stress test across small and large cpp_int values", "[metadata][edge_case]") {
     // Edge cases with minimal indexes, plus progressively larger indexes.
     std::vector<cpp_int> values = {

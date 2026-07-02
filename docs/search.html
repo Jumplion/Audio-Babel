@@ -189,39 +189,62 @@
             <div class="metadata-field-grid">
               <div class="option-field">
                 <label for="metaGenreInput">Genre</label>
-                <input
-                  type="text"
-                  id="metaGenreInput"
-                  placeholder="Genre"
-                  autocomplete="off"
-                />
+                <input type="text" id="metaGenreInput" placeholder="Genre" autocomplete="off" />
               </div>
               <div class="option-field">
                 <label for="metaArtistInput">Artist</label>
-                <input
-                  type="text"
-                  id="metaArtistInput"
-                  placeholder="Artist"
-                  autocomplete="off"
-                />
+                <input type="text" id="metaArtistInput" placeholder="Artist" autocomplete="off" />
               </div>
               <div class="option-field">
                 <label for="metaAlbumInput">Album</label>
-                <input
-                  type="text"
-                  id="metaAlbumInput"
-                  placeholder="Album"
-                  autocomplete="off"
-                />
+                <input type="text" id="metaAlbumInput" placeholder="Album" autocomplete="off" />
               </div>
               <div class="option-field">
                 <label for="metaTrackInput">Track</label>
+                <input type="text" id="metaTrackInput" placeholder="Track" autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="cover-search-field">
+              <label for="metaCoverInput">Cover Art</label>
+              <p class="search-help">
+                <small
+                  >Or upload an image (PNG, JPEG, or any format your browser can display). It will
+                  be cropped and scaled to the cover mosaic, and each result is an index whose cover
+                  art renders it. While an image is set, the name fields above are ignored.</small
+                >
+              </p>
+              <div class="cover-search-controls">
                 <input
-                  type="text"
-                  id="metaTrackInput"
-                  placeholder="Track"
-                  autocomplete="off"
+                  type="file"
+                  id="metaCoverInput"
+                  accept="image/*"
+                  aria-label="Upload an image to search by cover art"
                 />
+                <button
+                  class="btn-clear-file"
+                  id="metaCoverClearBtn"
+                  type="button"
+                  title="Remove image"
+                  hidden
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+              <div class="cover-preview" id="metaCoverPreview" hidden>
+                <canvas id="metaCoverCanvas" width="64" height="64"></canvas>
+                <small>How the cover mosaic will look</small>
               </div>
             </div>
 
@@ -231,7 +254,14 @@
 
             <div id="metadataSearchStatus" class="search-help" aria-live="polite"></div>
             <ul id="metadataResultsList" class="metadata-results-list"></ul>
-            <button id="metadataMoreBtn" class="metadata-more-btn" type="button" style="display:none">More...</button>
+            <button
+              id="metadataMoreBtn"
+              class="metadata-more-btn"
+              type="button"
+              style="display: none"
+            >
+              More...
+            </button>
           </section>
         </div>
 

@@ -224,7 +224,14 @@ static std::string getLibraryConstantsWrapper() {
     json += jsonNumberField("albumsPerShelf", LibraryConstants::ALBUMS_PER_SHELF) + ",";
     json += jsonNumberField("shelvesPerWall", LibraryConstants::SHELVES_PER_WALL) + ",";
     json += jsonNumberField("wallsPerRoom", LibraryConstants::WALLS_PER_ROOM) + ",";
-    json += jsonNumberField("nameMaxChars", static_cast<long long>(IndexNaming::nameMaxChars()));
+    json += jsonNumberField("nameMaxChars", static_cast<long long>(IndexNaming::nameMaxChars())) + ",";
+    // Cover mosaic dimensions, so the JS cover-art search can quantize an
+    // uploaded image to exactly the pixel grid constructByCover expects.
+    json += jsonNumberField("coverPixelsPerSide",
+                            static_cast<long long>(IndexMetadata::CANVAS_SIZE / IndexMetadata::DEFAULT_CELL_SIZE)) +
+            ",";
+    json += jsonNumberField("coverPixelBytes",
+                            static_cast<long long>(IndexMetadata::pixelBytesNeeded(IndexMetadata::DEFAULT_CELL_SIZE)));
     json += "}";
     return json;
 }
@@ -268,6 +275,38 @@ static std::string getTrackNamesWrapper(const std::string& roomStr, int wall, in
 }
 
 /**
+ * Serialize constructed candidate indexes into the JSON result array shared by
+ * constructByNames and constructByCover: each entry carries the index itself,
+ * its library position, and the four metadata names it decodes to.
+ */
+static std::string constructedIndexesToJson(const std::vector<cpp_int>& indexes) {
+    std::string json = "[";
+    for (size_t i = 0; i < indexes.size(); ++i) {
+        if (i > 0) {
+            json += ",";
+        }
+        const cpp_int&     idx   = indexes[i];
+        LibraryPosition    pos   = AudioBabel::calculateLibraryPosition(idx);
+        IndexNaming::Names names = IndexNaming::namesForIndex(idx);
+
+        json += "{";
+        json += jsonStringField("indexBase64", AudioBabel::Utilities::indexToB64(idx)) + ",";
+        json += jsonStringField("room", pos.room) + ",";
+        json += jsonNumberField("wall", pos.wall) + ",";
+        json += jsonNumberField("shelf", pos.shelf) + ",";
+        json += jsonNumberField("album", pos.album) + ",";
+        json += jsonNumberField("track", pos.track) + ",";
+        json += jsonStringField("genreName", names.genre) + ",";
+        json += jsonStringField("artistName", names.artist) + ",";
+        json += jsonStringField("albumName", names.album) + ",";
+        json += jsonStringField("trackName", names.track);
+        json += "}";
+    }
+    json += "]";
+    return json;
+}
+
+/**
  * Construct indexes that carry the requested metadata names (see IndexNaming.h).
  * Each of genre/artist/album/track is either a name to pin down or an empty
  * string meaning "leave free" (randomized per result). `seed` drives the
@@ -299,31 +338,30 @@ static std::string constructByNamesWrapper(
         uint64_t s     = static_cast<uint64_t>(seed);
 
         std::vector<cpp_int> indexes = IndexNaming::constructIndexesForNames(query, count, s);
+        return constructedIndexesToJson(indexes);
 
-        std::string json = "[";
-        for (size_t i = 0; i < indexes.size(); ++i) {
-            if (i > 0) {
-                json += ",";
-            }
-            const cpp_int&     idx   = indexes[i];
-            LibraryPosition    pos   = AudioBabel::calculateLibraryPosition(idx);
-            IndexNaming::Names names = IndexNaming::namesForIndex(idx);
+    } catch (const std::exception& e) {
+        return makeJsonError(e.what());
+    }
+}
 
-            json += "{";
-            json += jsonStringField("indexBase64", AudioBabel::Utilities::indexToB64(idx)) + ",";
-            json += jsonStringField("room", pos.room) + ",";
-            json += jsonNumberField("wall", pos.wall) + ",";
-            json += jsonNumberField("shelf", pos.shelf) + ",";
-            json += jsonNumberField("album", pos.album) + ",";
-            json += jsonNumberField("track", pos.track) + ",";
-            json += jsonStringField("genreName", names.genre) + ",";
-            json += jsonStringField("artistName", names.artist) + ",";
-            json += jsonStringField("albumName", names.album) + ",";
-            json += jsonStringField("trackName", names.track);
-            json += "}";
-        }
-        json += "]";
-        return json;
+/**
+ * Construct indexes whose cover art renders the given pixel bytes (see
+ * IndexMetadata::constructIndexesForCover). `pixelBytes` must be a Uint8Array
+ * of exactly coverPixelBytes (see getLibraryConstants) packed 8-bit RGB values
+ * in reading order — the caller quantizes the uploaded image down to the
+ * coverPixelsPerSide grid first. Returns the same JSON result shape as
+ * constructByNames, or a JSON error object.
+ */
+static std::string constructByCoverWrapper(const emscripten::val& pixelBytes, int maxResults, double seed) {
+    try {
+        std::vector<uint8_t> pixels = emscripten::convertJSArrayToNumberVector<uint8_t>(pixelBytes);
+
+        size_t   count = static_cast<size_t>(std::max(0, maxResults));
+        uint64_t s     = static_cast<uint64_t>(seed);
+
+        std::vector<cpp_int> indexes = IndexMetadata::constructIndexesForCover(pixels, count, s);
+        return constructedIndexesToJson(indexes);
 
     } catch (const std::exception& e) {
         return makeJsonError(e.what());
@@ -351,4 +389,7 @@ EMSCRIPTEN_BINDINGS(audio_index_module) {
 
     // Construct indexes from metadata names (see IndexNaming.h)
     function("constructByNames", &constructByNamesWrapper);
+
+    // Construct indexes from target cover-art pixels (see IndexMetadata.h)
+    function("constructByCover", &constructByCoverWrapper);
 }

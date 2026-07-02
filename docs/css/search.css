@@ -93,7 +93,8 @@
   display: block;
 }
 
-.search .extract-group .btn-clear-file {
+.search .extract-group .btn-clear-file,
+.search .cover-search-controls .btn-clear-file {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -108,18 +109,21 @@
   transition: all 0.2s ease;
 }
 
-.search .extract-group .btn-clear-file svg {
+.search .extract-group .btn-clear-file svg,
+.search .cover-search-controls .btn-clear-file svg {
   width: 14px;
   height: 14px;
 }
 
-.search .extract-group .btn-clear-file:hover {
+.search .extract-group .btn-clear-file:hover,
+.search .cover-search-controls .btn-clear-file:hover {
   background: rgba(122, 51, 38, 0.2);
   border-color: var(--maroon-bright);
   color: var(--maroon-bright);
 }
 
-.search .extract-group .btn-clear-file[hidden] {
+.search .extract-group .btn-clear-file[hidden],
+.search .cover-search-controls .btn-clear-file[hidden] {
   display: none;
 }
 
@@ -223,6 +227,69 @@
 .search .metadata-field-grid input[type='text'] {
   width: 100%;
   box-sizing: border-box;
+}
+
+.search .cover-search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.search .cover-search-field > label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+}
+
+.search .cover-search-field .search-help {
+  margin-top: 0;
+}
+
+.search .cover-search-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.search #metaCoverInput {
+  min-width: 0;
+  max-width: 100%;
+  display: block;
+}
+
+.search .cover-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.search .cover-preview[hidden] {
+  display: none;
+}
+
+.search .cover-preview canvas {
+  width: 96px;
+  height: 96px;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+
+  /* Nearest-neighbor upscale so the mosaic tiles stay crisp, matching how
+     generateSvgCover renders the same pixels. */
+  image-rendering: pixelated;
+}
+
+.search .cover-preview small {
+  color: var(--muted);
+}
+
+.search .metadata-field-grid input[type='text']:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .search .metadata-more-btn {

@@ -1,6 +1,4 @@
 /**
- * coverImage.js
- *
  * Turn a user-supplied image file (PNG, JPEG, WebP, ... — anything the
  * browser can decode) into the fixed-size RGB pixel grid the WASM
  * `constructByCover` call expects. The image is center-cropped to a square
@@ -8,13 +6,9 @@
  * how the C++ side reads cover bytes: three bytes per tile, reading order.
  */
 
-/**
- * Decode an image File/Blob into something drawImage accepts.
- * Prefers createImageBitmap; falls back to an HTMLImageElement + object URL
- * for older browsers.
- * @param {File} file - Image file to decode
- * @returns {Promise<ImageBitmap|HTMLImageElement>}
- */
+// Decodes an image File/Blob into something drawImage accepts. Prefers
+// createImageBitmap; falls back to an HTMLImageElement + object URL for
+// older browsers.
 async function decodeImageFile(file) {
   if (typeof createImageBitmap === 'function') {
     return createImageBitmap(file);
@@ -32,15 +26,10 @@ async function decodeImageFile(file) {
   }
 }
 
-/**
- * Quantize an image file down to the cover mosaic's pixel grid.
- * @param {File} file - Image file (any format the browser can decode)
- * @param {number} pixelsPerSide - Cover mosaic side length in tiles (e.g. 64)
- * @returns {Promise<{pixels: Uint8Array, imageData: ImageData}>}
- *   pixels: packed 8-bit RGB in reading order (3 * pixelsPerSide^2 bytes),
- *   exactly the layout constructByCover consumes; imageData: the same
- *   quantized square as RGBA, ready to putImageData into a preview canvas.
- */
+// Quantizes an image file down to the cover mosaic's pixel grid.
+// Returns { pixels, imageData }: pixels is packed 8-bit RGB in reading order
+// (3 * pixelsPerSide^2 bytes, exactly what constructByCover consumes);
+// imageData is the same quantized square as RGBA for a preview canvas.
 export async function quantizeImageToCoverPixels(file, pixelsPerSide) {
   const source = await decodeImageFile(file);
   const width = source.width || source.naturalWidth;

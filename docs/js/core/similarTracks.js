@@ -1,12 +1,10 @@
 /**
- * similarTracks.js
- *
  * Generates a handful of "Similar Tracks" for a reconstructed audio result:
  * new indexes whose decoded audio is a close variation of the original
- * (slight sample jitter, added silence, sped up/slowed down, or a few of
- * those combined). Each variant is a real index produced by re-running the
- * C++/WASM encodeIndex bijection over a transformed copy of the original
- * PCM payload — never a fabricated string.
+ * (sample jitter, added silence, sped up/slowed down, or combinations).
+ * Each variant is a real index produced by re-running the C++/WASM
+ * encodeIndex bijection over a transformed copy of the original PCM
+ * payload — never a fabricated string.
  *
  * Index::encode (cpp/src/Index.cpp) always treats the payload as a stream of
  * 16-bit little-endian words regardless of the bitDepth/sampleRate arguments
@@ -27,12 +25,8 @@ function clampInt16(value) {
   return Math.max(INT16_MIN, Math.min(INT16_MAX, Math.round(value)));
 }
 
-/**
- * Split raw PCM bytes into whole 16-bit words plus any trailing odd byte
- * (matching Index::encode's "stray trailing byte" handling).
- * @param {Uint8Array} pcmData
- * @returns {{words: Int16Array, trailingByte: Uint8Array}}
- */
+// Splits raw PCM bytes into whole 16-bit words plus any trailing odd byte
+// (matching Index::encode's "stray trailing byte" handling).
 function toWords(pcmData) {
   const wholeByteLength = pcmData.length - (pcmData.length % 2);
   const words = new Int16Array(pcmData.slice(0, wholeByteLength).buffer);
@@ -40,12 +34,6 @@ function toWords(pcmData) {
   return { words, trailingByte };
 }
 
-/**
- * Reassemble a transformed word array back into raw PCM bytes.
- * @param {Int16Array} words
- * @param {Uint8Array} trailingByte
- * @returns {Uint8Array}
- */
 function fromWords(words, trailingByte) {
   const wordBytes = new Uint8Array(words.buffer, words.byteOffset, words.byteLength);
   const out = new Uint8Array(wordBytes.length + trailingByte.length);
@@ -54,12 +42,7 @@ function fromWords(words, trailingByte) {
   return out;
 }
 
-/**
- * Nudge every sample by a small random amount, proportional to full scale.
- * @param {Int16Array} words
- * @param {number} magnitude - Fraction of full scale (e.g. 0.01 = ~1%)
- * @returns {Int16Array}
- */
+// Nudges every sample by a small random amount, proportional to full scale.
 function jitter(words, magnitude) {
   const out = new Int16Array(words.length);
   const range = INT16_MAX * magnitude;
@@ -69,27 +52,15 @@ function jitter(words, magnitude) {
   return out;
 }
 
-/**
- * Prepend and/or append a run of silent (zero) samples.
- * @param {Int16Array} words
- * @param {number} leadSamples - Silent samples to add at the start
- * @param {number} trailSamples - Silent samples to add at the end
- * @returns {Int16Array}
- */
 function addSilence(words, leadSamples, trailSamples) {
   const out = new Int16Array(leadSamples + words.length + trailSamples);
   out.set(words, leadSamples);
   return out;
 }
 
-/**
- * Resample by a constant rate factor via linear interpolation — the same
- * effect as playing the audio back faster/slower (rateFactor > 1 = sped up
- * and shorter; rateFactor < 1 = slowed down and longer).
- * @param {Int16Array} words
- * @param {number} rateFactor
- * @returns {Int16Array}
- */
+// Resample by a constant rate factor via linear interpolation — the same
+// effect as playing the audio back faster/slower (rateFactor > 1 = sped up
+// and shorter; rateFactor < 1 = slowed down and longer).
 function changeSpeed(words, rateFactor) {
   if (words.length < 2) return words.slice();
 
@@ -107,16 +78,10 @@ function changeSpeed(words, rateFactor) {
   return out;
 }
 
-/**
- * Pick a value uniformly between min and max.
- */
 function randomBetween(min, max) {
   return min + Math.random() * (max - min);
 }
 
-/**
- * Convert a duration in milliseconds to a sample count at the default rate.
- */
 function samplesForMs(ms) {
   return Math.round((ms / 1000) * DEFAULT_SAMPLE_RATE);
 }
@@ -131,11 +96,6 @@ const silenceBothEnds = (words) =>
 const spedUp = (words) => changeSpeed(words, randomBetween(1.06, 1.18));
 const slowedDown = (words) => changeSpeed(words, randomBetween(0.82, 0.94));
 
-/**
- * Chain transforms left to right.
- * @param {...Function} transforms
- * @returns {Function}
- */
 function compose(...transforms) {
   return (words) => transforms.reduce((acc, transform) => transform(acc), words);
 }
@@ -154,15 +114,8 @@ const VARIANT_TRANSFORMS = [
   compose(slowedDown, silenceAtEnd),
 ];
 
-/**
- * Generate "similar track" indexes by applying small, audible variations
- * (sample jitter, silence padding, speed change, or combinations of those)
- * to the decoded PCM payload and re-encoding each variant through the real
- * WASM bijection.
- * @param {Object} wasm - Initialized IndexWasm instance (see core/wasmModule.js)
- * @param {Uint8Array} pcmData - Raw PCM payload decoded from the source index
- * @returns {string[]} Generated index strings (skips any that fail to encode)
- */
+// Applies each variant transform to pcmData and re-encodes it through the
+// real WASM bijection. Skips (and logs) any variant that fails to encode.
 export function buildSimilarTracks(wasm, pcmData) {
   if (!pcmData || pcmData.length === 0) return [];
 

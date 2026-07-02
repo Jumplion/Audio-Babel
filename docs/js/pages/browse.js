@@ -8,7 +8,7 @@ import { handleJsonResponse, cleanupResultHandler } from '../core/resultDisplay.
 import { filterToBase64UrlChars } from '../utils/validationUtils.js';
 import { consumeFindInLibraryTarget } from '../utils/findInLibrary.js';
 
-// Library hierarchy constants — loaded from WASM at init time (R5).
+// Library hierarchy constants — loaded from WASM at init time.
 // Fallbacks match the C++ LibraryConstants defaults.
 let TRACKS_PER_ALBUM = 15;
 let ALBUMS_PER_SHELF = 32;
@@ -33,28 +33,18 @@ const navState = {
   trackNames: null,
 };
 
-/**
- * Clamp a position value to its valid range
- * This ensures values sent to WASM are always within the correct bounds,
- * preventing arithmetic overflow in the C++ reconstructIndexFromPosition function.
- *
- * @param {number} value - Value to clamp
- * @param {number} max - Maximum valid value (inclusive)
- * @param {string} name - Field name for logging
- * @returns {number} Clamped value (0 to max)
- */
+// Clamps a position value to [0, max], logging if clamping occurred. Keeps
+// values sent to WASM's reconstructIndexFromPosition within bounds.
 function clampPositionValue(value, max, name) {
   const original = value;
-  let clamped = Math.floor(value); // Ensure integer
+  let clamped = Math.floor(value);
 
-  // Clamp to valid range [0, max]
   if (clamped < 0) {
     clamped = 0;
   } else if (clamped > max) {
     clamped = max;
   }
 
-  // Log if clamping occurred (helps with debugging)
   if (clamped !== original) {
     console.warn(
       `Position value clamped: ${name} ${original} → ${clamped} (valid range: 0-${max})`
@@ -64,17 +54,8 @@ function clampPositionValue(value, max, name) {
   return clamped;
 }
 
-/**
- * Validate and clamp all position values before sending to WASM
- * Ensures wall, shelf, album, and track are within their valid ranges.
- * The room string is validated separately (base64 format).
- *
- * @param {number} wall - Wall number (will be clamped to 0-3)
- * @param {number} shelf - Shelf number (will be clamped to 0-4)
- * @param {number} album - Album number (will be clamped to 0-31)
- * @param {number} track - Track number (will be clamped to 0-14)
- * @returns {Object} Validated position with clamped values
- */
+// Clamps wall/shelf/album/track to their valid ranges before sending to WASM.
+// The room string is validated separately (base64 format).
 function validatePositionValues(wall, shelf, album, track) {
   return {
     wall: clampPositionValue(wall, WALLS_PER_ROOM - 1, 'wall'),
@@ -84,19 +65,11 @@ function validatePositionValues(wall, shelf, album, track) {
   };
 }
 
-/**
- * Get element by ID (shorthand helper)
- * @param {string} id - Element ID
- * @returns {HTMLElement|null} Element or null if not found
- */
 function $(id) {
   return document.getElementById(id);
 }
 
-/**
- * Update the breadcrumb navigation display
- * Shows the current position in the hierarchy with clickable links
- */
+// Shows the current position in the hierarchy as clickable breadcrumb links.
 function updateBreadcrumb() {
   const nav = $('breadcrumb');
   if (!nav) return;
@@ -189,11 +162,9 @@ const REVEAL_VARIANTS = {
   trackSection: null,
 };
 
-/**
- * Fade the selected track's info/waveform in on the sleeve, replacing the
- * album art. Toggles `display` first so the opacity transition can run (a
- * class added in the same frame as `display: none -> flex` won't animate).
- */
+// Fades the selected track's info/waveform in on the sleeve, replacing the
+// album art. Toggles `display` first so the opacity transition can run (a
+// class added in the same frame as `display: none -> flex` won't animate).
 function showTrackDetail() {
   const panel = $('trackDetail');
   if (!panel) return;
@@ -203,11 +174,6 @@ function showTrackDetail() {
   });
 }
 
-/**
- * Hide the track detail panel, revealing the album art again (e.g. when a
- * new album is opened, so a previous track's info doesn't linger before a
- * track is chosen).
- */
 function hideTrackDetail() {
   const panel = $('trackDetail');
   if (!panel) return;
@@ -225,15 +191,11 @@ const OUTGOING_ZOOM_MS = 200;
 // mid-zoom.
 let revealTimer = null;
 
-/**
- * Point a section's animation transform-origin at the spot that was clicked.
- * Maps the click's viewport coordinates into the element's own box (0–100%) so
- * the zoom appears to emanate from / dive into whatever was just clicked (the
- * wall segment / shelf / album button). With no click coordinates (keyboard
- * submission, breadcrumb back-nav) the origin is cleared, defaulting to center.
- * @param {HTMLElement} el - Section element being animated
- * @param {MouseEvent|null} originEvent - Click event that triggered the navigation
- */
+// Points a section's animation transform-origin at the clicked spot, mapping
+// viewport coordinates into the element's own box (0-100%) so the zoom
+// appears to emanate from / dive into whatever was just clicked. With no
+// click coordinates (keyboard submission, breadcrumb back-nav) the origin is
+// cleared, defaulting to center.
 function setRevealOrigin(el, originEvent) {
   if (originEvent && typeof originEvent.clientX === 'number') {
     const rect = el.getBoundingClientRect();
@@ -247,13 +209,6 @@ function setRevealOrigin(el, originEvent) {
   }
 }
 
-/**
- * Play the zoom-in reveal animation on a freshly-shown section, growing it out
- * of the clicked point (see setRevealOrigin).
- * @param {HTMLElement} el - Section element to animate
- * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
- * @param {string|null} [variant] - Optional animation variant class (e.g. 'album-open')
- */
 function triggerZoomReveal(el, originEvent = null, variant = null) {
   if (!el) return;
   setRevealOrigin(el, originEvent);
@@ -265,13 +220,6 @@ function triggerZoomReveal(el, originEvent = null, variant = null) {
   if (variant) el.classList.add(variant);
 }
 
-/**
- * Play the zoom-out animation on the section being left, so it enlarges toward
- * the viewer and fades — the "push into the clicked element" half of the
- * transition. Origin is the same clicked point as the incoming zoom-in.
- * @param {HTMLElement} el - Section element being hidden
- * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
- */
 function triggerZoomOut(el, originEvent = null) {
   if (!el) return;
   setRevealOrigin(el, originEvent);
@@ -281,11 +229,8 @@ function triggerZoomOut(el, originEvent = null) {
   el.classList.add('zoom-out');
 }
 
-/**
- * Show only the specified section, hiding all others
- * @param {string} sectionId - ID of section to display
- * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation (for the reveal animation)
- */
+// Shows only the given section, hiding all others. originEvent (if any)
+// drives the zoom reveal's transform-origin.
 function showSection(sectionId, originEvent = null) {
   const sections = ['roomSection', 'wallSection', 'shelfSection', 'albumSection', 'trackSection'];
 
@@ -340,23 +285,12 @@ function showSection(sectionId, originEvent = null) {
   }
 }
 
-/**
- * Clear navigation state from a given level downward
- * @param {string[]} levelsToClear - Navigation levels to clear (e.g., ['wall', 'shelf', 'album', 'track'])
- */
 function clearNavLevels(levelsToClear) {
   levelsToClear.forEach((level) => {
     navState[level] = null;
   });
 }
 
-/**
- * Navigate to a specific level in the hierarchy
- * @param {string} section - Section to show (e.g., 'wallSection')
- * @param {string[]} clearLevels - Levels to clear from nav state
- * @param {Function} [renderFn] - Optional render function to call after navigation
- * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
- */
 function navigateToLevel(section, clearLevels, renderFn = null, originEvent = null) {
   clearNavLevels(clearLevels);
   showSection(section, originEvent);
@@ -364,9 +298,6 @@ function navigateToLevel(section, clearLevels, renderFn = null, originEvent = nu
   updateBreadcrumb();
 }
 
-/**
- * Navigate to room selection
- */
 function goToRoom(originEvent = null) {
   clearNavLevels(['wall', 'shelf', 'album', 'track']);
   showSection('roomSection');
@@ -374,61 +305,43 @@ function goToRoom(originEvent = null) {
   updateBreadcrumb();
 }
 
-/**
- * Navigate to wall selection
- */
 function goToWall(originEvent = null) {
   navigateToLevel('wallSection', ['shelf', 'album', 'track'], null, originEvent);
 }
 
-/**
- * Navigate to shelf selection
- */
 function goToShelf(originEvent = null) {
   navigateToLevel('shelfSection', ['album', 'track'], renderShelves, originEvent);
 }
 
-/**
- * Navigate to album selection
- */
 function goToAlbum(originEvent = null) {
   navigateToLevel('albumSection', ['track'], renderAlbums, originEvent);
 }
 
-/**
- * Enter a room by ID or base64 string
- * Validates input and converts numeric room IDs to base64 format
- * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
- */
+// Enters a room by ID: accepts a numeric ID (converted to base64) or a
+// base64 string directly; empty string or "0" both mean room 0.
 function enterRoom(originEvent = null) {
   const input = $('roomInput');
   if (!input) return;
 
   const roomInput = input.value.trim();
 
-  // Room can be empty string (for room 0) or a base64 string
-  // Accept numeric input and convert to base64, or accept base64 directly
   let room;
 
   if (roomInput === '' || roomInput === '0') {
-    // Empty string or "0" both represent room 0
     room = '';
   } else if (/^\d+$/.test(roomInput)) {
-    // Numeric input - convert to base64
     try {
       const roomNum = BigInt(roomInput);
       if (roomNum < 0n) {
         showValidationError('Room number must be 0 or greater');
         return;
       }
-      // Convert room number to base64 using our encoder
       room = indexToBase64(roomNum);
     } catch (e) {
       showValidationError('Invalid room number');
       return;
     }
   } else {
-    // Assume it's already a base64 string
     room = roomInput;
   }
 
@@ -443,13 +356,10 @@ function enterRoom(originEvent = null) {
   updateWallTooltips();
 }
 
-/**
- * Label each wall hexagon segment with its label name: a native title
- * tooltip plus an in-hexagon text label that fades in on hover/focus, the
- * same opacity-reveal treatment .album-number gets for albums (see
- * .wall-genre-label in browse.css). Fire-and-forget — the hexagon is fully
- * usable before the names arrive.
- */
+// Labels each wall hexagon segment with its label name: a native title
+// tooltip plus an in-hexagon text label that fades in on hover/focus (see
+// .wall-genre-label in browse.css). Fire-and-forget — the hexagon is fully
+// usable before the names arrive.
 async function updateWallTooltips() {
   if (navState.room === null) return;
   try {
@@ -468,11 +378,6 @@ async function updateWallTooltips() {
   }
 }
 
-/**
- * Select a wall and navigate to shelf selection
- * @param {number} wallNum - Wall number (0-3)
- * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
- */
 function selectWall(wallNum, originEvent = null) {
   if (navState.room === null) return;
 
@@ -484,14 +389,6 @@ function selectWall(wallNum, originEvent = null) {
   updateBreadcrumb();
 }
 
-/**
- * Render numbered buttons in a container
- * @param {string} containerId - ID of container element
- * @param {number} count - Number of buttons to create
- * @param {string} className - CSS class for buttons
- * @param {Function} clickHandler - Click handler function, called as clickHandler(index, clickEvent)
- * @param {Function} [labelFn] - Optional function to generate button label (default: index number)
- */
 function renderButtons(containerId, count, className, clickHandler, labelFn = (i) => `${i}`) {
   const container = $(containerId);
   if (!container) return;
@@ -507,12 +404,8 @@ function renderButtons(containerId, count, className, clickHandler, labelFn = (i
   }
 }
 
-/**
- * Render the shelves ("longboxes") for the current wall
- * Fetches each shelf's artist name (shelf level, per docs/browse.html's
- * wall=label/shelf=artist hierarchy) and labels the buttons with it instead
- * of a bare index.
- */
+// Renders the shelves ("longboxes") for the current wall, labeling each
+// button with its artist name (shelf level) instead of a bare index.
 async function renderShelves() {
   const container = $('shelvesContainer');
   if (container) container.innerHTML = ''; // clear stale buttons while names load
@@ -537,12 +430,6 @@ async function renderShelves() {
   );
 }
 
-/**
- * Select a shelf and navigate to album selection
- * Validates that room and wall have been selected first
- * @param {number} shelfNum - Shelf number (0-4)
- * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
- */
 function selectShelf(shelfNum, originEvent = null) {
   if (navState.room === null || navState.wall === null) return;
 
@@ -554,13 +441,10 @@ function selectShelf(shelfNum, originEvent = null) {
   updateBreadcrumb();
 }
 
-/**
- * Render the albums for the current shelf
- * Creates album "spine" buttons (0-31); each shows its generated album name
- * only on hover/focus (see .album-number in browse.css), evoking a long box
- * of records flipped through sideways. Each spine's background is a sliver
- * of that album's own generated cover art (see applyAlbumSpineArt).
- */
+// Renders album "spine" buttons (0-31); each shows its generated album name
+// only on hover/focus (see .album-number in browse.css), evoking a long box
+// of records flipped through sideways. Each spine's background is a sliver
+// of that album's own generated cover art (see applyAlbumSpineArt).
 async function renderAlbums() {
   const container = $('albumsContainer');
   if (!container) return;
@@ -601,13 +485,9 @@ async function renderAlbums() {
   if (wasm) applyAlbumSpineArt(wasm, container);
 }
 
-/**
- * Fetch each album's generated cover art and set it as its thumbnail button's
- * background image. Best-effort: a failed lookup just leaves that button on
- * its plain fallback color.
- * @param {Object} wasm - Initialized IndexWasm instance
- * @param {HTMLElement} container - albumsContainer, already populated with .album-btn children
- */
+// Fetches each album's generated cover art and sets it as its spine button's
+// background image. Best-effort: a failed lookup just leaves that button on
+// its plain fallback color.
 function applyAlbumSpineArt(wasm, container) {
   const buttons = container.querySelectorAll('.album-btn');
   buttons.forEach((btn, i) => {
@@ -623,12 +503,6 @@ function applyAlbumSpineArt(wasm, container) {
   });
 }
 
-/**
- * Select an album and navigate to track selection
- * Validates that room, wall, and shelf have been selected first
- * @param {number} albumNum - Album number (0-31)
- * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation
- */
 function selectAlbum(albumNum, originEvent = null) {
   if (navState.room === null || navState.wall === null || navState.shelf === null) return;
 
@@ -640,11 +514,8 @@ function selectAlbum(albumNum, originEvent = null) {
   updateBreadcrumb();
 }
 
-/**
- * Render the tracks for the current album
- * Fetches each track's generated name and labels the buttons with it
- * instead of a bare index.
- */
+// Renders the tracks for the current album, labeling each button with its
+// generated name instead of a bare index.
 async function renderTracks() {
   const container = $('tracksContainer');
   if (container) container.innerHTML = ''; // clear stale buttons while names load
@@ -676,15 +547,10 @@ async function renderTracks() {
   );
 }
 
-/**
- * Build a "stand-in" full index for an album using track 0.
- * Cover art only exists at the full index level (room+wall+shelf+album+track),
- * not per-album, so this borrows track 0 purely to generate art to show on
- * the closed cover before any specific track has been chosen.
- * @param {Object} wasm - Initialized IndexWasm instance
- * @param {number} albumNum - Album number (0-31)
- * @returns {string} Base64 index
- */
+// Builds a "stand-in" full index for an album using track 0. Cover art only
+// exists at the full index level (room+wall+shelf+album+track), not
+// per-album, so this borrows track 0 purely to generate art to show on the
+// closed cover before any specific track has been chosen.
 function buildAlbumStandInIndex(wasm, albumNum) {
   const pos = validatePositionValues(navState.wall, navState.shelf, albumNum, 0);
   const result = wasm.module.reconstructIndex(
@@ -701,11 +567,8 @@ function buildAlbumStandInIndex(wasm, albumNum) {
   return result;
 }
 
-/**
- * Fetch and display the generated cover art + caption for an album on the
- * gatefold's front cover face.
- * @param {number} albumNum - Album number (0-31)
- */
+// Fetches and displays the generated cover art + caption for an album on
+// the gatefold's front cover face.
 async function loadGatefoldCover(albumNum) {
   const coverArt = $('coverArt');
   const coverCaption = $('coverCaption');
@@ -726,21 +589,16 @@ async function loadGatefoldCover(albumNum) {
   }
 }
 
-/**
- * Reset the gatefold to its closed state (inner leaf and record tucked away).
- */
+// Resets the gatefold to its closed state (inner leaf and record tucked away).
 function resetGatefold() {
   const stage = $('gatefoldStage');
   if (stage) stage.classList.remove('open');
   hideTrackDetail();
 }
 
-/**
- * Populate the gatefold for a newly-selected album (cover art + track list),
- * then swing it open shortly after so the reveal reads as "opening the
- * album you just picked" rather than a plain content swap.
- * @param {number} albumNum - Album number (0-31)
- */
+// Populates the gatefold for a newly-selected album (cover art + track
+// list), then swings it open shortly after so the reveal reads as "opening
+// the album you just picked" rather than a plain content swap.
 async function openAlbumGatefold(albumNum) {
   resetGatefold();
   renderTracks();
@@ -752,14 +610,9 @@ async function openAlbumGatefold(albumNum) {
   }, 350);
 }
 
-/**
- * Select a track and display its audio content
- * Validates that all parent levels have been selected. Stays on the track
- * section — the result (metadata + waveform) fades in on the sleeve, in
- * place of the album art, rather than replacing the track selector.
- * @param {number} trackNum - Track number (0-14)
- * @param {MouseEvent|null} [originEvent] - Click event that triggered the navigation (unused)
- */
+// Selects a track and displays its audio content. Stays on the track
+// section — the result (metadata + waveform) fades in on the sleeve, in
+// place of the album art, rather than replacing the track selector.
 async function selectTrack(trackNum, originEvent = null) {
   if (
     navState.room === null ||
@@ -776,17 +629,13 @@ async function selectTrack(trackNum, originEvent = null) {
   await generateAndDisplayTrack();
 }
 
-/**
- * Generate and display the selected track
- * Reconstructs the audio index from the current position,
- * extracts metadata, generates audio, and displays the result
- * with playback controls and download options
- */
+// Reconstructs the audio index from the current position, extracts
+// metadata, generates audio, and displays the result with playback controls
+// and download options.
 async function generateAndDisplayTrack() {
   const container = $('resultContainer');
   if (!container) return;
 
-  // Clean up any existing result state before generating new one
   cleanupResultHandler();
 
   container.innerHTML =
@@ -806,12 +655,9 @@ async function generateAndDisplayTrack() {
       track: navState.track,
     });
 
-    // Get WASM module
     const wasm = await getWasmModule();
     console.log('WASM module ready');
 
-    // Validate and clamp position values before sending to WASM
-    // This ensures values are within valid ranges (wall: 0-3, shelf: 0-4, album: 0-31, track: 0-14)
     const validatedPos = validatePositionValues(
       navState.wall,
       navState.shelf,
@@ -819,7 +665,6 @@ async function generateAndDisplayTrack() {
       navState.track
     );
 
-    // Reconstruct base64 index from position using WASM
     const base64Index = wasm.module.reconstructIndex(
       navState.room.toString(),
       validatedPos.wall,
@@ -839,7 +684,6 @@ async function generateAndDisplayTrack() {
     }
 
     // The index from reconstructIndex IS the full real index — no header to add.
-    // Fetch its metadata/audio and render through the shared result handler.
     const result = await buildResultForIndex(wasm, base64Index);
     await handleJsonResponse(result, base64Index);
   } catch (err) {
@@ -847,23 +691,15 @@ async function generateAndDisplayTrack() {
   }
 }
 
-/**
- * Wait for the given number of milliseconds.
- * @param {number} ms - Milliseconds to wait
- * @returns {Promise<void>}
- */
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Step through room -> genre -> artist -> album -> track one level at a
- * time, replaying the same selection functions a clicking user would
- * trigger so the existing reveal/gatefold animations play at each step.
- * Used by the Search page's "Find in Library" button (see findInLibrary.js)
- * to land a result's position directly inside the Browse hierarchy.
- * @param {{room: string, wall: number, shelf: number, album: number, track: number}} target
- */
+// Steps through room -> genre -> artist -> album -> track one level at a
+// time, replaying the same selection functions a clicking user would
+// trigger so the existing reveal/gatefold animations play at each step.
+// Used by the Search page's "Find in Library" button to land a result's
+// position directly inside the Browse hierarchy.
 async function autoNavigateToPosition(target) {
   showSection('roomSection');
 
@@ -886,13 +722,7 @@ async function autoNavigateToPosition(target) {
   await selectTrack(target.track);
 }
 
-/**
- * Initialize the browse page
- * Sets up event listeners for room input, wall selection, and navigation
- * Initializes the breadcrumb and shows the room selection section by default
- */
 function init() {
-  // Load library hierarchy constants from WASM (R5)
   getWasmModule().then((wasm) => {
     try {
       const c = JSON.parse(wasm.module.getLibraryConstants());
@@ -905,7 +735,6 @@ function init() {
     }
   });
 
-  // Room input
   const roomInput = $('roomInput');
   const enterRoomBtn = $('enterRoomBtn');
 
@@ -914,7 +743,6 @@ function init() {
   }
 
   if (roomInput) {
-    // Add input validation - only allow URL-safe base64 characters and numbers
     roomInput.addEventListener('input', (e) => {
       const input = e.target;
       const value = input.value;
@@ -932,7 +760,6 @@ function init() {
     });
   }
 
-  // Wall selection (SVG hexagon)
   const walls = document.querySelectorAll('.wall');
   walls.forEach((wall) => {
     const wallNum = parseInt(wall.dataset.wall);
@@ -951,7 +778,6 @@ function init() {
     });
   }
 
-  // Initialize breadcrumb
   updateBreadcrumb();
 
   // If the Search page handed off a "Find in Library" target, auto-walk

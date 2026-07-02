@@ -1,9 +1,5 @@
-/**
- * main.js
- *
- * Main entry point for the consolidated Search page: wires up the
- * reconstruct-from-index, generate-random, and upload-WAV actions.
- */
+// Entry point for the Search page: wires up reconstruct-from-index,
+// generate-random, upload-WAV, and metadata search actions.
 
 import {
   generateFromIndex,
@@ -24,10 +20,6 @@ import { setFindInLibraryTarget } from '../utils/findInLibrary.js';
 import { escapeHtml } from '../utils/dom.js';
 import { handleError } from '../utils/errorHandler.js';
 
-/**
- * Read the current Advanced Options dropdown selections.
- * @returns {{sampleRate: number, bitDepth: number}}
- */
 function getWavOptions() {
   const bitDepthSelect = document.getElementById('bitDepthSelect');
   const sampleRateSelect = document.getElementById('sampleRateSelect');
@@ -37,12 +29,8 @@ function getWavOptions() {
   };
 }
 
-/**
- * Select a value in a <select>, adding it as an option first if the
- * uploaded WAV's actual property isn't already one of the dropdown's choices.
- * @param {HTMLSelectElement} selectEl - Select element to update
- * @param {number} value - Value to select
- */
+// Adds the uploaded WAV's actual property as an option first if the dropdown
+// doesn't already offer it.
 function setSelectValue(selectEl, value) {
   if (!selectEl || value === undefined || value === null) return;
 
@@ -57,12 +45,6 @@ function setSelectValue(selectEl, value) {
   selectEl.value = stringValue;
 }
 
-/**
- * Set loading state for the UI
- * Shows/hides spinner, updates status message, and disables/enables controls
- * Also controls the loading overlay for better visual feedback
- * @param {boolean} on - True to show loading state, false to hide
- */
 function setLoading(on) {
   const spinner = document.getElementById('statusSpinner');
   const msg = document.getElementById('statusMsg');
@@ -150,9 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initMetadataSearch();
 });
 
-/**
- * Wire up the "By Index" / "By Metadata" tab buttons to show/hide their panels.
- */
+// Wires up the "By Index" / "By Metadata" tab buttons to show/hide their panels.
 function initSearchTabs() {
   const tabs = [
     { btn: document.getElementById('tabByIndex'), panel: document.getElementById('byIndexPanel') },
@@ -176,11 +156,9 @@ function initSearchTabs() {
   });
 }
 
-/**
- * Wire up the "By Metadata" tab: searching by any combination of
- * genre/artist/album/track names — or by a target cover-art image — and
- * jumping a result into Browse.
- */
+// Wires up the "By Metadata" tab: search by any combination of
+// genre/artist/album/track names, or by a target cover-art image, and jump a
+// result into Browse.
 function initMetadataSearch() {
   const fieldInputs = {
     genre: document.getElementById('metaGenreInput'),

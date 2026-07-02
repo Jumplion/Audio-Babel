@@ -30,13 +30,12 @@ namespace {
         return splitmix64(state);
     }
 
-    // contentScramble: length-preserving DIFFUSING permutation within the index's
-    // band. Each band has exactly B^L = 2^(16L) elements, so a balanced Feistel
-    // over the 16L-bit in-band value is a bijection (16L is always even). Unlike a
-    // plain XOR mask — which is affine and so leaves x and x+1 differing only in
-    // their low bits — the Feistel scatters neighbours: two payloads that differ
-    // only in their last sample land far apart, with different sample values
-    // throughout. Inverted by running the Feistel rounds in reverse (encrypt=false).
+    // Length-preserving diffusing permutation within the index's band (each
+    // band has B^L = 2^(16L) elements, and 16L is always even, so a balanced
+    // Feistel over the in-band value is a bijection). Unlike a plain XOR mask
+    // (affine — x and x+1 would still differ only in their low bits), the
+    // Feistel scatters neighbours: payloads differing in one sample land far
+    // apart with different values throughout.
     auto contentScramble(const cpp_int& index, uint64_t seed, bool encrypt) -> cpp_int {
         if (index <= 0) {
             return cpp_int(0);

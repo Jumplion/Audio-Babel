@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# PostToolUse hook (Write|Edit): runs type-check/lint for JS/TS, C++, HTML, CSS.
-# Never blocks — always exits 0. Results are fed back to Claude via
-# hookSpecificOutput.additionalContext instead of failing the tool call.
+# PreToolUse or PostToolUse hook (Write|Edit): runs type-check/lint for
+# JS/TS, C++, HTML, CSS. Pass the hook event name as $1 ("PreToolUse" or
+# "PostToolUse") so the emitted JSON matches what that event expects.
+# On PreToolUse this lints the file's state BEFORE the edit is applied
+# (useful to surface pre-existing issues); on PostToolUse it lints the
+# file AFTER the edit. Never blocks — always exits 0.
 set -uo pipefail
+
+HOOK_EVENT="${1:-PostToolUse}"
 
 INPUT=$(cat)
 FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // .tool_response.filePath // empty')
@@ -62,11 +67,25 @@ esac
 
 # Cap output so a large lint dump doesn't blow up context.
 OUTPUT=$(printf '%s' "$OUTPUT" | head -c 4000)
+PREFIX="Lint/type-check results for $REL_PATH"
+[[ "$HOOK_EVENT" == "PreToolUse" ]] && PREFIX+=" (before this edit is applied)"
+CONTEXT="$PREFIX:"$'\n'"$OUTPUT"
 
-jq -n --arg ctx "$OUTPUT" --arg file "$REL_PATH" '{
-  hookSpecificOutput: {
-    hookEventName: "PostToolUse",
-    additionalContext: ("Lint/type-check results for \($file):\n" + $ctx)
-  }
-}'
+if [[ "$HOOK_EVENT" == "PreToolUse" ]]; then
+  jq -n --arg ctx "$CONTEXT" '{
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "allow",
+      permissionDecisionReason: $ctx,
+      additionalContext: $ctx
+    }
+  }'
+else
+  jq -n --arg ctx "$CONTEXT" '{
+    hookSpecificOutput: {
+      hookEventName: "PostToolUse",
+      additionalContext: $ctx
+    }
+  }'
+fi
 exit 0

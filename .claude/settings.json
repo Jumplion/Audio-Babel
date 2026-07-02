@@ -1,0 +1,60 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/warn-main-branch.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking current git branch..."
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-on-write.sh\" PreToolUse",
+            "timeout": 60,
+            "statusMessage": "Running lint/type-check..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-pre-commit.sh\"",
+            "if": "Bash(git commit*)",
+            "timeout": 90,
+            "statusMessage": "Linting staged files before commit..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-on-write.sh\" PostToolUse",
+            "timeout": 60,
+            "statusMessage": "Running lint/type-check..."
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/test-on-write.sh\"",
+            "timeout": 180,
+            "statusMessage": "Running tests..."
+          },
+          {
+            "type": "agent",
+            "prompt": "A file was just edited via Write or Edit. Hook input (JSON): $ARGUMENTS\n\nSteps:\n1. Extract the edited file's path from tool_input.file_path (fall back to tool_response.filePath if absent). If you can't find a path, respond {\"ok\": true} and stop.\n2. If the edited file's basename is \"README.md\", respond {\"ok\": true} and stop — do not analyze further.\n3. Use Glob to check whether a file named \"README.md\" exists in the SAME directory as the edited file. If none exists, respond {\"ok\": true} and stop — this repo only documents directories that already have a README.md sibling (e.g. cpp/src, cpp/include, cpp/tests, cpp/wasm, docs/js/core, docs/js/pages, docs/js/ui, docs/js/utils, docs/css, tools).\n4. Read the edited file and that sibling README.md.\n5. Judge whether the README.md is now stale relative to the edited file's CURRENT content: it describes a function/class/exported symbol/CLI flag/config option that was renamed or removed, it omits a newly added public API or file, it describes responsibilities that no longer match, or it gives usage examples referencing something that changed. Ignore purely cosmetic changes (formatting, comments, internal variable renames, private helpers) — those never warrant a flag.\n6. If the README looks stale: respond {\"ok\": false, \"reason\": \"...\"} where reason names the exact README.md path and gives 1-3 concise, specific bullet points on what's outdated — specific enough that another agent could act on it without re-reading everything.\n7. If the README still looks accurate, or you are not confident enough to flag it, respond {\"ok\": true} with no reason. Stay silent rather than speculate.\n\nYou have Read/Grep/Glob only. This check is advisory only — never attempt to modify any file.",
+            "timeout": 60,
+            "statusMessage": "Checking documentation for staleness..."
+          }
+        ]
+      }
+    ]
+  }
+}

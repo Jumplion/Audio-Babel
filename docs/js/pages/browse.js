@@ -602,11 +602,9 @@ async function renderAlbums() {
 }
 
 /**
- * Fetch each album's generated cover art and set it as its spine button's
- * background image (browse.css crops it down to a single column via
- * background-size/position, so it reads as a thin colored spine rather than
- * the whole square cover squeezed into the narrow rectangle). Best-effort:
- * a failed lookup just leaves that spine on its plain fallback color.
+ * Fetch each album's generated cover art and set it as its thumbnail button's
+ * background image. Best-effort: a failed lookup just leaves that button on
+ * its plain fallback color.
  * @param {Object} wasm - Initialized IndexWasm instance
  * @param {HTMLElement} container - albumsContainer, already populated with .album-btn children
  */

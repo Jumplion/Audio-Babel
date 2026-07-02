@@ -9,6 +9,24 @@
             "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/warn-main-branch.sh\"",
             "timeout": 10,
             "statusMessage": "Checking current git branch..."
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-on-write.sh\" PreToolUse",
+            "timeout": 60,
+            "statusMessage": "Running lint/type-check..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-pre-commit.sh\"",
+            "if": "Bash(git commit*)",
+            "timeout": 90,
+            "statusMessage": "Linting staged files before commit..."
           }
         ]
       }
@@ -19,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-on-write.sh\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-on-write.sh\" PostToolUse",
             "timeout": 60,
             "statusMessage": "Running lint/type-check..."
           },

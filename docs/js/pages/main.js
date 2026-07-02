@@ -17,7 +17,9 @@ import {
   computeNameWidths,
   sanitizeMetadataFieldValue,
   searchByMetadata,
+  searchByCover,
 } from '../utils/metadataSearch.js';
+import { quantizeImageToCoverPixels } from '../utils/coverImage.js';
 import { setFindInLibraryTarget } from '../utils/findInLibrary.js';
 import { escapeHtml } from '../utils/dom.js';
 import { handleError } from '../utils/errorHandler.js';
@@ -176,7 +178,8 @@ function initSearchTabs() {
 
 /**
  * Wire up the "By Metadata" tab: searching by any combination of
- * genre/artist/album/track names, and jumping a result into Browse.
+ * genre/artist/album/track names — or by a target cover-art image — and
+ * jumping a result into Browse.
  */
 function initMetadataSearch() {
   const fieldInputs = {
@@ -189,14 +192,26 @@ function initMetadataSearch() {
   const statusEl = document.getElementById('metadataSearchStatus');
   const resultsList = document.getElementById('metadataResultsList');
   const moreBtn = document.getElementById('metadataMoreBtn');
+  const coverInput = document.getElementById('metaCoverInput');
+  const coverClearBtn = document.getElementById('metaCoverClearBtn');
+  const coverPreview = document.getElementById('metaCoverPreview');
+  const coverCanvas = document.getElementById('metaCoverCanvas');
   if (!searchBtn || !statusEl || !resultsList || Object.values(fieldInputs).some((el) => !el))
     return;
 
   let nameWidths = null;
+  // Cover mosaic side length in tiles; the real value arrives with the
+  // library constants, this is just a safe default until then.
+  let coverPixelsPerSide = 64;
+  // Quantized RGB pixels of the currently selected cover image, or null when
+  // searching by names instead.
+  let coverPixels = null;
+
   getWasmModule()
     .then((wasm) => {
       const constants = JSON.parse(wasm.module.getLibraryConstants());
       nameWidths = computeNameWidths(constants);
+      if (constants.coverPixelsPerSide > 0) coverPixelsPerSide = constants.coverPixelsPerSide;
       Object.entries(fieldInputs).forEach(([level, inputEl]) => {
         const width = nameWidths[level];
         inputEl.maxLength = width;
@@ -208,8 +223,42 @@ function initMetadataSearch() {
 
   const updateSearchButtonState = () => {
     const anyFilled = Object.values(fieldInputs).some((el) => el.value.trim().length > 0);
-    searchBtn.toggleAttribute('disabled', !anyFilled);
+    searchBtn.toggleAttribute('disabled', !coverPixels && !anyFilled);
   };
+
+  // A chosen cover image takes over the search: pin the cover, ignore names.
+  // The name fields are disabled while an image is set so that's visible.
+  const setCoverPixels = (pixels) => {
+    coverPixels = pixels;
+    Object.values(fieldInputs).forEach((el) => el.toggleAttribute('disabled', !!pixels));
+    updateSearchButtonState();
+  };
+
+  if (coverInput && coverClearBtn && coverPreview && coverCanvas) {
+    coverInput.addEventListener('change', async () => {
+      const file = coverInput.files?.[0];
+      if (!file) return;
+      try {
+        const { pixels, imageData } = await quantizeImageToCoverPixels(file, coverPixelsPerSide);
+        coverCanvas.width = coverPixelsPerSide;
+        coverCanvas.height = coverPixelsPerSide;
+        coverCanvas.getContext('2d').putImageData(imageData, 0, 0);
+        coverPreview.removeAttribute('hidden');
+        coverClearBtn.removeAttribute('hidden');
+        setCoverPixels(pixels);
+      } catch (error) {
+        coverInput.value = '';
+        handleError('main.js:metaCoverInput', error, 'Could not read that image file.');
+      }
+    });
+
+    coverClearBtn.addEventListener('click', () => {
+      coverInput.value = '';
+      coverPreview.setAttribute('hidden', '');
+      coverClearBtn.setAttribute('hidden', '');
+      setCoverPixels(null);
+    });
+  }
 
   Object.entries(fieldInputs).forEach(([level, inputEl]) => {
     inputEl.addEventListener('input', () => {
@@ -264,7 +313,9 @@ function initMetadataSearch() {
 
     try {
       const wasm = await getWasmModule();
-      const matches = await searchByMetadata(wasm, fields, { maxResults: 10 });
+      const matches = coverPixels
+        ? await searchByCover(wasm, coverPixels, { maxResults: 10 })
+        : await searchByMetadata(wasm, fields, { maxResults: 10 });
 
       if (matches.length === 0 && !append) {
         statusEl.textContent = 'No matches found.';

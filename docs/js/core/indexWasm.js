@@ -38,7 +38,7 @@ class IndexWasm {
 
       // Initialize with cache-busting for the .wasm file
       // Update this version number whenever you rebuild the WASM module
-      const wasmVersion = '15';
+      const wasmVersion = '16';
 
       // Determine the correct base path based on the environment
       // For localhost, use absolute path from root; for GitHub Pages, include repo name

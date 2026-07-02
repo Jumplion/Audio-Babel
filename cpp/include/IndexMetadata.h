@@ -155,6 +155,37 @@ class IndexMetadata {
      */
     static auto generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track, unsigned cellSize = DEFAULT_CELL_SIZE) -> std::string;
 
+    /**
+     * @brief Construct indexes whose cover art renders the given pixel bytes.
+     *
+     * The inverse of the cover pipeline in extractMetadataFromIndex: where
+     * extraction folds the index into cover material and Feistel-permutes it
+     * into pixel bytes, this walks the target pixels back through the inverse
+     * permutation to recover the cover material, then lifts it to full-size
+     * indexes by prepending random high "discriminator" bits — the same
+     * construction IndexNaming::constructIndexesForNames uses for names.
+     * Every returned index therefore decodes to exactly the requested cover
+     * (its names, position, and audio vary per candidate).
+     *
+     * @param pixels Target mosaic pixels: exactly
+     *   pixelBytesNeeded(DEFAULT_CELL_SIZE) bytes of packed 8-bit RGB, in
+     *   reading order (the same layout generateSvgCover consumes)
+     * @param count How many candidate indexes to construct
+     * @param seed Seeds the discriminator randomness, so a given (pixels,
+     *   seed) pair reproduces the same candidates
+     * @return `count` distinct indexes, each carrying the requested cover
+     * @throws std::invalid_argument if `pixels` is not exactly
+     *   pixelBytesNeeded(DEFAULT_CELL_SIZE) bytes
+     *
+     * @note The cover material domain is [0, 2^coverBits - 3), so the top
+     *   three pixel patterns (all-white and its two nearest neighbours) are
+     *   unreachable by any index. Those inputs are clamped to the nearest
+     *   representable pattern — a difference of at most 3 in one tile's blue
+     *   channel, invisible in practice.
+     */
+    static auto constructIndexesForCover(const std::vector<uint8_t>& pixels, size_t count, uint64_t seed)
+        -> std::vector<boost::multiprecision::cpp_int>;
+
    private:
     /**
      * @brief Internal helper to assemble metadata from precomputed parts.

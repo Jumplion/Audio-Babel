@@ -32,7 +32,7 @@ jobs:
         run: embuilder build boost_headers
 
       - name: Build WASM module
-        run: ./build-wasm.sh
+        run: bash build-wasm.sh
         working-directory: cpp/wasm
 
       - name: Verify WASM output

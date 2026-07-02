@@ -23,10 +23,8 @@ namespace {
     constexpr uint64_t COVER_KEY = 0xB4B2A265B1A5C2EFULL;
 
     // Cover-material domain: exactly enough bits for the production cover's
-    // pixel byte budget (pixelBytesNeeded(DEFAULT_CELL_SIZE) bytes). A whole
-    // number of bytes is already an even bit count, so (unlike IndexNaming's
-    // nameSpace(), whose D^4 name space needs rounding up) no ceiling step is
-    // needed to get an even Feistel domain width.
+    // pixel byte budget. Already an even bit count (a whole number of bytes),
+    // so unlike IndexNaming::nameSpace() no ceiling step is needed.
     struct CoverSpace {
         cpp_int full; // modulus the index is folded against, deliberately NOT a power of two
         size_t  e;    // Feistel domain width in bits (== coverBits)
@@ -35,15 +33,11 @@ namespace {
     auto coverSpace() -> const CoverSpace& {
         static const CoverSpace cs = [] {
             const size_t coverBits = IndexMetadata::pixelBytesNeeded(IndexMetadata::DEFAULT_CELL_SIZE) * BITS_PER_BYTE;
-            // Just under 2^coverBits and odd, so it's guaranteed not to be a
-            // power of two itself. That matters: reduceModLarge's Horner-rule
-            // fold only mixes every bit of the index into the residue when the
-            // modulus isn't a power of two -- a power-of-two modulus would
-            // degrade to a plain bitmask of the index's low bits, and sibling
-            // library positions (which differ only in a scrambled low-order
-            // offset -- see LibraryPosition.cpp) would then produce nearly
-            // identical top-byte-dominated covers, same as the un-scrambled
-            // byte dump this replaces.
+            // Just under 2^coverBits and odd, so it's not itself a power of
+            // two: reduceModLarge's fold only mixes every index bit into the
+            // residue when the modulus isn't a power of two (otherwise it
+            // degrades to a low-bits bitmask, and sibling library positions
+            // would get near-identical covers).
             cpp_int full = (cpp_int(1) << coverBits) - 3;
             return CoverSpace{full, coverBits};
         }();
@@ -93,13 +87,9 @@ namespace {
     }
 
     // Derive the cover mosaic's pixel bytes from the whole index via a keyed
-    // Feistel permutation -- the same treatment IndexNaming::namesForIndex
-    // gives the genre/artist/album/track fields, and for the same reason:
-    // sibling library positions differ only in a small low-order offset (see
-    // LibraryPosition::reconstructIndexFromPosition), and reduceModLarge's
-    // non-power-of-two fold plus this permutation scatters that difference
-    // across every pixel instead of leaving neighbouring tracks/albums with
-    // near-identical (or, for short indexes, mostly-black) cover art.
+    // Feistel permutation -- same treatment IndexNaming::namesForIndex gives
+    // the name fields, so neighbouring tracks/albums don't get near-identical
+    // covers.
     auto coverBytesForIndex(const cpp_int& index) -> std::vector<uint8_t> {
         cpp_int idx = index < 0 ? cpp_int(0) : index;
         cpp_int m   = AudioBabel::Utilities::reduceModLarge(idx, coverSpace().full);
@@ -214,11 +204,10 @@ namespace {
         out.push_back(static_cast<uint8_t>((v >> 24) & 0xFF));
     }
 
-    // Minimal uncompressed 24-bit-per-pixel BMP: BITMAPFILEHEADER (14 bytes)
-    // + BITMAPINFOHEADER (40 bytes) + bottom-up, BGR, row-padded-to-4-bytes
-    // pixel data. No color table, no compression -- deliberately: this skips
-    // needing a DEFLATE/zlib dependency (as PNG would require) while still
-    // being a real raster image, not vector markup.
+    // Minimal uncompressed 24-bpp BMP (14-byte file header + 40-byte info
+    // header + bottom-up BGR pixel data, row-padded to 4 bytes). Chosen over
+    // PNG to avoid a DEFLATE/zlib dependency while still being a real raster
+    // image rather than vector markup.
     auto buildBmp24(const std::vector<uint8_t>& rgbTopDown, unsigned width, unsigned height) -> std::vector<uint8_t> {
         const unsigned rowBytes  = width * 3;
         const unsigned rowPadded = (rowBytes + 3) & ~0x3U;
@@ -301,12 +290,10 @@ namespace {
 } // namespace
 
 auto IndexMetadata::generateSvgCover(const std::vector<uint8_t>& bytes, const std::string& track, unsigned cellSize) -> std::string {
-    // Build the native-resolution pixel buffer directly from bytes: each
-    // tile's (R, G, B) is the next three bytes of `bytes`, in reading order
-    // -- a direct, bijective byte-to-pixel dump, not a PRNG stream. The same
-    // index always renders the same cover (still deterministic), and the
-    // mapping is invertible: packing a target image's quantized bytes at
-    // this same offset makes an index decode to that exact cover.
+    // Each tile's (R, G, B) is the next three bytes of `bytes`, in reading
+    // order -- a direct, invertible byte-to-pixel dump (not a PRNG stream),
+    // so packing a target image's bytes at this offset makes an index decode
+    // to that exact cover.
     unsigned             cellsPerSide = cellSize > 0 ? CANVAS_SIZE / cellSize : 1;
     std::vector<uint8_t> rgb(static_cast<size_t>(cellsPerSide) * cellsPerSide * 3);
     size_t               cursor = 0;
@@ -314,10 +301,9 @@ auto IndexMetadata::generateSvgCover(const std::vector<uint8_t>& bytes, const st
         channel = nextByteOrZero(bytes, cursor);
     }
 
-    // Embed the native-resolution bitmap as a single raster <image>, scaled
-    // up to the 256x256 canvas with nearest-neighbor ("pixelated") sampling
-    // so tile edges stay crisp -- visually identical to drawing cellSize x
-    // cellSize <rect> tiles, but at a small fraction of the markup size.
+    // Scale up to the 256x256 canvas with nearest-neighbor ("pixelated")
+    // sampling instead of drawing individual <rect> tiles -- same visual
+    // result, far less markup.
     std::string bmpBase64 = base64EncodeStandard(buildBmp24(rgb, cellsPerSide, cellsPerSide));
 
     std::string svg = "<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'>";

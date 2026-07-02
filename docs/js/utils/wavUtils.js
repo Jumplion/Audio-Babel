@@ -1,34 +1,21 @@
 /**
- * wavUtils.js
- *
- * Shared utilities for WAV file parsing and creation.
- * Eliminates code duplication across pages that read or build WAV files.
+ * Shared utilities for WAV file parsing and creation, so pages don't
+ * duplicate header logic.
  */
 
 import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from './audioConstants.js';
 
-/**
- * Write a string to a DataView
- * @param {DataView} view - The DataView to write to
- * @param {number} offset - The offset to start writing at
- * @param {string} string - The string to write
- */
 export function writeString(view, offset, string) {
   for (let i = 0; i < string.length; i++) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
 
-/**
- * Parse WAV file header and extract PCM data and audio format information
- * @param {ArrayBuffer} arrayBuffer - WAV file data
- * @returns {Object} Object containing pcmData, sampleRate, numChannels, bitDepth
- * @throws {Error} If no data chunk is found or invalid WAV format
- */
+// Parses a WAV ArrayBuffer into { pcmData, sampleRate, numChannels, bitDepth }.
+// Throws on missing RIFF/WAVE headers, non-PCM format, or a missing data chunk.
 export function parseWavFile(arrayBuffer) {
   const view = new DataView(arrayBuffer);
 
-  // Verify RIFF header
   const riffId = String.fromCharCode(
     view.getUint8(0),
     view.getUint8(1),
@@ -39,7 +26,6 @@ export function parseWavFile(arrayBuffer) {
     throw new Error('Invalid WAV file: missing RIFF header');
   }
 
-  // Verify WAVE format
   const waveId = String.fromCharCode(
     view.getUint8(8),
     view.getUint8(9),
@@ -50,7 +36,6 @@ export function parseWavFile(arrayBuffer) {
     throw new Error('Invalid WAV file: missing WAVE format');
   }
 
-  // Parse chunks
   let offset = 12; // Skip RIFF/WAVE header
   let pcmData = null;
   let sampleRate = DEFAULT_SAMPLE_RATE;
@@ -68,7 +53,6 @@ export function parseWavFile(arrayBuffer) {
     offset += 8;
 
     if (chunkId === 'fmt ') {
-      // Parse format chunk
       const audioFormat = view.getUint16(offset, true);
       if (audioFormat !== 1) {
         throw new Error(
@@ -80,12 +64,10 @@ export function parseWavFile(arrayBuffer) {
       bitDepth = view.getUint16(offset + 14, true);
       offset += chunkSize;
     } else if (chunkId === 'data') {
-      // Extract PCM data
       pcmData = new Uint8Array(arrayBuffer, offset, chunkSize);
       break;
     } else {
-      // Skip unknown chunks (handle odd-sized chunks)
-      offset += chunkSize + (chunkSize & 1);
+      offset += chunkSize + (chunkSize & 1); // Skip unknown chunks (odd sizes are padded)
     }
   }
 
@@ -101,14 +83,7 @@ export function parseWavFile(arrayBuffer) {
   };
 }
 
-/**
- * Create a WAV file from PCM sample data
- * @param {Uint8Array} pcmData - Raw PCM sample data
- * @param {number} sampleRate - Sample rate (default: DEFAULT_SAMPLE_RATE)
- * @param {number} bitDepth - Bit depth (default: DEFAULT_BIT_DEPTH)
- * @param {number} numChannels - Number of channels (default: DEFAULT_NUM_CHANNELS)
- * @returns {Blob} WAV file as a Blob
- */
+// Builds a standard 44-byte-header WAV Blob from raw PCM sample data.
 export function createWavFile(
   pcmData,
   sampleRate = DEFAULT_SAMPLE_RATE,
@@ -121,11 +96,9 @@ export function createWavFile(
   const dataSize = pcmData.length;
   const fileSize = 44 + dataSize;
 
-  // Create WAV buffer
   const buffer = new ArrayBuffer(fileSize);
   const view = new DataView(buffer);
 
-  // Write WAV header
   writeString(view, 0, 'RIFF');
   view.setUint32(4, fileSize - 8, true);
   writeString(view, 8, 'WAVE');
@@ -140,7 +113,6 @@ export function createWavFile(
   writeString(view, 36, 'data');
   view.setUint32(40, dataSize, true);
 
-  // Write sample data
   const dataView = new Uint8Array(buffer, 44);
   dataView.set(pcmData);
 

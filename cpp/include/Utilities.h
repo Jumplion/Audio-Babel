@@ -14,11 +14,11 @@
 
 #include "Constants.h"
 
-// Utilities: endian helpers and small byte/bit helpers used across the audio code.
+// Endian helpers and small byte/bit helpers shared across the audio code.
 // Header-only and inline to avoid ODR issues.
 namespace AudioBabel::Utilities {
 
-// --- Little-Endian Write helpers ----------------------------------------------------------
+// --- Little-endian read/write ---------------------------------------------
 template <typename T>
 inline void write_le(std::ostream& out, T value) {
     std::array<uint8_t, sizeof(T)> buf{};
@@ -28,7 +28,6 @@ inline void write_le(std::ostream& out, T value) {
     out.write(reinterpret_cast<const char*>(buf.data()), sizeof(T));
 }
 
-// --- Little-endian Read helpers -----------------------------------------------------------
 template <typename T>
 inline auto read_le(const char* ptr) -> T {
     uint64_t acc = 0;
@@ -38,9 +37,9 @@ inline auto read_le(const char* ptr) -> T {
     return static_cast<T>(acc);
 }
 
-// --- Byte/tag utilities -------------------------------------------------------------------
+// --- Byte/tag utilities -----------------------------------------------------
 
-// Helper: compare 4-byte ASCII chunk tags (e.g., "RIFF", "WAVE")
+// Compares 4-byte ASCII chunk tags (e.g. "RIFF", "WAVE").
 static inline auto tagEquals(const std::array<char, 4>& tagBuf, const char expected[4]) -> bool {
     for (size_t i = 0; i < 4; ++i) {
         if (tagBuf[i] != expected[i]) {
@@ -50,25 +49,18 @@ static inline auto tagEquals(const std::array<char, 4>& tagBuf, const char expec
     return true;
 }
 
-// --- Sample-domain repunit / band-index helpers --------------------------
-// Shared by Index's payload bijection and IndexScramble's per-band
-// keying, both of which work over base-B numbers with B = SAMPLE_ALPHABET_SIZE
-// (the 16-bit sample alphabet) and need the same two primitives:
-//   - the base-B repunit S_L = (B^L - 1)/(B - 1) for an L-sample band, and
-//   - recovering L (the sample count) from a stored index magnitude.
+// --- Sample-domain repunit / band-index helpers -----------------------------
+// Shared by Index's payload bijection and IndexScramble's per-band keying,
+// both working over base-B numbers (B = SAMPLE_ALPHABET_SIZE).
 
-// Base-B repunit S_L: byte pattern 0x00 0x01 repeated L times (every digit ==
-// 1), most-significant-sample first. Built in one linear pass.
+// Base-B repunit S_L for an L-sample band: byte pattern 0x00 0x01 repeated L
+// times (every digit == 1), most-significant-sample first.
 inline auto repunit(size_t L) -> boost::multiprecision::cpp_int {
     if (L == 0) {
         return boost::multiprecision::cpp_int(0);
     }
-    // Memoize the most recent band. Both directions request the same L
-    // back-to-back — encode()/decode() compute repunit(L), then
-    // contentScramble() immediately asks for repunit(L) again for the same
-    // band — so a single-entry cache turns two O(N) builds into one. repunit is
-    // a pure function of L, so caching by L is always correct; L == 0 returns
-    // above, so the 0 sentinel never aliases a real entry.
+    // encode()/decode() and contentScramble() request the same L back-to-back,
+    // so a single-entry cache turns two O(N) builds into one.
     static thread_local size_t                         cachedL = 0;
     static thread_local boost::multiprecision::cpp_int cached;
     if (L == cachedL) {
@@ -97,12 +89,10 @@ inline auto bandIndex(const boost::multiprecision::cpp_int& n) -> size_t {
     return static_cast<size_t>(boost::multiprecision::msb(m) / DEFAULT_BIT_DEPTH);
 }
 
-// --- Avalanche bit-mixing primitives -----------------------------------------
-// A small, fast bit mixer (one SplitMix64 step on a running state).
-// Source: Steele, Lea & Flood, "Fast Splittable Pseudorandom Number
-// Generators" (OOPSLA 2014) — https://gee.cs.oswego.edu/dl/papers/oopsla14.pdf
-// Shared by IndexScramble's Feistel keying and IndexNaming's cosmetic name
-// generation — both need a cheap, well-diffused mixer over a running state.
+// --- Avalanche bit-mixing primitives ----------------------------------------
+// One SplitMix64 step on a running state (Steele, Lea & Flood, "Fast
+// Splittable Pseudorandom Number Generators", OOPSLA 2014). Shared by
+// IndexScramble's Feistel keying and IndexNaming's name generation.
 inline void mixIn(uint64_t& state, uint8_t x) {
     state += x + 0x9E3779B97F4A7C15ULL;
     state = (state ^ (state >> 30)) * 0xBF58476D1CE4E5B9ULL;
@@ -117,25 +107,22 @@ inline auto splitmix64(uint64_t& state) -> uint64_t {
     return z ^ (z >> 31);
 }
 
-// --- Balanced big-integer Feistel permutation primitives ---------------------
+// --- Balanced big-integer Feistel permutation primitives --------------------
 // Shared by IndexScramble's per-band scatter and IndexNaming's cosmetic-name
-// permutation. Both build a keyed bijection over [0, 2^e) (e even) from the same
-// three pieces, differing ONLY in how each round's key is derived (passed in as
-// a callback). LibraryPosition keeps its own uint64-domain variant because its
-// 14-bit domain is far faster in machine integers than in cpp_int.
+// permutation: both build a keyed bijection over [0, 2^e) (e even) from these
+// pieces, differing only in how each round's key is derived. LibraryPosition
+// keeps its own uint64-domain variant since its 14-bit domain is faster in
+// machine integers than cpp_int.
 
-// Number of Feistel rounds. Four rounds give full avalanche across the domain.
+// Four rounds give full avalanche across the domain.
 constexpr int FEISTEL_ROUNDS = 4;
 
-// Low-h-bits mask as a big integer.
 inline auto lowBitsMask(size_t h) -> boost::multiprecision::cpp_int {
     return (boost::multiprecision::cpp_int(1) << h) - 1;
 }
 
-// Keyed diffusing byte mixer: half-block -> half-block of the same length. Each
-// output byte depends on every input byte (forward pass spreads low->high,
-// backward pass high->low). It need not be invertible — the Feistel structure
-// provides invertibility.
+// Keyed diffusing byte mixer: half-block -> half-block of the same length.
+// Need not be invertible itself — the Feistel structure provides that.
 inline auto feistelDiffuse(const std::vector<uint8_t>& in, uint64_t key) -> std::vector<uint8_t> {
     const size_t         n = in.size();
     std::vector<uint8_t> out(n, 0);
@@ -154,9 +141,8 @@ inline auto feistelDiffuse(const std::vector<uint8_t>& in, uint64_t key) -> std:
     return out;
 }
 
-// h-bit keyed round function built on feistelDiffuse: the h-bit half is laid out
-// in ceil(h/8) bytes (most-significant first) and the result is masked back to h
-// bits, so it maps an h-bit value to an h-bit value.
+// h-bit keyed round function built on feistelDiffuse: the h-bit half is laid
+// out in ceil(h/8) bytes (MSB first) and the result masked back to h bits.
 inline auto feistelRoundBits(const boost::multiprecision::cpp_int& half,
                              size_t                                h,
                              uint64_t                              key,
@@ -176,9 +162,8 @@ inline auto feistelRoundBits(const boost::multiprecision::cpp_int& half,
     return r & mask;
 }
 
-// Keyed balanced Feistel permutation over [0, 2^e) (e even), built from big
-// integers so the domain need not be byte-aligned. Halves are e/2 bits each.
-// `roundKey(r)` supplies each round's key; inverted by running rounds in reverse.
+// Keyed balanced Feistel permutation over [0, 2^e) (e even). `roundKey(r)`
+// supplies each round's key; inverted by running rounds in reverse.
 template <typename RoundKeyFn>
 inline auto feistelPow2(const boost::multiprecision::cpp_int& x, size_t e, RoundKeyFn&& roundKey, bool encrypt) -> boost::multiprecision::cpp_int {
     using boost::multiprecision::cpp_int;
@@ -205,24 +190,17 @@ inline auto feistelPow2(const boost::multiprecision::cpp_int& x, size_t e, Round
     return (hi << h) | lo;
 }
 
-// Reduce a (possibly multi-megabyte) non-negative index modulo `modulus` in
-// O(N) time. Shared by IndexNaming (name-material reduction) and
-// IndexMetadata (cover-material reduction) — both fold a huge index down to a
-// fixed-width value before Feistel-permuting it, and both need `modulus` to
-// be something other than a power of two: a power-of-two modulus would make
-// the result depend only on the index's low bits (a plain bitmask), whereas
-// an arbitrary modulus mixes every bit of the index into the residue via the
-// carries of Horner's rule below, so two indexes differing only in their low
-// bits (as sibling library positions do — see LibraryPosition.cpp) still land
-// on well-separated residues.
+// Reduces a (possibly multi-megabyte) non-negative index modulo `modulus` in
+// O(N) time. `modulus` must not be a power of two: a power-of-two modulus
+// would make the result depend only on the index's low bits, whereas an
+// arbitrary modulus mixes every bit into the residue via Horner's rule below
+// — needed because sibling library positions differ only in low bits and
+// still must land on well-separated residues.
 //
-// The obvious `idx % modulus` is a hot O(N^2) trap: boost's cpp_int division
-// forms the full ~N-bit quotient even though only the residue is wanted, so a
-// 30s upload spent ~33s here and a 60s upload ~4 minutes. We never need the
-// quotient, so fold the index into the remainder in fixed-width chunks
-// (Horner's rule in base 2^CHUNK_BITS): each step reduces a value only a
-// little wider than `modulus`, so the per-chunk work is O(1) and the whole
-// reduction is O(N). The result is bit-identical to `idx % modulus`.
+// Plain `idx % modulus` is an O(N^2) trap: boost's cpp_int division forms the
+// full quotient even though only the residue is wanted. Folding in fixed-width
+// chunks (Horner's rule, base 2^CHUNK_BITS) keeps each step's work O(1) for
+// an overall O(N); the result is bit-identical to `idx % modulus`.
 inline auto reduceModLarge(const boost::multiprecision::cpp_int& idx,
                            const boost::multiprecision::cpp_int& modulus) -> boost::multiprecision::cpp_int {
     using boost::multiprecision::cpp_int;
@@ -248,15 +226,11 @@ inline auto reduceModLarge(const boost::multiprecision::cpp_int& idx,
     return rem;
 }
 
-// --- Base64 URL-safe utilities (alphabet A-Z a-z 0-9 - _, no padding) ---------
-// URL-safe base64 alphabet used by encoder/decoder (no padding)
+// --- Base64 URL-safe utilities (alphabet A-Z a-z 0-9 - _, no padding) -------
 constexpr char BASE64_URL_ALPHA[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
-// NOTE (R7): isValidBase64Url is intentionally implemented in both C++ (this
-// character-loop version) and JavaScript (regex in docs/js/utils/base64.js).
-// The dual implementations provide defence-in-depth: JS validates at the UI
-// boundary while C++ validates at the library boundary, and each uses an
-// idiomatic approach for its runtime.
+// Also implemented in JS (docs/js/utils/base64.js) as defence-in-depth: JS
+// validates at the UI boundary, C++ at the library boundary.
 inline auto isValidBase64Url(const std::string& s) -> bool {
     for (char c : s) {
         if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' && c != '_') {
@@ -266,15 +240,14 @@ inline auto isValidBase64Url(const std::string& s) -> bool {
     return true;
 }
 
-// --- Bijective base-64 for the INDEX string form -----------------------------
-// These implement a TRUE BIJECTION between non-negative integers
-// and strings over the 64-symbol URL-safe alphabet using bijective numeration
-// (digit = value + 1). Every string of any length >= 0 maps to exactly one
-// integer and back, with the empty string <-> 0. Nothing is rejected for
-// alphabet-valid input. Do NOT use the bit-accumulator base64 for indices.
-// Reference: https://en.wikipedia.org/wiki/Bijective_numeration
+// --- Bijective base-64 for the INDEX string form ----------------------------
+// True bijection between non-negative integers and strings over the 64-symbol
+// URL-safe alphabet using bijective numeration (digit = value + 1): every
+// string of any length >= 0 maps to exactly one integer and back, empty
+// string <-> 0, nothing rejected for alphabet-valid input. Do NOT use the
+// bit-accumulator base64 for indices. https://en.wikipedia.org/wiki/Bijective_numeration
 
-// Map a single alphabet character to its 0..63 value, or -1 if not in the alphabet.
+// Maps a single alphabet character to its 0..63 value, or -1 if not in the alphabet.
 inline auto base64UrlValue(char c) -> int {
     if (c >= 'A' && c <= 'Z') {
         return c - 'A';
@@ -294,18 +267,14 @@ inline auto base64UrlValue(char c) -> int {
     return -1;
 }
 
-// Number of bits per base-64 digit.
 constexpr unsigned BASE64_DIGIT_BITS = 6; // 1 << 6 == 64
 
 // integer -> index string (bijective base 64).
 //
-// Conceptually: while n > 0 { n -= 1; emit ALPHA[n mod 64]; n /= 64 } reversed.
-// That per-digit loop is O(len^2). We use the exact identity instead (see the
-// Index.cpp comments for the analogous base-B derivation):
-//   n = V64 + S64,  V64 = base-64 value of the digit string (digits 0..63),
-//                   S64 = (64^len - 1)/63 = base-64 repunit (all digits == 1).
-// The digit count is len = msb(n*63 + 1) / 6, recovered without bignum division.
-// All steps are linear in the output length.
+// Naively: while n > 0 { n -= 1; emit ALPHA[n mod 64]; n /= 64 } reversed —
+// O(len^2). Instead uses the closed-form n = V64 + S64, where V64 is the
+// base-64 value of the digit string and S64 = (64^len - 1)/63 is the base-64
+// repunit; len = msb(n*63 + 1) / 6. All steps are linear in the output length.
 inline auto indexToB64(const boost::multiprecision::cpp_int& n) -> std::string {
     if (n < 0) {
         throw std::invalid_argument("indexToB64: index must be non-negative");
@@ -337,11 +306,8 @@ inline auto indexToB64(const boost::multiprecision::cpp_int& n) -> std::string {
     return out;
 }
 
-// index string -> integer.
-//
-// Conceptually: n = 0; for each char c: n = n*64 + (alphaValue(c) + 1).
-// Using the same identity, n = V64 + S64 where V64 is built from the 6-bit digit
-// values in one linear import_bits pass and S64 is the base-64 repunit.
+// index string -> integer. Same identity as indexToB64: n = V64 + S64, with
+// V64 built from the 6-bit digit values in one linear import_bits pass.
 inline auto b64ToIndex(const std::string& s) -> boost::multiprecision::cpp_int {
     if (s.empty()) {
         return boost::multiprecision::cpp_int(0);

@@ -1,9 +1,7 @@
 /**
- * resultDisplay.js
- *
- * Manages the display of audio generation results.
- * Handles metadata display, expandable text, clickable indexes,
- * audio playback controls, and download functionality.
+ * Manages the display of audio generation results: metadata, expandable
+ * text, clickable indexes, WaveSurfer playback, WAV download, and the
+ * on-demand "More Like This…" Similar Tracks list.
  */
 
 import { loadFragment } from '../ui/loadFragment.js';
@@ -25,10 +23,7 @@ import Timeline from 'https://unpkg.com/wavesurfer.js@7/dist/plugins/timeline.es
 let resultFrag = null;
 let wavesurferInstance = null;
 
-/**
- * Clean up the result handler state (WaveSurfer instance and fragment cache).
- * Call this when navigating away from a result or before generating a new result.
- */
+// Call when navigating away from a result or before generating a new one.
 export function cleanupResultHandler() {
   if (wavesurferInstance) {
     wavesurferInstance.destroy();
@@ -37,14 +32,8 @@ export function cleanupResultHandler() {
   resultFrag = null;
 }
 
-/**
- * Truncate a string if it exceeds a threshold, showing the first and last
- * `partLength` characters joined by an ellipsis.
- * @param {string} str - String to truncate
- * @param {number} threshold - Length above which truncation kicks in (default: 30)
- * @param {number} [partLength] - Characters to keep at each end (default: 40% of threshold)
- * @returns {string} Truncated string with ellipsis if needed
- */
+// Truncates a string down to `threshold` chars, keeping `partLength` chars
+// from each end joined by an ellipsis.
 function truncateString(str, threshold = 30, partLength = Math.floor(threshold * 0.4)) {
   if (!str || str.length <= threshold) return str;
 
@@ -53,13 +42,8 @@ function truncateString(str, threshold = 30, partLength = Math.floor(threshold *
   return `${start}...${end}`;
 }
 
-/**
- * Pick a single cosmetic name out of a getXNames() JSON array response,
- * falling back to the raw numeric index if the names couldn't be loaded.
- * @param {string} namesJson - JSON array string returned by a getXNames() wasm call
- * @param {number} index - Slot to pick (wall/shelf/album/track number)
- * @returns {string} The name at that slot, or the index as a string
- */
+// Picks a single cosmetic name out of a getXNames() JSON array response,
+// falling back to the raw numeric index if the names couldn't be loaded.
 function resolveCosmeticName(namesJson, index) {
   try {
     const names = JSON.parse(namesJson);
@@ -70,33 +54,20 @@ function resolveCosmeticName(namesJson, index) {
   return String(index);
 }
 
-/**
- * Ensures the result fragment component is loaded.
- * Loads result.html fragment into #resultContainer on first call, then caches it.
- * @returns {Promise<Object>} Fragment helper object with get/getAll methods
- */
+// Loads result.html into #resultContainer on first call, then caches it.
 export async function ensureResultFrag() {
   if (!resultFrag)
     resultFrag = await loadFragment('#resultContainer', './components/result.html?v=5');
   return resultFrag;
 }
 
-/**
- * Toggle the expanded state of metadata
- * @param {HTMLElement} element - Metadata element
- * @param {string} expandedId - Unique ID for expanded section
- * @param {string} fullText - Complete text to show when expanded
- * @param {string} truncatedText - Truncated text to show when collapsed
- */
 function toggleMetadataExpansion(element, expandedId, fullText, truncatedText) {
   const existingExpanded = document.getElementById(expandedId);
 
   if (existingExpanded) {
-    // Collapse: remove expanded view
     existingExpanded.remove();
     element.textContent = truncatedText;
   } else {
-    // Expand: create and insert expanded view
     const expandedDiv = document.createElement('div');
     expandedDiv.id = expandedId;
     expandedDiv.className = 'metadata-expanded';
@@ -107,48 +78,32 @@ function toggleMetadataExpansion(element, expandedId, fullText, truncatedText) {
   }
 }
 
-/**
- * Create a clickable metadata element that can expand to show full text
- * @param {HTMLElement} element - The metadata element
- * @param {string} fullText - The complete metadata string
- * @param {string} truncatedText - The truncated version to display initially
- * @param {string} fieldName - Name of the field (e.g., 'genre', 'artist')
- */
 function makeMetadataExpandable(element, fullText, truncatedText, fieldName) {
   if (!element || !fullText) return;
 
   const expandedId = `expanded-${fieldName}`;
 
-  // Set initial state
   element.textContent = truncatedText;
   element.classList.add('metadata-expandable');
   element.title = 'Click to expand/collapse';
 
-  // Add toggle handler
   element.addEventListener('click', () => {
     toggleMetadataExpansion(element, expandedId, fullText, truncatedText);
   });
 }
 
-/**
- * Create a clickable index display that downloads and opens the full index in a new tab
- * @param {HTMLElement} indexDisplay - The index display element
- * @param {string} fullIndex - The complete index string
- * @returns {HTMLElement} Updated index display element
- */
+// Replaces indexDisplay with a fresh clone (dropping old click handlers) that
+// downloads and opens the full index on click.
 function makeIndexClickable(indexDisplay, fullIndex) {
   if (!indexDisplay || !fullIndex) return indexDisplay;
 
-  // Remove existing handlers by cloning
   const newIndexDisplay = indexDisplay.cloneNode(false);
   indexDisplay.parentNode.replaceChild(newIndexDisplay, indexDisplay);
 
-  // Set truncated display text
   newIndexDisplay.textContent = truncateString(fullIndex, 200, 100);
   newIndexDisplay.classList.add('index-clickable');
   newIndexDisplay.title = 'Click to download and view full index';
 
-  // Add click handler for download + view
   newIndexDisplay.addEventListener('click', () => {
     const blob = new Blob([fullIndex], { type: 'text/plain' });
     downloadBlob(blob, 'audio-index.txt');
@@ -158,26 +113,14 @@ function makeIndexClickable(indexDisplay, fullIndex) {
   return newIndexDisplay;
 }
 
-/**
- * Build a WAV Blob directly from raw PCM bytes, skipping any base64 conversion.
- * Used for both waveform loading and lazy download — the same Blob serves both.
- * @param {Uint8Array} pcm
- * @param {number} sampleRate
- * @param {number} bitDepth
- * @param {number} numChannels
- * @returns {Blob}
- */
+// Builds a WAV Blob directly from raw PCM bytes (no base64 step) — the same
+// Blob feeds both WaveSurfer and the download link.
 const pcmToWavBlob = (pcm, sampleRate, bitDepth, numChannels) =>
   createWavFile(pcm, sampleRate, bitDepth, numChannels);
 
-/**
- * Build a similar-track button's label: a truncated index plus its cosmetic
- * track name, fetched the same way the main metadata panel does (never
- * fabricated client-side).
- * @param {Object} wasm - Initialized IndexWasm instance
- * @param {string} indexBase64 - Variant index to describe
- * @returns {{indexLabel: string, trackName: string}}
- */
+// Builds a similar-track button's label: a truncated index plus its cosmetic
+// track name, fetched the same way the main metadata panel does (never
+// fabricated client-side).
 function describeSimilarTrack(wasm, indexBase64) {
   const indexLabel = truncateString(indexBase64, 24, 10);
   try {
@@ -190,15 +133,8 @@ function describeSimilarTrack(wasm, indexBase64) {
   }
 }
 
-/**
- * Generate and render the "Similar Tracks" list on demand: a handful of new
- * indexes whose decoded audio is a close variation of the current result
- * (sample jitter, silence padding, sped up/slowed down, or a few combined).
- * Clicking one regenerates the whole result display for that index.
- * @param {Object} frag - Result fragment helper (see ensureResultFrag)
- * @param {Object} wasm - Initialized IndexWasm instance
- * @param {Uint8Array} pcmData - Raw PCM payload of the currently-displayed result
- */
+// Renders the "Similar Tracks" list on demand. Clicking an entry regenerates
+// the whole result display for that index.
 async function renderSimilarTracks(frag, wasm, pcmData) {
   const list = frag.get('#similarTracksList');
   const status = frag.get('#similarTracksStatus');
@@ -246,11 +182,8 @@ async function renderSimilarTracks(frag, wasm, pcmData) {
   }
 }
 
-/**
- * Displays a JSON response containing audio metadata and PCM data.
- * @param {Object} j - Result object from buildResultForIndex
- * @param {string} [originalIndexB64] - Optional original index string to display
- */
+// Renders a result object (see resultBuilder.js) into the result fragment:
+// index, library position, metadata, and audio playback/download.
 export async function handleJsonResponse(j, originalIndexB64) {
   const frag = await ensureResultFrag();
   let indexDisplay = frag.get('#indexDisplay');
@@ -264,20 +197,18 @@ export async function handleJsonResponse(j, originalIndexB64) {
   if (similarList) similarList.innerHTML = '';
   if (similarStatus) similarStatus.textContent = '';
 
-  // show index with truncation and click-to-download functionality
   const indexToShow = originalIndexB64 || j.indexBase64 || '';
   if (indexDisplay && indexToShow) {
     indexDisplay = makeIndexClickable(indexDisplay, indexToShow);
   }
 
-  // Display position in library — position is pre-computed by buildResultForIndex.
+  // Position is pre-computed by buildResultForIndex.
   const positionDisplay = frag.get('#positionDisplay');
   if (positionDisplay && j.position) {
     try {
       const wasm = await getWasmModule();
       const position = j.position;
 
-      // Truncate room display if it's too long
       const room = position.room === '' ? '0' : position.room;
       const roomDisplay = truncateString(room, 20, 8);
 
@@ -342,14 +273,12 @@ export async function handleJsonResponse(j, originalIndexB64) {
     }
   }
 
-  // metadata with expandable sections
   if (j.metadata) {
     const g = frag.get('#metaGenre');
     const a = frag.get('#metaArtist');
     const al = frag.get('#metaAlbum');
     const t = frag.get('#metaTrack');
 
-    // Make each metadata field expandable
     if (g) {
       const genreText = j.metadata.genre || '';
       makeMetadataExpandable(g, genreText, truncateString(genreText, 30), 'genre');
@@ -370,7 +299,6 @@ export async function handleJsonResponse(j, originalIndexB64) {
     const cover = frag.get('#coverImg');
     const metadataEl = frag.get('#metadata');
     if (cover && j.metadata.cover) {
-      // Convert SVG string to data URL for img src
       const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(j.metadata.cover);
       cover.src = svgDataUrl;
       if (metadataEl) metadataEl.style.display = '';
@@ -380,7 +308,6 @@ export async function handleJsonResponse(j, originalIndexB64) {
     }
   }
 
-  // audio
   if (j.pcm) {
     const {
       sampleRate = DEFAULT_SAMPLE_RATE,
@@ -388,8 +315,6 @@ export async function handleJsonResponse(j, originalIndexB64) {
       numChannels = DEFAULT_NUM_CHANNELS,
     } = j;
 
-    // Build the WAV Blob once from raw PCM — no base64 step.
-    // The same Blob feeds both WaveSurfer and the download link.
     const wavBlob = pcmToWavBlob(j.pcm, sampleRate, bitDepth, numChannels);
 
     const downloadLink = frag.get('#downloadLink');

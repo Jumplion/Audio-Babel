@@ -1,8 +1,3 @@
-/**
- * Highlights the active navigation link based on the current page pathname.
- * Sets 'active' class and aria-current="page" on matching links.
- * @param {string} [containerSelector='#navContainer'] - CSS selector for the nav container
- */
 export function highlightActiveNav(containerSelector = '#navContainer') {
   try {
     const container = document.querySelector(containerSelector);
@@ -12,7 +7,6 @@ export function highlightActiveNav(containerSelector = '#navContainer') {
     const cur = location.pathname.split('/').pop() || 'index.html';
     links.forEach((a) => {
       const href = a.getAttribute('href');
-      // compare trailing part of href to current path
       const name = href.split('/').pop();
       if (name === cur) {
         a.classList.add('active');
@@ -23,7 +17,6 @@ export function highlightActiveNav(containerSelector = '#navContainer') {
       }
     });
   } catch (e) {
-    // non-fatal
     console.warn('highlightActiveNav failed', e);
   }
 }

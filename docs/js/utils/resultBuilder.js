@@ -1,28 +1,13 @@
 /**
- * resultBuilder.js
- *
  * Builds the standardised result object passed to handleJsonResponse.
- * Metadata always comes from the C++/WASM getMetadata call — never fabricated client-side.
+ * Metadata always comes from the C++/WASM getMetadata call — never
+ * fabricated client-side.
  */
 
 import { DEFAULT_SAMPLE_RATE, DEFAULT_BIT_DEPTH, DEFAULT_NUM_CHANNELS } from './audioConstants.js';
 
-/**
- * Reconstruct audio and metadata for an index string and build the result object
- * consumed by handleJsonResponse.
- *
- * Returns raw PCM bytes instead of a base64-encoded WAV so the display layer can
- * feed the samples directly to WaveSurfer (via AudioBuffer) and only build the WAV
- * container lazily when the user requests a download.
- *
- * @param {Object} wasm - Initialized IndexWasm instance
- * @param {string} indexBase64 - Bijective base64 index (no header)
- * @param {Object} [audioFormat] - PCM format hints (all optional; defaults match C++ constants)
- * @param {number} [audioFormat.sampleRate]
- * @param {number} [audioFormat.bitDepth]
- * @param {number} [audioFormat.numChannels]
- * @returns {Promise<Object>} Result object: { indexBase64, metadata, position, pcm, sampleRate, bitDepth, numChannels }
- */
+// Reconstructs audio and metadata for an index string. Returns raw PCM bytes
+// rather than a base64 WAV — see docs/js/utils/README.md.
 export async function buildResultForIndex(wasm, indexBase64, audioFormat = {}) {
   const {
     sampleRate = DEFAULT_SAMPLE_RATE,

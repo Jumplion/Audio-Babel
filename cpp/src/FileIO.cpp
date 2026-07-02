@@ -13,9 +13,7 @@ namespace AudioBabel {
 
 using namespace Utilities;
 
-/**
- * We currently only support Bit Rates/Bit Depths of 8, 16, and 32
- */
+// Supported bit depths: 8, 16, 32.
 static auto isBitDepthSupported(uint16_t bitDepth) -> bool {
     return PCM_BITS_PER_SAMPLE.end() != std::find(PCM_BITS_PER_SAMPLE.begin(), PCM_BITS_PER_SAMPLE.end(), bitDepth);
 }

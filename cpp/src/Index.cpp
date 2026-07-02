@@ -19,28 +19,14 @@ using namespace Utilities;
 static constexpr size_t SAMPLE_BYTES = DEFAULT_BIT_DEPTH / BITS_PER_BYTE;
 
 auto Index::encode(const std::vector<uint8_t>& samples) -> boost::multiprecision::cpp_int {
-    /**
-     * Payload-only bijection (samples -> integer), O(N) closed form.
-     *
-     * Each PCM sample is one base-B digit, B = SAMPLE_ALPHABET_SIZE (65536 at
-     * 16-bit). This is bijective numeration (digit = value + 1):
-     *   n = 0; for each sample v: n = n*B + (v + 1)
-     *
-     * That per-sample loop is O(L^2) in bignum arithmetic, so we use the
-     * equivalent closed form instead. With digit d_i = v_i + 1:
-     *   n = Sum_i (v_i + 1) B^(L-1-i) = Sum_i v_i B^(L-1-i) + Sum_j B^j = V + S_L
-     * where:
-     *   - V is the payload read as a base-B number (first sample most
-     *     significant), i.e. the sample bytes big-endian per sample, built in
-     *     one linear import_bits pass.
-     *   - S_L = (B^L - 1)/(B - 1) is the base-B repunit (every digit == 1),
-     *     byte pattern L copies of 0x00 0x01, built in one linear pass.
-     * A single bignum addition propagates the per-sample (+1) carries, so the
-     * whole operation is O(N) with no per-sample loop.
-     *
-     * Since every digit is value+1, a trailing zero sample is a real digit and
-     * is preserved (k vs k+1 trailing zeros give different indices).
-     */
+    // Bijective numeration (digit = value + 1) applied per-sample naively is
+    // n = n*B + (v+1) in a loop, which is O(L^2) in bignum arithmetic. Instead
+    // we use the closed form: with digit d_i = v_i + 1,
+    //   n = Sum_i (v_i + 1) B^(L-1-i) = V + S_L
+    // where V is the payload read as one big base-B number (built in one
+    // import_bits pass) and S_L is the base-B repunit (every digit == 1). A
+    // single bignum addition propagates the per-sample +1 carries, so this is
+    // O(N) with no per-sample loop.
     const auto&  bytes = samples;
     const size_t L     = (bytes.size() + (SAMPLE_BYTES - 1)) / SAMPLE_BYTES; // whole samples (ceil)
 
@@ -80,22 +66,13 @@ auto Index::encode(const std::vector<uint8_t>& samples) -> boost::multiprecision
 }
 
 auto Index::decode(const boost::multiprecision::cpp_int& index) -> std::vector<uint8_t> {
-    /**
-     * Payload-only bijection (integer -> samples), O(N) closed form.
-     *
-     * Inverse of encode via the same identity n = V + S_L. Every alphabet-valid
-     * index decodes; nothing is rejected, and there is intentionally no
-     * integrity check.
-     *
-     * The sample count L is recovered without bignum division: for an L-sample
-     * payload, n lies in [S_L, S_{L+1}-1], and with m = n*(B-1) + 1,
-     *   L = floor(log_B(m)) = msb(m) / log2(B) = msb(m) / 16.
-     * Then S_L is the repunit, V = n - S_L (V < B^L), and the L base-B digits
-     * of V are the samples (most significant first). All steps are O(N).
-     *
-     * Decoded samples are serialized little-endian; see FileIO for wrapping
-     * the payload with a WAV header.
-     */
+    // Inverse of encode via n = V + S_L. Every alphabet-valid index decodes;
+    // there is intentionally no integrity check. The sample count L is
+    // recovered without bignum division: for an L-sample payload, n lies in
+    // [S_L, S_{L+1}-1], and with m = n*(B-1) + 1, L = msb(m) / 16 (see
+    // Utilities::bandIndex). Then V = n - S_L, and its L base-B digits are the
+    // samples (most significant first).
+
     // Undo the optional reversible scramble (identity unless enabled) before
     // decoding. The stored index is what carries the scramble.
     const IndexScramble::Config& scrambleCfg = IndexScramble::config();

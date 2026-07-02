@@ -19,12 +19,10 @@ namespace mp = boost::multiprecision;
 
 namespace {
 
-    // Global permutation key for the name-material Feistel. Deliberately a
-    // single fixed constant (not room- or coordinate-keyed): names must be a
-    // universal function of the index alone, so that the same index always
-    // yields the same names and so that names can be inverted into indexes
-    // without first knowing where the index lives. Distinct from the salts
-    // IndexScramble uses so the two features' keying can never alias.
+    // Global permutation key for the name-material Feistel. A single fixed
+    // constant, not room/coordinate-keyed: names must be a pure function of
+    // the index alone so they can be inverted into indexes without knowing
+    // where the index lives. Distinct from IndexScramble's salts.
     constexpr uint64_t NAME_KEY = 0xA24BAED4963EE407ULL;
 
     using AudioBabel::Utilities::feistelPow2;

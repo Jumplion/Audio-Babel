@@ -1,16 +1,7 @@
-/**
- * search.js
- *
- * Single consolidated module for the Search page: reconstruct audio from a
- * pasted index, generate a random index, or upload a WAV to derive its index.
- * All three actions converge on the same render pipeline (buildResultForIndex),
- * so genre/artist/album/track/position always come from the real C++/WASM
- * getMetadata/calculatePosition calls — never fabricated client-side.
- *
- * The index string is passed to/from WASM exactly as-is: no header is ever
- * prepended, appended, or stripped. The bijective base64 index IS the payload
- * encoding; WAV headers only exist on the materialized .wav Blob for playback.
- */
+// Search page logic: reconstruct audio from a pasted index, generate a
+// random index, or upload a WAV to derive its index. All three converge on
+// buildResultForIndex. The index string is passed to/from WASM exactly as-is
+// — no header is ever added or stripped.
 
 import { buildResultForIndex } from '../utils/resultBuilder.js';
 import { isValidBase64Url, filterToBase64UrlChars } from '../utils/validationUtils.js';
@@ -26,26 +17,12 @@ const VALID_BASE64_URL_CHAR = /[A-Za-z0-9_-]/;
 const RANDOM_MIN_CHARS = 65536; // ~64 KB  → ~0.5s of audio
 const RANDOM_MAX_CHARS = 131072; // ~128 KB → ~1.1s of audio
 
-/**
- * Render an index string: fetch its real metadata/audio from WASM and hand
- * the result to the shared display handler.
- * @param {string} indexString - Bijective base64 index (no header)
- * @param {Function} handleJsonResponse - Callback for handling response
- * @param {Object} [wavOptions] - Output WAV format overrides (sampleRate, bitDepth, numChannels)
- */
 async function renderIndex(indexString, handleJsonResponse, wavOptions) {
   const wasm = await getWasmModule();
   const result = await buildResultForIndex(wasm, indexString, wavOptions);
   await handleJsonResponse(result, indexString);
 }
 
-/**
- * Reconstruct audio from a user-entered index string.
- * @param {HTMLElement} inputEl - Input element containing the index
- * @param {Function} handleJsonResponse - Callback for handling response
- * @param {Function} setLoading - Callback for loading state
- * @param {Object} [wavOptions] - Output WAV format overrides (sampleRate, bitDepth, numChannels)
- */
 export async function generateFromIndex(inputEl, handleJsonResponse, setLoading, wavOptions) {
   const indexString = inputEl.value || '';
 
@@ -64,16 +41,8 @@ export async function generateFromIndex(inputEl, handleJsonResponse, setLoading,
   }
 }
 
-/**
- * Generate a random valid index string and reconstruct its audio.
- * Per the index format, every alphabet-valid string decodes to a valid
- * payload — so a random index never needs to go through the PCM->index
- * encode path.
- * @param {Function} handleJsonResponse - Callback for handling response
- * @param {Function} setLoading - Callback for loading state
- * @param {HTMLTextAreaElement} [inputEl] - Index input to populate with the generated index
- * @param {Object} [wavOptions] - Output WAV format overrides (sampleRate, bitDepth, numChannels)
- */
+// Every alphabet-valid string decodes to a valid payload, so a random index
+// never needs to go through the PCM->index encode path.
 export async function generateRandom(handleJsonResponse, setLoading, inputEl, wavOptions) {
   try {
     setLoading(true);
@@ -107,17 +76,11 @@ export async function generateRandom(handleJsonResponse, setLoading, inputEl, wa
   }
 }
 
-/**
- * Derive a WAV file's real index via WASM's encodeIndex and populate the
- * index input with it. Does not reconstruct/display audio — the user
- * triggers that themselves via the Reconstruct button.
- * @param {File} file - WAV file to derive the index from
- * @param {HTMLTextAreaElement} inputEl - Index input to populate
- * @param {Function} setLoading - Callback for loading state
- * @returns {Promise<{sampleRate: number, bitDepth: number, numChannels: number}|undefined>}
- *   The uploaded file's actual WAV properties, so the caller can sync the
- *   advanced-options dropdowns to it. Undefined if extraction failed.
- */
+// Derives a WAV file's real index via WASM's encodeIndex and populates the
+// index input with it. Does not reconstruct/display audio — the user
+// triggers that themselves via the Reconstruct button. Resolves to the
+// uploaded file's actual WAV properties (so the caller can sync the
+// advanced-options dropdowns to it), or undefined if extraction failed.
 export async function extractIndexFromWav(file, inputEl, setLoading) {
   if (!file) {
     throw new Error('No file provided');
@@ -143,10 +106,6 @@ export async function extractIndexFromWav(file, inputEl, setLoading) {
   }
 }
 
-/**
- * Auto-resize a textarea to fit its content
- * @param {HTMLTextAreaElement} element - Textarea element to resize
- */
 function autosizeTextarea(element) {
   try {
     element.style.height = 'auto';
@@ -157,11 +116,6 @@ function autosizeTextarea(element) {
   }
 }
 
-/**
- * Handle paste event to filter invalid characters
- * @param {ClipboardEvent} e - Paste event
- * @param {HTMLInputElement|HTMLTextAreaElement} inputEl - Input element
- */
 function handlePaste(e, inputEl) {
   try {
     const text = (e.clipboardData || window.clipboardData).getData('text') || '';
@@ -170,7 +124,6 @@ function handlePaste(e, inputEl) {
     if (filtered !== text) {
       e.preventDefault();
 
-      // Insert filtered text at caret position
       const start = inputEl.selectionStart || 0;
       const end = inputEl.selectionEnd || 0;
       const currentValue = inputEl.value || '';
@@ -186,10 +139,6 @@ function handlePaste(e, inputEl) {
   }
 }
 
-/**
- * Handle input event to sanitize programmatically inserted text
- * @param {HTMLInputElement|HTMLTextAreaElement} inputEl - Input element
- */
 function handleInput(inputEl) {
   const value = inputEl.value || '';
   const filtered = filterToBase64UrlChars(value);
@@ -206,16 +155,11 @@ function handleInput(inputEl) {
   autosizeTextarea(inputEl);
 }
 
-/**
- * Attach input filter to prevent invalid characters in base64 URL-safe input
- * Filters input to only allow A-Z, a-z, 0-9, -, _
- * Also auto-resizes textarea elements to fit content
- * @param {HTMLInputElement|HTMLTextAreaElement} inputEl - Input element to filter
- */
+// Filters an input/textarea to base64url characters (A-Z, a-z, 0-9, -, _)
+// on keypress, paste, and programmatic input, and keeps it autosized.
 export function attachSearchInputFilter(inputEl) {
   if (!inputEl) return;
 
-  // Prevent invalid keypress
   inputEl.addEventListener('keypress', (e) => {
     const char = String.fromCharCode(e.charCode || e.which || 0);
     if (!VALID_BASE64_URL_CHAR.test(char)) {
@@ -223,12 +167,8 @@ export function attachSearchInputFilter(inputEl) {
     }
   });
 
-  // Sanitize pasted content
   inputEl.addEventListener('paste', (e) => handlePaste(e, inputEl));
-
-  // Sanitize programmatic input (drag/drop, etc.)
   inputEl.addEventListener('input', () => handleInput(inputEl));
 
-  // Set initial size
   autosizeTextarea(inputEl);
 }

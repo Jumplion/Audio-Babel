@@ -1,16 +1,9 @@
 /**
- * indexViewer.js
- *
  * Renders a full audio index as a standalone HTML page in a new browser tab.
  */
 
 import { escapeHtml } from '../utils/dom.js';
 
-/**
- * Generate HTML for index viewer page
- * @param {string} indexContent - Full index string to display
- * @returns {string} Complete HTML page
- */
 function generateIndexViewerHTML(indexContent) {
   return `
     <!DOCTYPE html>
@@ -50,10 +43,6 @@ function generateIndexViewerHTML(indexContent) {
   `;
 }
 
-/**
- * Open index content in a new browser tab
- * @param {string} fullIndex - Complete index string
- */
 export function openIndexInNewTab(fullIndex) {
   const newWindow = window.open('', '_blank');
   if (newWindow) {

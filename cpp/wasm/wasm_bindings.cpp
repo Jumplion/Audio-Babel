@@ -1,15 +1,6 @@
-/**
- * @file wasm_bindings.cpp
- * @brief WebAssembly bindings for Audio Index library
- * 
- * Exposes C++ functions to JavaScript for browser-based audio indexing.
- * Uses Emscripten's embind API to create JavaScript-callable wrappers
- * for the core AudioBabel library.
- *
- * The exported functions are listed in cpp/wasm/README.md.
- *
- * @see docs/js/core/indexWasm.js for JavaScript integration wrapper
- */
+// Emscripten embind wrappers exposing the AudioBabel library to JavaScript.
+// See cpp/wasm/README.md for the exported function list and
+// docs/js/core/indexWasm.js for the JS-side integration.
 
 #include <emscripten/bind.h>
 #include <emscripten/emscripten.h>
@@ -103,10 +94,7 @@ static std::string jsonStringArray(const std::vector<std::string>& values) {
 
 // Direct embind-compatible functions returning std::string / emscripten::val.
 
-/**
- * Extract metadata from a base64-encoded audio index.
- * Returns JSON: {"genre":"...", "artist":"...", "album":"...", "track":"...", "cover":"..."}
- */
+// Returns JSON: {"genre":"...", "artist":"...", "album":"...", "track":"...", "cover":"..."}
 static std::string getMetadataWrapper(const std::string& base64Index) {
     try {
         IndexMetadata metadata = IndexMetadata::extractMetadataFromIndex(base64Index);
@@ -125,11 +113,9 @@ static std::string getMetadataWrapper(const std::string& base64Index) {
     }
 }
 
-/**
- * Decode a base64 index in one pass: b64ToIndex is called exactly once, then
- * metadata, position, and PCM are all derived from the same cpp_int.
- * Returns a JS object {metadataJson, positionJson, pcm: Uint8Array}, or null on error.
- */
+// Decodes a base64 index in one pass: b64ToIndex runs once, then metadata,
+// position, and PCM are all derived from the same cpp_int. Returns a JS
+// object {metadataJson, positionJson, pcm: Uint8Array}, or null on error.
 static emscripten::val decodeIndexWrapper(const std::string& base64Index) {
     try {
         cpp_int index = AudioBabel::Utilities::b64ToIndex(base64Index);
@@ -171,9 +157,6 @@ static emscripten::val decodeIndexWrapper(const std::string& base64Index) {
     }
 }
 
-/**
- * Reconstruct a base64 index from a library position (lossless).
- */
 static std::string reconstructIndexWrapper(const std::string& roomStr, int wall, int shelf, int album, int track) {
     try {
         LibraryPosition pos;
@@ -192,11 +175,7 @@ static std::string reconstructIndexWrapper(const std::string& roomStr, int wall,
     }
 }
 
-/**
- * Encode raw PCM bytes into a bijective base64 index string.
- * This is the forward direction (PCM -> index); decodeIndex is its inverse.
- * No header is embedded — the index is a pure bijection over the PCM payload.
- */
+// Forward direction (PCM -> index); decodeIndex is its inverse.
 static std::string encodeIndexWrapper(const emscripten::val& pcmBytes, int sampleRate, int bitDepth, int numChannels) {
     // sampleRate/bitDepth/numChannels are accepted for API compatibility with callers,
     // but the bijection is payload-only and never uses them.
@@ -233,11 +212,9 @@ static std::string getLibraryConstantsWrapper() {
     return json;
 }
 
-/**
- * Batch name generators for the browse UI — one call per rendered level
- * instead of one getMetadata() call per sibling. Each returns a JSON array
- * of names ordered by slot, or a JSON error object on invalid input.
- */
+// Batch name generators for the browse UI — one call per rendered level
+// instead of one getMetadata() call per sibling. Each returns a JSON array
+// of names ordered by slot, or a JSON error object on invalid input.
 static std::string getGenreNamesWrapper(const std::string& roomStr) {
     try {
         return jsonStringArray(IndexNaming::genreNames(roomStr));
@@ -271,11 +248,9 @@ static std::string getTrackNamesWrapper(const std::string& roomStr, int wall, in
     }
 }
 
-/**
- * Serialize constructed candidate indexes into the JSON result array shared by
- * constructByNames and constructByCover: each entry carries the index itself,
- * its library position, and the four metadata names it decodes to.
- */
+// Serializes constructed candidate indexes into the JSON result array shared
+// by constructByNames and constructByCover: each entry carries the index
+// itself, its library position, and the four metadata names it decodes to.
 static std::string constructedIndexesToJson(const std::vector<cpp_int>& indexes) {
     std::string json = "[";
     for (size_t i = 0; i < indexes.size(); ++i) {
@@ -303,17 +278,11 @@ static std::string constructedIndexesToJson(const std::vector<cpp_int>& indexes)
     return json;
 }
 
-/**
- * Construct indexes that carry the requested metadata names (see IndexNaming.h).
- * Each of genre/artist/album/track is either a name to pin down or an empty
- * string meaning "leave free" (randomized per result). `seed` drives the
- * per-call randomness so results are reproducible for a given seed. Returns a
- * JSON array of objects: {"indexBase64","room","wall","shelf","album","track",
- * "genreName","artistName","albumName","trackName"}, or a JSON error object.
- *
- * Unlike the old room-scanning search, this never scans: because the naming
- * permutation is invertible, the names are turned straight into indexes.
- */
+// Constructs indexes that carry the requested metadata names (see
+// IndexNaming.h). Each of genre/artist/album/track is either a name to pin
+// down or an empty string meaning "leave free" (randomized per result, seeded
+// by `seed`). Returns the JSON array constructedIndexesToJson produces, or a
+// JSON error object.
 static std::string constructByNamesWrapper(
     const std::string& genre, const std::string& artist, const std::string& album, const std::string& track, int maxResults, double seed) {
     try {
@@ -342,14 +311,12 @@ static std::string constructByNamesWrapper(
     }
 }
 
-/**
- * Construct indexes whose cover art renders the given pixel bytes (see
- * IndexMetadata::constructIndexesForCover). `pixelBytes` must be a Uint8Array
- * of exactly coverPixelBytes (see getLibraryConstants) packed 8-bit RGB values
- * in reading order — the caller quantizes the uploaded image down to the
- * coverPixelsPerSide grid first. Returns the same JSON result shape as
- * constructByNames, or a JSON error object.
- */
+// Constructs indexes whose cover art renders the given pixel bytes (see
+// IndexMetadata::constructIndexesForCover). `pixelBytes` must be a Uint8Array
+// of exactly coverPixelBytes (see getLibraryConstants) packed 8-bit RGB values
+// in reading order — the caller quantizes the uploaded image to the
+// coverPixelsPerSide grid first. Returns the same JSON shape as
+// constructByNames, or a JSON error object.
 static std::string constructByCoverWrapper(const emscripten::val& pixelBytes, int maxResults, double seed) {
     try {
         std::vector<uint8_t> pixels = emscripten::convertJSArrayToNumberVector<uint8_t>(pixelBytes);

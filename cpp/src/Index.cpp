@@ -32,20 +32,17 @@ auto Index::encode(const std::vector<uint8_t>& samples) -> boost::multiprecision
 
     cpp_int index = 0;
     if (L != 0) {
-        // Big-endian-by-sample payload bytes (V), most-significant-sample first
-        // for import_bits(msv=true). S_L (the repunit) comes from the shared
-        // helper in Utilities.h.
+        // Payload bytes (V), most-significant-sample first for import_bits(msv=true).
+        // S_L (the repunit) comes from the shared helper in Utilities.h.
         std::vector<uint8_t> valueBytes(L * SAMPLE_BYTES, 0);
         for (size_t i = 0; i < L; ++i) {
-            size_t   lo  = i * SAMPLE_BYTES;
-            uint32_t low = bytes[lo];
+            size_t lo = i * SAMPLE_BYTES;
             // A stray trailing byte (should not occur for 16-bit data) is treated
-            // as a low byte with a zero high byte so no value is silently dropped.
-            uint32_t high = (lo + 1 < bytes.size()) ? bytes[lo + 1] : 0U;
+            // as a zero byte so no value is silently dropped.
+            size_t hi = lo + 1 < bytes.size() ? lo + 1 : lo;
 
-            // Sample value, big-endian into valueBytes (high byte first).
-            valueBytes[lo]     = static_cast<uint8_t>(high);
-            valueBytes[lo + 1] = static_cast<uint8_t>(low);
+            valueBytes[lo]     = bytes[lo];
+            valueBytes[lo + 1] = bytes[hi];
         }
 
         cpp_int value = 0;
@@ -96,13 +93,7 @@ auto Index::decode(const boost::multiprecision::cpp_int& index) -> std::vector<u
             std::copy(valueBytes.begin(), valueBytes.end(), padded.end() - static_cast<std::ptrdiff_t>(valueBytes.size()));
         }
 
-        // Each sample is big-endian [high, low] in `padded`; emit little-endian.
-        samples.resize(L * SAMPLE_BYTES);
-        for (size_t i = 0; i < L; ++i) {
-            size_t off       = i * SAMPLE_BYTES;
-            samples[off]     = padded[off + 1]; // low byte
-            samples[off + 1] = padded[off];     // high byte
-        }
+        samples = padded;
     }
 
     return samples;

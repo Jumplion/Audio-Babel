@@ -205,6 +205,49 @@ inline auto feistelPow2(const boost::multiprecision::cpp_int& x, size_t e, Round
     return (hi << h) | lo;
 }
 
+// Reduce a (possibly multi-megabyte) non-negative index modulo `modulus` in
+// O(N) time. Shared by IndexNaming (name-material reduction) and
+// IndexMetadata (cover-material reduction) — both fold a huge index down to a
+// fixed-width value before Feistel-permuting it, and both need `modulus` to
+// be something other than a power of two: a power-of-two modulus would make
+// the result depend only on the index's low bits (a plain bitmask), whereas
+// an arbitrary modulus mixes every bit of the index into the residue via the
+// carries of Horner's rule below, so two indexes differing only in their low
+// bits (as sibling library positions do — see LibraryPosition.cpp) still land
+// on well-separated residues.
+//
+// The obvious `idx % modulus` is a hot O(N^2) trap: boost's cpp_int division
+// forms the full ~N-bit quotient even though only the residue is wanted, so a
+// 30s upload spent ~33s here and a 60s upload ~4 minutes. We never need the
+// quotient, so fold the index into the remainder in fixed-width chunks
+// (Horner's rule in base 2^CHUNK_BITS): each step reduces a value only a
+// little wider than `modulus`, so the per-chunk work is O(1) and the whole
+// reduction is O(N). The result is bit-identical to `idx % modulus`.
+inline auto reduceModLarge(const boost::multiprecision::cpp_int& idx,
+                           const boost::multiprecision::cpp_int& modulus) -> boost::multiprecision::cpp_int {
+    using boost::multiprecision::cpp_int;
+    if (idx < modulus) {
+        return idx;
+    }
+    // Most-significant-byte-first bytes of the index (one linear pass).
+    std::vector<uint8_t> bytes;
+    boost::multiprecision::export_bits(idx, std::back_inserter(bytes), BITS_PER_BYTE, true);
+
+    constexpr size_t CHUNK_BYTES = 32; // 256-bit folding step (comfortably < modulus's width)
+    cpp_int          rem         = 0;
+    const size_t     n           = bytes.size();
+    for (size_t i = 0; i < n;) {
+        const size_t take  = std::min(CHUNK_BYTES, n - i);
+        cpp_int      chunk = 0;
+        for (size_t k = 0; k < take; ++k) {
+            chunk = (chunk << 8) | cpp_int(bytes[i + k]);
+        }
+        rem = ((rem << (take * 8)) + chunk) % modulus;
+        i += take;
+    }
+    return rem;
+}
+
 // --- Base64 URL-safe utilities (alphabet A-Z a-z 0-9 - _, no padding) ---------
 // URL-safe base64 alphabet used by encoder/decoder (no padding)
 constexpr char BASE64_URL_ALPHA[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";

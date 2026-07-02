@@ -100,6 +100,9 @@ cpp/wasm/boost/
 coverage/
 dist/
 
+### Claude Code agent worktrees (transient, local-only)
+.claude/worktrees/
+
 ### Generated test outputs (reconstructed WAVs + run logs)
 cpp/tests/Test Audio/Outputs/
 cpp/tests/test_results.log

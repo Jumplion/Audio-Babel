@@ -183,8 +183,9 @@ class IndexMetadata {
      *   representable pattern — a difference of at most 3 in one tile's blue
      *   channel, invisible in practice.
      */
-    static auto constructIndexesForCover(const std::vector<uint8_t>& pixels, size_t count, uint64_t seed)
-        -> std::vector<boost::multiprecision::cpp_int>;
+    static auto constructIndexesForCover(const std::vector<uint8_t>& pixels,
+                                         size_t                      count,
+                                         uint64_t                    seed) -> std::vector<boost::multiprecision::cpp_int>;
 
    private:
     /**

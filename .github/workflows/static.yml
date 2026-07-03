@@ -12,6 +12,14 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+  # WASM Build's auto-commit uses GITHUB_TOKEN, which GitHub Actions
+  # deliberately excludes from triggering the push event above (anti-recursion
+  # protection) -- so a WASM-only rebuild would otherwise never redeploy.
+  workflow_run:
+    workflows: ["WASM Build"]
+    types: [completed]
+    branches: ["main"]
+
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
@@ -27,6 +35,9 @@ concurrency:
 jobs:
   # Single deploy job since we're just deploying
   deploy:
+    # For workflow_run, only proceed if WASM Build actually succeeded --
+    # otherwise this would also fire (and deploy stale content) on failure.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -34,7 +45,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
       - name: Verify WASM files exist
         run: |
           echo "Checking for required WASM files..."
